@@ -1372,6 +1372,7 @@
     .cooldown-dismiss:active { background: var(--btn-hover); }
 
     /* 换一批加载中：图标旋转+变淡，避免静默加载让用户以为没点动 */
+    #refreshBatchBtn:disabled { opacity: 0.35; color: var(--text-sub) !important; cursor: not-allowed; }
     #refreshBatchBtn.loading { opacity: 0.55; }
     #refreshBatchBtn.loading svg { animation: refreshSpin 1s linear infinite; }
     @keyframes refreshSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -6752,7 +6753,18 @@
     }
 
     // Render client list
+    // 换一批的唯一放行条件：当前拨号列表实际为空。
+    function syncRefreshBatchButton() {
+      var btn = document.getElementById('refreshBatchBtn');
+      if (!btn) return;
+      var hasCustomers = Array.isArray(importedClients) && importedClients.length > 0;
+      btn.disabled = hasCustomers || btn.classList.contains('loading');
+      btn.title = hasCustomers ? '当前拨号列表还有 ' + importedClients.length + ' 位客户，清空后才能换一批' : '换一批 — 当前列表为空，可以加载下一批';
+      btn.setAttribute('aria-disabled', hasCustomers ? 'true' : 'false');
+    }
+
     function renderDialCards() {
+      syncRefreshBatchButton();
       var container = document.getElementById('cardsContainer');
       if (!container) return;
       
@@ -9496,6 +9508,12 @@ function updateAutoDialBtn() {
     window.refreshBatch = function() {
       var btn = document.getElementById('refreshBatchBtn');
       if (!btn || btn.disabled) return;
+      // 不看拨打状态或批次锁：列表中只要还有任何客户，就绝对禁止换批。
+      if (Array.isArray(importedClients) && importedClients.length > 0) {
+        syncRefreshBatchButton();
+        alert('当前拨号列表还有 ' + importedClients.length + ' 位客户，请先清空列表后再换一批。');
+        return;
+      }
       if (window._roundTransferBlocked || window._roundTransferPending) {
         alert('本轮客户尚未全部成功转入公海，暂不能换一批/加载新客户。可等待自动转公海成功，或使用右上角手动清空。');
         return;
@@ -9525,7 +9543,7 @@ function updateAutoDialBtn() {
       if (!btn || btn.disabled) return;
       btn.disabled = true;
       btn.classList.add('loading');
-      function finishPull() { btn.classList.remove('loading'); btn.disabled = false; }
+      function finishPull() { btn.classList.remove('loading'); syncRefreshBatchButton(); }
 
       var retryCount = 0;
       var maxRetries = 5;
