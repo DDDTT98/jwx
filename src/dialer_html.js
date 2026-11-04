@@ -597,12 +597,16 @@
       color: var(--text-main);
     }
     .client-phone-btn.copied {
-      color: var(--text-main) !important;
-      text-shadow: 0 0 6px rgba(7, 193, 96, 0.45);
-      font-weight: 700;
+      color: #e53935 !important;
+      text-shadow: none;
+      font-weight: 800;
     }
     body.dark-mode .client-phone-btn.copied {
       text-shadow: 0 0 8px rgba(7, 193, 96, 0.6);
+    }
+    .crm-copy-btn.copied-phone {
+      color: #e53935 !important;
+      font-weight: 800;
     }
     .client-card-tags {
       display: flex;
@@ -6888,7 +6892,7 @@
             }
           }
 
-          var phoneClass = c.copied ? 'client-phone-btn copied' : 'client-phone-btn';
+          var phoneClass = c.phone_copied ? 'client-phone-btn copied' : 'client-phone-btn';
 
           return '<div class="' + cardClass + '" id="xdc_' + i + '">' +
             '<div class="client-card-top">' +
@@ -7181,7 +7185,7 @@
             '<td class="col-no">' + rowNo + '</td>' +
             '<td class="col-status">' + badgeHtml + '</td>' +
             '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
-            '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal ? maskPhone(phoneVal) : '-') + '</span></td>' +
+            '<td class="col-phone"><span class="crm-copy-btn' + (c.phone_copied ? ' copied-phone' : '') + '" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal ? maskPhone(phoneVal) : '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
@@ -7217,7 +7221,7 @@
               cl.copied = true;
               if (copyType === 'copy_company') { cl.company_copied = true; scheduleReminder(cl); }
               else if (copyType === 'copy_name') { cl.name_copied = true; scheduleReminder(cl); }
-              else if (copyType === 'copy_phone') cl.phone_copied = true;
+              else if (copyType === 'copy_phone') { cl.phone_copied = true; btn.classList.add('copied-phone'); }
               saveState();
             }
 
