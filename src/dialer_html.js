@@ -3136,7 +3136,7 @@
           console.error('[round] checkAndTransferBatch failed:', e);
         }
         showReminderOverlay();
-      }, 8000);
+      }, 4000);
     }
     document.addEventListener('visibilitychange', function() {
       if (document.hidden) return;
