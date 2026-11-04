@@ -3441,10 +3441,9 @@
     function maskPhone(p) {
       if (!p) return '';
       var s = String(p).trim();
-      if (s.length >= 11) {
-        return s.slice(0, 3) + '****' + s.slice(7);
-      }
-      return s;
+      var digits = s.replace(/\D/g, '');
+      if (digits.length <= 6) return s;
+      return digits.slice(0, 3) + '*'.repeat(digits.length - 6) + digits.slice(-3);
     }
 
     function cleanPhone(val) {
@@ -6762,7 +6761,7 @@
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(c.copied ? maskPhone(phoneVal) : phoneVal) + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(maskPhone(phoneVal)) + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
@@ -7046,7 +7045,7 @@
             '<td class="col-no">' + rowNo + '</td>' +
             '<td class="col-status">' + badgeHtml + '</td>' +
             '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
-            '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal || '-') + '</span></td>' +
+            '<td class="col-phone"><span class="crm-copy-btn" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal ? maskPhone(phoneVal) : '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
             '<td class="col-note">' + esc(c.note||'-') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
