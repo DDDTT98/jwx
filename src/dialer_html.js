@@ -2151,6 +2151,10 @@
               <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 600; white-space: nowrap;">批次标签</span>
               <input type="text" id="batchLabelInput" placeholder="如: 6月展会名单" value="" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:0.5px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none;">
             </div>
+            <div style="display:flex;align-items:center;gap:7px;width:100%;margin-top:8px;padding:7px 9px;border-radius:8px;background:rgba(231,76,60,0.06);">
+              <input type="checkbox" id="autoDeleteBatchAfterDial" style="width:15px;height:15px;accent-color:#e74c3c;flex-shrink:0;">
+              <label for="autoDeleteBatchAfterDial" style="font-size:0.7rem;color:var(--text-main);font-weight:600;">本批次全部拨打完成后自动删除（不进入公海）</label>
+            </div>
             <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
               <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 600; white-space: nowrap;">默认分类</span>
               <select id="importCategorySelect" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:0.5px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; cursor:pointer;">
@@ -3399,7 +3403,7 @@
         }
       }
       // 异步写入 Supabase（fire-and-forget）
-      fetch('/api/dialer/timeline', {
+      return fetch('/api/dialer/timeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -3412,6 +3416,37 @@
       }).catch(function(err) {
         console.warn('[timeline] record failed:', err);
       });
+    }
+
+    // 仅当云端确认整批客户均已接通或未接通时，才删除自动清理批次
+    var _autoDeleteBatchChecks = {};
+    function checkAutoDeleteBatch(batchLabel) {
+      if (!batchLabel || _autoDeleteBatchChecks[batchLabel]) return _autoDeleteBatchChecks[batchLabel] || Promise.resolve(null);
+      var task = fetch('/api/dialer/batches/auto-delete-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batch_label: batchLabel })
+      }).then(function(r) { return r.json(); }).then(function(res) {
+        if (res && res.success && res.deleted) {
+          importedClients = importedClients.filter(function(c) { return String(c.batch_label || '') !== String(batchLabel); });
+          saveState();
+          renderDialCards();
+          updateStats();
+          refreshAccountDataCount();
+          showCopyLimitToast('本批次 ' + (res.count || 0) + ' 位客户已全部拨打完成，已自动彻底删除（未进入公海）', true);
+        } else if (res && !res.success) {
+          console.error('[auto-delete-batch] check failed:', res.error || 'unknown');
+        }
+        return res;
+      }).catch(function(err) {
+        console.error('[auto-delete-batch] request failed:', err);
+        return null;
+      }).then(function(res) {
+        delete _autoDeleteBatchChecks[batchLabel];
+        return res;
+      });
+      _autoDeleteBatchChecks[batchLabel] = task;
+      return task;
     }
 
     // 操作记录格式化显示
@@ -3617,10 +3652,11 @@
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
       var payload = serializeCustomersForSupabase(customers);
       var accountId = getOrCreateAccountId();
+      var autoDeleteAfterDial = !!(document.getElementById('autoDeleteBatchAfterDial') && document.getElementById('autoDeleteBatchAfterDial').checked);
       return fetch("/api/dialer/upload-customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customers: payload, batch_label: label, account_id: accountId })
+        body: JSON.stringify({ customers: payload, batch_label: label, account_id: accountId, auto_delete_after_dial: autoDeleteAfterDial })
       })
       .then(function(res) { return res.json(); })
       .then(function(data) {
@@ -3729,6 +3765,8 @@
       if (blInput) {
         blInput.value = '导入-' + new Date().toISOString().slice(0, 19).replace('T', ' ');
       }
+      var autoDeleteToggle = document.getElementById('autoDeleteBatchAfterDial');
+      if (autoDeleteToggle) autoDeleteToggle.checked = false;
     }
 
     function showAIScanningUI(fileName) {
@@ -7332,7 +7370,10 @@
  var c = importedClients[currentCallIdx];
  if (c) {
  var note = document.getElementById('callLogNote').value.trim();
- recordTimeline(c.phone || c.mobile, 'call_' + status, note);
+ var batchLabelForCleanup = c.batch_label || '';
+ recordTimeline(c.phone || c.mobile, 'call_' + status, note).then(function() {
+   if (batchLabelForCleanup) checkAutoDeleteBatch(batchLabelForCleanup);
+ });
  }
  saveState();
  renderDialCards();
