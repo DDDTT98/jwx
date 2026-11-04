@@ -205,7 +205,7 @@ async function countKvPrefix(env, prefix) {
   return total;
 }
 function clientOperationKey(accountId, date, mobile, kind) {
-  return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\\D/g, ''));
+  return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\D/g, ''));
 }
 // 设备级冷却倒计时（每台设备各自走 45-60 分钟）：与账号级轮次统计分开存，互不覆盖
 function cooldownKey(accountId, date, deviceId) {
@@ -1968,8 +1968,8 @@ export default {
         const { mobile, entry } = body;
         const accountId = _dialerAccountId;
         if (!mobile || !entry || !entry.type) throw new Error('缺少参数');
-        const opDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
-        const cleanMobile = String(mobile).replace(/\\D/g, '');
+        const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
+        const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
         await sb.updateCustomer(mobile, { last_operation: entry }, accountId);
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
