@@ -1372,7 +1372,9 @@
     .cooldown-dismiss:active { background: var(--btn-hover); }
 
     /* 换一批加载中：图标旋转+变淡，避免静默加载让用户以为没点动 */
-    #refreshBatchBtn:disabled { opacity: 0.35; color: var(--text-sub) !important; cursor: not-allowed; }
+    #refreshBatchBtn.list-not-empty { opacity: 0.35; color: var(--text-sub) !important; cursor: pointer; }
+    #refreshBatchBtn.list-not-empty:active { opacity: 0.55; }
+    #refreshBatchBtn:disabled { opacity: 0.55; cursor: wait; }
     #refreshBatchBtn.loading { opacity: 0.55; }
     #refreshBatchBtn.loading svg { animation: refreshSpin 1s linear infinite; }
     @keyframes refreshSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -6758,9 +6760,11 @@
       var btn = document.getElementById('refreshBatchBtn');
       if (!btn) return;
       var hasCustomers = Array.isArray(importedClients) && importedClients.length > 0;
-      btn.disabled = hasCustomers || btn.classList.contains('loading');
-      btn.title = hasCustomers ? '当前拨号列表还有 ' + importedClients.length + ' 位客户，清空后才能换一批' : '换一批 — 当前列表为空，可以加载下一批';
-      btn.setAttribute('aria-disabled', hasCustomers ? 'true' : 'false');
+      // 有客户时只做视觉置灰，不设置原生 disabled，确保点击后能给出原因提示。
+      btn.disabled = btn.classList.contains('loading');
+      btn.classList.toggle('list-not-empty', hasCustomers);
+      btn.title = hasCustomers ? '当前拨号列表还有 ' + importedClients.length + ' 位客户，点击查看提示；清空后才能换一批' : '换一批 — 当前列表为空，可以加载下一批';
+      btn.setAttribute('aria-disabled', (hasCustomers || btn.disabled) ? 'true' : 'false');
     }
 
     function renderDialCards() {
@@ -9507,8 +9511,8 @@ function updateAutoDialBtn() {
     // 换一批：按 created_at.desc 依次拉取（与数据库看板首页同序），KV游标自动推进实现沉底
     window.refreshBatch = function() {
       var btn = document.getElementById('refreshBatchBtn');
-      if (!btn || btn.disabled) return;
-      // 不看拨打状态或批次锁：列表中只要还有任何客户，就绝对禁止换批。
+      if (!btn || btn.classList.contains('loading')) return;
+      // 不看拨打状态或批次锁：列表中只要还有任何客户，就绝对禁止换批，但点击时明确提示。
       if (Array.isArray(importedClients) && importedClients.length > 0) {
         syncRefreshBatchButton();
         alert('当前拨号列表还有 ' + importedClients.length + ' 位客户，请先清空列表后再换一批。');
