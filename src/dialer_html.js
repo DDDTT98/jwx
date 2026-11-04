@@ -9514,11 +9514,6 @@ function updateAutoDialBtn() {
         alert('当前拨号列表还有 ' + importedClients.length + ' 位客户，请先清空列表后再换一批。');
         return;
       }
-      if (window._roundTransferBlocked || window._roundTransferPending) {
-        alert('本轮客户尚未全部成功转入公海，暂不能换一批/加载新客户。可等待自动转公海成功，或使用右上角手动清空。');
-        return;
-      }
-
       // 冷却期（转出公海后 45-60 分钟随机）未走完：第一次点换一批弹防频繁提醒，
       // 点「知道了」仅关闭弹窗、本次不拉列表；需再点一次换一批才真正拉取（防频繁）
       var _cdInfo = getRoundInfo();
