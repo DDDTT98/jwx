@@ -2003,6 +2003,7 @@
         <li class="reminder-item"><span class="reminder-num">4</span>早晚想一下非硬广告的文案，朋友圈每天发一条</li>
         <li class="reminder-item"><span class="reminder-num">5</span>有些纠结的客户主动删除他防止权重降低</li>
       </ol>
+      <button type="button" id="reminderLearnBtn" onclick="window.location.href='/learn'" style="width:100%;margin:0 0 8px;padding:10px 14px;border:1px solid rgba(74,108,247,0.28);border-radius:10px;background:rgba(74,108,247,0.08);color:#4a6cf7;font-size:0.88rem;font-weight:700;cursor:pointer;">📖 进入学习中心</button>
       <button class="reminder-dismiss" id="reminderDismiss" onclick="document.getElementById('reminderOverlay').classList.remove('active');if(window._reminderTimer)clearInterval(window._reminderTimer);">知道了</button>
     </div>
   </div>
