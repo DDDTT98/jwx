@@ -2278,6 +2278,12 @@
             <!-- Unstructured Preview Table Container (Only visible for TXT/DOCX/PDF/OCR) -->
             <div id="aiUnstructuredContainer" style="display: none; width: 100%; border: 0.5px solid var(--card-border); border-radius: var(--radius-sm); overflow: hidden; background: var(--card-bg);">
               <div style="font-size: 0.6rem; font-weight: 600; color: var(--text-light); background: var(--btn-bg); padding: 4px 8px; border-bottom: 0.5px solid var(--card-border);">AI 智能提取结果校验与编辑面板：</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--accent-wechat-bg);border-bottom:0.5px solid var(--card-border);align-items:center;">
+                <input id="bulkMissingName" type="text" placeholder="批量补充姓名（仅填空姓名）" style="flex:1;min-width:130px;height:30px;padding:0 8px;border:1px solid var(--card-border);border-radius:7px;background:var(--card-bg);color:var(--text-main);font-size:12px;">
+                <input id="bulkMissingCompany" type="text" placeholder="批量补充单位名称（仅填空单位）" style="flex:1;min-width:150px;height:30px;padding:0 8px;border:1px solid var(--card-border);border-radius:7px;background:var(--card-bg);color:var(--text-main);font-size:12px;">
+                <button id="applyBulkMissingFieldsBtn" type="button" class="btn-secondary" style="padding:6px 12px;font-size:12px;">批量填入</button>
+                <span id="bulkMissingFieldsHint" style="width:100%;font-size:11px;color:var(--text-soft);">只补充没有姓名或单位的号码，不覆盖已识别内容；填入后仍可逐条修改。</span>
+              </div>
               <div style="max-height: 250px; overflow-y: auto; overflow-x: auto; width: 100%;">
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.65rem; text-align: left;" id="aiUnstructuredTable">
                   <thead>
@@ -4226,9 +4232,12 @@
     }
 
     function renderAIReportForVcf(contactsList) {
-      tempImportData = contactsList;
-      tempImportType = 'vcf';
-      
+      // VCF 也进入统一的可编辑预览流程，允许对缺失姓名/单位的号码批量补填
+      tempImportData = contactsList || [];
+      tempImportType = 'unstructured';
+      window.renderAIUnstructuredReport('VCF 通讯录', tempImportData);
+      return;
+
       if (contactsList && contactsList.length > 0) {
         executeAIImportVcf();
         showCheckToast();
@@ -6365,6 +6374,37 @@
  }
  });
  });
+ }
+
+ // Batch-fill only missing names and company names in text/VCF imports
+ var bulkFillBtn = document.getElementById('applyBulkMissingFieldsBtn');
+ if (bulkFillBtn) {
+   bulkFillBtn.addEventListener('click', function() {
+     var nameValue = (document.getElementById('bulkMissingName') || {}).value || '';
+     var companyValue = (document.getElementById('bulkMissingCompany') || {}).value || '';
+     nameValue = nameValue.trim();
+     companyValue = companyValue.trim();
+     if (!nameValue && !companyValue) {
+       alert('请至少填写姓名或单位名称');
+       return;
+     }
+     var nameCount = 0;
+     var companyCount = 0;
+     for (var bi = 0; bi < tempUnstructuredContacts.length; bi++) {
+       var contact = tempUnstructuredContacts[bi];
+       if (nameValue && (!contact.name || !String(contact.name).trim() || String(contact.name).trim() === '未知姓名')) {
+         contact.name = nameValue;
+         nameCount++;
+       }
+       if (companyValue && (!contact.company || !String(contact.company).trim())) {
+         contact.company = companyValue;
+         companyCount++;
+       }
+     }
+     renderUnstructuredTableRows();
+     var hint = document.getElementById('bulkMissingFieldsHint');
+     if (hint) hint.textContent = '已补充：姓名 ' + nameCount + ' 条，单位 ' + companyCount + ' 条；原有内容未覆盖。';
+   });
  }
 
  // Init OCR training data UI
