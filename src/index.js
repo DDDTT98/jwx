@@ -251,6 +251,42 @@ async function weekMonthCounts(env, accountId, dateStr) {
   return { week_count: week, month_count: month };
 }
 
+
+function beijingDateKey(date) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date || new Date()); }
+function shiftDateKey(dateKey, days) { var d = new Date(dateKey + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
+function wecomEscape(value) { return String(value == null ? '' : value).replace(/[|]/g, '\\|').replace(/\\r?\\n/g, ' '); }
+async function sendWecomText(env, content) {
+  if (!env.WEWORK_WEBHOOK_URL) { console.warn('[wecom] webhook secret missing'); return false; }
+  var resp = await fetch(env.WEWORK_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msgtype: 'markdown', markdown: { content: content } }) });
+  var data = await resp.json().catch(function() { return {}; });
+  if (!resp.ok || data.errcode !== 0) throw new Error('WeCom webhook failed: HTTP ' + resp.status + ', errcode=' + data.errcode);
+  return true;
+}
+async function notifyNewCustomers(env, accountName, customers) {
+  if (!env.WEWORK_WEBHOOK_URL || !Array.isArray(customers) || !customers.length) return;
+  for (var i = 0; i < customers.length; i += 12) {
+    var chunk = customers.slice(i, i + 12);
+    var lines = chunk.map(function(c, n) { return (i+n+1) + '. **' + wecomEscape(c.name || '未知姓名') + '**｜' + wecomEscape(c.mobile || '') + '｜' + wecomEscape(c.company_name || '未填写单位') + (c.note ? '\\n   备注：' + wecomEscape(c.note).slice(0,120) : ''); });
+    await sendWecomText(env, '### 新增客户明细｜' + wecomEscape(accountName || '未命名子账号') + '\\n本批新增：' + chunk.length + ' 人\\n' + lines.join('\\n'));
+  }
+}
+async function collectUploadLogs(env, startMs, endMs) {
+  var rows=[], cursor;
+  do {
+    var page=await env.DATA_KV.list({prefix:'upload_log:',limit:1000,cursor:cursor});
+    for(var i=0;i<(page.keys||[]).length;i++){var key=page.keys[i].name,ts=parseInt(key.split(':')[1]||'0',10);if(ts<startMs||ts>=endMs)continue;var raw=await env.DATA_KV.get(key);if(raw){try{rows.push(JSON.parse(raw));}catch(_){}}}
+    cursor=page.list_complete?undefined:page.cursor;
+  } while(cursor);
+  return rows;
+}
+async function sendPerformanceReport(env,startDate,endDate,title) {
+  var accounts=await dialerGetAccounts(env), children=accounts.filter(function(a){return a&&a.active!==false&&a.is_master===false;});
+  var startMs=new Date(startDate+'T00:00:00+08:00').getTime(), endMs=new Date(shiftDateKey(endDate,1)+'T00:00:00+08:00').getTime();
+  var logs=await collectUploadLogs(env,startMs,endMs), addedTotal=0, passedTotal=0, lines=['### '+title,startDate+' 至 '+endDate,''];
+  for(var i=0;i<children.length;i++){var a=children[i],added=0,passed=0;logs.forEach(function(x){if(x.account_id===a.account_id)added+=Number(x.count||0);});var d=startDate;while(d<=endDate){var w=await fetchWorkRow(env,a.account_id,d);if(w)passed+=Number(w.wechat_count||0);d=shiftDateKey(d,1);}addedTotal+=added;passedTotal+=passed;lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜通过微信 '+passed+' 人');}
+  lines.push('','**总计：新增 '+addedTotal+' 人｜通过微信 '+passedTotal+' 人**');await sendWecomText(env,lines.join('\\n'));
+}
+
 // ========== Main Worker ==========
 
 export default {
@@ -1742,22 +1778,14 @@ export default {
         });
         const sb = createSupabaseClient(env);
         const result = await sb.upsertCustomers(tagged, accountId);
-        // 上传/添加日志：上传时刻固化账户归属（客户转公海/分配后 account_id 会变，需在写入时记录）
-        if (result.count > 0) {
-          try {
-            var ulAcctName = '';
-            var ulAccts = await dialerGetAccounts(env);
-            for (var ua = 0; ua < ulAccts.length; ua++) {
-              if (ulAccts[ua].account_id === accountId) { ulAcctName = ulAccts[ua].account_name || ulAccts[ua].label || ''; break; }
-            }
-            var ulNow = Date.now();
-            await env.DATA_KV.put(
-              'upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2, 6),
-              JSON.stringify({ account_id: accountId, account_name: ulAcctName, count: result.count, batch_label: batchLabel, created_at: ulNow })
-            );
-          } catch (e2) {
-            console.error('upload log write failed:', e2.message); // 日志写入失败不影响上传主流程
-          }
+        var newCustomers = Array.isArray(result.new_customers) ? result.new_customers : [];
+        if (newCustomers.length > 0) {
+          var ulAcctName = '', ulAccts = await dialerGetAccounts(env);
+          for (var ua = 0; ua < ulAccts.length; ua++) { if (ulAccts[ua].account_id === accountId) { ulAcctName = ulAccts[ua].account_name || ulAccts[ua].label || ''; break; } }
+          var ulNow = Date.now();
+          try { await env.DATA_KV.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,customers:newCustomers,batch_label:batchLabel,created_at:ulNow})); }
+          catch(e2) { console.error('upload log write failed:',e2.message); }
+          try { await notifyNewCustomers(env,ulAcctName,newCustomers); } catch(notifyErr) { console.error('[wecom] detail notification failed:',notifyErr.message); }
         }
         return new Response(JSON.stringify({ success: true, count: result.count, skipped: result.skipped || 0 }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
@@ -3436,5 +3464,13 @@ export default {
 
     // 404
     return new Response('Not Found', { status: 404 });
+  },
+  async scheduled(event, env, ctx) {
+    try {
+      var today=beijingDateKey(new Date());
+      await sendPerformanceReport(env,today,today,'BHP 每日业绩日报');
+      var localNow=new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Shanghai'}));
+      if(localNow.getDay()===0) await sendPerformanceReport(env,shiftDateKey(today,-6),today,'BHP 每周业绩周报');
+    } catch(e) { console.error('[scheduled] report failed:',e.message); }
   }
 };
