@@ -1922,7 +1922,7 @@
                 <circle cx="44" cy="44" r="36" fill="none" stroke="var(--btn-bg)" stroke-width="6"/>
                 <circle id="drawerDialedRing" cx="44" cy="44" r="36" fill="none" stroke="var(--accent-wechat)" stroke-width="6" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="226.2" transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.6s cubic-bezier(0.25,0.8,0.25,1);"/>
               </svg>
-              <span class="drawer-ring-value" id="drawerDialedRingText">0%</span>
+              <span class="drawer-ring-value" id="drawerDialedRingText">0</span>
             </div>
             <span class="drawer-ring-label">今日拨打客户</span>
           </div>
@@ -1932,7 +1932,7 @@
                 <circle cx="44" cy="44" r="36" fill="none" stroke="var(--btn-bg)" stroke-width="6"/>
                 <circle id="drawerWorkRing" cx="44" cy="44" r="36" fill="none" stroke="#4a6cf7" stroke-width="6" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="226.2" transform="rotate(-90 44 44)" style="transition:stroke-dashoffset 0.6s cubic-bezier(0.25,0.8,0.25,1);"/>
               </svg>
-              <span class="drawer-ring-value" id="drawerWorkRingText">0%</span>
+              <span class="drawer-ring-value" id="drawerWorkRingText">0</span>
             </div>
             <span class="drawer-ring-label">今日操作客户</span>
           </div>
