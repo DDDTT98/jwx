@@ -3148,7 +3148,7 @@
       if (document.hidden) return;
       renderHeaderRoundCd(); // 回到页面立即按时间戳重算，倒计时不因锁屏/切后台/刷新而重置
       if (_pendingReminderClient && !_reminderShown) {
-        
+        scheduleReminder(_pendingReminderClient); // 从微信返回后按姓名/单位复制人数重新检查并继续倒计时
       }
     });
 
