@@ -3433,6 +3433,11 @@
           renderDialCards();
           updateStats();
           refreshAccountDataCount();
+          var dbOverlayForCleanup = document.getElementById('dbOverlay');
+          if (dbOverlayForCleanup && dbOverlayForCleanup.classList.contains('active')) {
+            dbFetch();
+            if (isSessionMaster()) loadAccountStats();
+          }
           showCopyLimitToast('本批次 ' + (res.count || 0) + ' 位客户已全部拨打完成，已自动彻底删除（未进入公海）', true);
         } else if (res && !res.success) {
           console.error('[auto-delete-batch] check failed:', res.error || 'unknown');
