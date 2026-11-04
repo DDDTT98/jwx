@@ -832,6 +832,29 @@ export function createSupabaseClient(env) {
     return true;
   }
 
+  /** Persist the latest operation while retaining the batch's terminal call result. */
+  async function updateCustomerTimeline(mobile, entry, accountId) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!mobile || !entry || !entry.type) throw new Error('mobile and timeline entry required');
+    var currentUrl = baseUrl + '/rest/v1/customers?select=last_operation&mobile=eq.' + encodeURIComponent(mobile);
+    if (accountId) currentUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+    var currentResp = await fetch(currentUrl, { headers: headers() });
+    if (!currentResp.ok) {
+      var currentErr = await currentResp.text();
+      throw new Error('Read customer timeline state failed [' + currentResp.status + ']: ' + currentErr);
+    }
+    var currentRows = await currentResp.json();
+    var previous = currentRows && currentRows[0] ? currentRows[0].last_operation : null;
+    var merged = Object.assign({}, entry);
+    if (entry.type === 'call_success' || entry.type === 'call_failed') {
+      merged.call_result = entry.type;
+    } else if (entry.type !== 'dial' && previous && ['call_success', 'call_failed'].indexOf(previous.call_result || previous.type) !== -1) {
+      merged.call_result = previous.call_result || previous.type;
+    }
+    // A new dial attempt invalidates the previous result until this attempt is marked.
+    return await updateCustomer(mobile, { last_operation: merged }, accountId);
+  }
+
   /**
    * Check a batch's persisted call outcomes. When deleteIfComplete is true,
    * delete only if every row has a terminal call outcome.
@@ -860,7 +883,8 @@ export function createSupabaseClient(env) {
     if (rows.length === 0) return { total: 0, remaining: 0, completed: false, deleted: false };
     var remaining = rows.filter(function(row) {
       var op = row.last_operation;
-      return !op || ['call_success', 'call_failed'].indexOf(op.type) === -1;
+      var outcome = op && (op.call_result || op.type);
+      return !op || ['call_success', 'call_failed'].indexOf(outcome) === -1;
     }).length;
     if (remaining > 0) return { total: rows.length, remaining: remaining, completed: false, deleted: false };
     if (!deleteIfComplete) return { total: rows.length, remaining: 0, completed: true, deleted: false };
@@ -902,6 +926,7 @@ export function createSupabaseClient(env) {
     getCorrectionsCount: getCorrectionsCount,
     exportAllCustomers: exportAllCustomers,
     resetBatchDialStatus: resetBatchDialStatus,
+    updateCustomerTimeline: updateCustomerTimeline,
     getBatchDialStatus: getBatchDialStatus
   };
 
