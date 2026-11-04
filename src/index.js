@@ -194,6 +194,19 @@ async function fetchWorkRow(env, accountId, date) {
 async function upsertWorkRow(env, accountId, date, stats) {
   await env.DATA_KV.put('work_stats:' + accountId + ':' + date, JSON.stringify(stats));
 }
+async function countKvPrefix(env, prefix) {
+  var total = 0;
+  var cursor;
+  do {
+    var page = await env.DATA_KV.list({ prefix: prefix, limit: 1000, cursor: cursor });
+    total += (page.keys || []).length;
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return total;
+}
+function clientOperationKey(accountId, date, mobile, kind) {
+  return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\\D/g, ''));
+}
 // 设备级冷却倒计时（每台设备各自走 45-60 分钟）：与账号级轮次统计分开存，互不覆盖
 function cooldownKey(accountId, date, deviceId) {
   return 'work_stats_cd:' + accountId + ':' + date + ':' + deviceId;
@@ -951,6 +964,8 @@ export default {
         wsResp.cooldown_ms = rawCdMs === 0 ? 0 : Math.max(rawCdMs, 15 * 60 * 1000);
         wsResp.week_count = wm.week_count;
         wsResp.month_count = wm.month_count;
+        wsResp.operated_count = await countKvPrefix(env, 'client_ops_all:' + wsSession.account_id + ':' + wsDate + ':');
+        wsResp.dialed_count = await countKvPrefix(env, 'client_ops_dial:' + wsSession.account_id + ':' + wsDate + ':');
         return new Response(JSON.stringify(wsResp), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -1953,9 +1968,20 @@ export default {
         const { mobile, entry } = body;
         const accountId = _dialerAccountId;
         if (!mobile || !entry || !entry.type) throw new Error('缺少参数');
+        const opDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
+        const cleanMobile = String(mobile).replace(/\\D/g, '');
         const sb = createSupabaseClient(env);
         await sb.updateCustomer(mobile, { last_operation: entry }, accountId);
-        return new Response(JSON.stringify({ success: true }), {
+        // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
+        if (cleanMobile) {
+          await env.DATA_KV.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
+          if (['dial', 'call_success', 'call_failed'].indexOf(entry.type) >= 0) {
+            await env.DATA_KV.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
+          }
+        }
+        const operatedCount = await countKvPrefix(env, 'client_ops_all:' + accountId + ':' + opDate + ':');
+        const dialedCount = await countKvPrefix(env, 'client_ops_dial:' + accountId + ':' + opDate + ':');
+        return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
