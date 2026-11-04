@@ -1301,9 +1301,9 @@ export default {
         var action = body.action || 'save';
         var savedUrl = await env.DATA_KV.get('config:wework_webhook_url') || '';
         if (action === 'save') {
-          var url = String(body.webhook_url || '').trim();
-          if (!/^https:\/\/qyapi\.weixin\.qq\.com\/cgi-bin\/webhook\/send\?key=[A-Za-z0-9-]{20,}$/i.test(url)) throw new Error('Webhook 地址格式不正确');
-          await env.DATA_KV.put('config:wework_webhook_url', url);
+          var webhookInputUrl = String(body.webhook_url || '').trim();
+          if (!/^https:\/\/qyapi\.weixin\.qq\.com\/cgi-bin\/webhook\/send\?key=[A-Za-z0-9-]{20,}$/i.test(webhookInputUrl)) throw new Error('Webhook 地址格式不正确');
+          await env.DATA_KV.put('config:wework_webhook_url', webhookInputUrl);
           return new Response(JSON.stringify({ success: true, configured: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
         }
         if (action === 'test') {
