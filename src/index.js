@@ -254,7 +254,7 @@ async function weekMonthCounts(env, accountId, dateStr) {
 
 function beijingDateKey(date) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date || new Date()); }
 function shiftDateKey(dateKey, days) { var d = new Date(dateKey + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
-function wecomEscape(value) { return String(value == null ? '' : value).replace(/[|]/g, '\\|').replace(/\\r?\\n/g, ' '); }
+function wecomEscape(value) { return String(value == null ? '' : value).replace(/[|]/g, '\\|').replace(/\r?\n/g, ' '); }
 async function sendWecomText(env, content) {
   if (!env.WEWORK_WEBHOOK_URL) { console.warn('[wecom] webhook secret missing'); return false; }
   var resp = await fetch(env.WEWORK_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msgtype: 'markdown', markdown: { content: content } }) });
@@ -266,8 +266,8 @@ async function notifyNewCustomers(env, accountName, customers) {
   if (!env.WEWORK_WEBHOOK_URL || !Array.isArray(customers) || !customers.length) return;
   for (var i = 0; i < customers.length; i += 12) {
     var chunk = customers.slice(i, i + 12);
-    var lines = chunk.map(function(c, n) { return (i+n+1) + '. **' + wecomEscape(c.name || '未知姓名') + '**｜' + wecomEscape(c.mobile || '') + '｜' + wecomEscape(c.company_name || '未填写单位') + (c.note ? '\\n   备注：' + wecomEscape(c.note).slice(0,120) : ''); });
-    await sendWecomText(env, '### 新增客户明细｜' + wecomEscape(accountName || '未命名子账号') + '\\n本批新增：' + chunk.length + ' 人\\n' + lines.join('\\n'));
+    var lines = chunk.map(function(c, n) { return (i+n+1) + '. **' + wecomEscape(c.name || '未知姓名') + '**｜' + wecomEscape(c.mobile || '') + '｜' + wecomEscape(c.company_name || '未填写单位') + (c.note ? '\n   备注：' + wecomEscape(c.note).slice(0,120) : ''); });
+    await sendWecomText(env, '### 新增客户明细｜' + wecomEscape(accountName || '未命名子账号') + '\n本批新增：' + chunk.length + ' 人\n' + lines.join('\n'));
   }
 }
 async function collectUploadLogs(env, startMs, endMs) {
@@ -284,7 +284,7 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
   var startMs=new Date(startDate+'T00:00:00+08:00').getTime(), endMs=new Date(shiftDateKey(endDate,1)+'T00:00:00+08:00').getTime();
   var logs=await collectUploadLogs(env,startMs,endMs), addedTotal=0, passedTotal=0, lines=['### '+title,startDate+' 至 '+endDate,''];
   for(var i=0;i<children.length;i++){var a=children[i],added=0,passed=0;logs.forEach(function(x){if(x.account_id===a.account_id)added+=Number(x.count||0);});var d=startDate;while(d<=endDate){var w=await fetchWorkRow(env,a.account_id,d);if(w)passed+=Number(w.wechat_count||0);d=shiftDateKey(d,1);}addedTotal+=added;passedTotal+=passed;lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜通过微信 '+passed+' 人');}
-  lines.push('','**总计：新增 '+addedTotal+' 人｜通过微信 '+passedTotal+' 人**');await sendWecomText(env,lines.join('\\n'));
+  lines.push('','**总计：新增 '+addedTotal+' 人｜通过微信 '+passedTotal+' 人**');await sendWecomText(env,lines.join('\n'));
 }
 
 // ========== Main Worker ==========
@@ -1783,7 +1783,7 @@ export default {
           var ulAcctName = '', ulAccts = await dialerGetAccounts(env);
           for (var ua = 0; ua < ulAccts.length; ua++) { if (ulAccts[ua].account_id === accountId) { ulAcctName = ulAccts[ua].account_name || ulAccts[ua].label || ''; break; } }
           var ulNow = Date.now();
-          try { await env.DATA_KV.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,customers:newCustomers,batch_label:batchLabel,created_at:ulNow})); }
+          try { await env.DATA_KV.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,batch_label:batchLabel,created_at:ulNow})); }
           catch(e2) { console.error('upload log write failed:',e2.message); }
           try { await notifyNewCustomers(env,ulAcctName,newCustomers); } catch(notifyErr) { console.error('[wecom] detail notification failed:',notifyErr.message); }
         }
