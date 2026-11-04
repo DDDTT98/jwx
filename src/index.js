@@ -1807,12 +1807,26 @@ export default {
         const body = await request.json();
         const customers = body.customers || [];
         const batchLabel = body.batch_label || '';
+        const autoDeleteAfterDial = body.auto_delete_after_dial === true;
         const accountId = _dialerAccountId;
+        if (autoDeleteAfterDial) {
+          if (!batchLabel) throw new Error('自动删除批次必须设置批次标签');
+          const markerKey = 'auto_delete_batch:' + accountId + ':' + encodeURIComponent(batchLabel);
+          if (await env.DATA_KV.get(markerKey)) throw new Error('该批次标签已有自动删除任务，请更换唯一批次标签');
+          const existingBatch = await createSupabaseClient(env).getBatchDialStatus(batchLabel, accountId, false);
+          if (existingBatch.total > 0) throw new Error('该批次标签在当前账户中已存在数据，请更换唯一批次标签，避免误删旧客户');
+        }
         const tagged = customers.map(function(c) {
           return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId });
         });
         const sb = createSupabaseClient(env);
         const result = await sb.upsertCustomers(tagged, accountId);
+        if (autoDeleteAfterDial) {
+          // 清空同手机号旧记录遗留的操作结果，避免新批次被误判为已拨打。
+          await sb.resetBatchDialStatus(batchLabel, accountId);
+          const markerKey = 'auto_delete_batch:' + accountId + ':' + encodeURIComponent(batchLabel);
+          await env.DATA_KV.put(markerKey, JSON.stringify({ batch_label: batchLabel, account_id: accountId, created_at: Date.now() }));
+        }
         var newCustomers = Array.isArray(result.new_customers) ? result.new_customers : [];
         if (newCustomers.length > 0) {
           var ulAcctName = '', ulAccts = await dialerGetAccounts(env);
@@ -2020,6 +2034,38 @@ export default {
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Automatic deletion for opted-in batches; server verifies every row's persisted call result.
+    if (path === '/api/dialer/batches/auto-delete-check' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const batchLabel = String(body.batch_label || '').trim();
+        const accountId = _dialerAccountId;
+        if (!batchLabel) throw new Error('缺少批次标签');
+        const markerKey = 'auto_delete_batch:' + accountId + ':' + encodeURIComponent(batchLabel);
+        const marker = await env.DATA_KV.get(markerKey);
+        if (!marker) {
+          return new Response(JSON.stringify({ success: true, enabled: false, deleted: false }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const sb = createSupabaseClient(env);
+        const result = await sb.getBatchDialStatus(batchLabel, accountId, true);
+        if (result.deleted) await env.DATA_KV.delete(markerKey);
+        return new Response(JSON.stringify({
+          success: true, enabled: true, deleted: !!result.deleted,
+          completed: !!result.completed, count: result.count || 0,
+          total: result.total || 0, remaining: result.remaining || 0
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*'
+          }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
