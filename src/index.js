@@ -255,15 +255,17 @@ async function weekMonthCounts(env, accountId, dateStr) {
 function beijingDateKey(date) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date || new Date()); }
 function shiftDateKey(dateKey, days) { var d = new Date(dateKey + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
 function wecomEscape(value) { return String(value == null ? '' : value).replace(/[|]/g, '\\|').replace(/\r?\n/g, ' '); }
+async function getWecomWebhook(env) { return (await env.DATA_KV.get('config:wework_webhook_url')) || env.WEWORK_WEBHOOK_URL || ''; }
 async function sendWecomText(env, content) {
-  if (!env.WEWORK_WEBHOOK_URL) { console.warn('[wecom] webhook secret missing'); return false; }
-  var resp = await fetch(env.WEWORK_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msgtype: 'markdown', markdown: { content: content } }) });
+  var webhookUrl = await getWecomWebhook(env);
+  if (!webhookUrl) { console.warn('[wecom] webhook not configured'); return false; }
+  var resp = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msgtype: 'markdown', markdown: { content: content } }) });
   var data = await resp.json().catch(function() { return {}; });
   if (!resp.ok || data.errcode !== 0) throw new Error('WeCom webhook failed: HTTP ' + resp.status + ', errcode=' + data.errcode);
   return true;
 }
 async function notifyNewCustomers(env, accountName, customers) {
-  if (!env.WEWORK_WEBHOOK_URL || !Array.isArray(customers) || !customers.length) return;
+  if (!(await getWecomWebhook(env)) || !Array.isArray(customers) || !customers.length) return;
   for (var i = 0; i < customers.length; i += 12) {
     var chunk = customers.slice(i, i + 12);
     var lines = chunk.map(function(c, n) { return (i+n+1) + '. **' + wecomEscape(c.name || '未知姓名') + '**｜' + wecomEscape(c.mobile || '') + '｜' + wecomEscape(c.company_name || '未填写单位') + (c.note ? '\n   备注：' + wecomEscape(c.note).slice(0,120) : ''); });
@@ -1282,6 +1284,39 @@ export default {
           status: e.message === '未登录' ? 401 : 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
+      }
+    }
+
+    // 主账号专用：企业微信通知配置，Webhook 只保存在服务端 KV，不回传前端
+    if (path === '/api/admin/wecom-config' && request.method === 'POST') {
+      try {
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+        var accounts = await dialerGetAccounts(env);
+        var master = accounts.find(function(a) { return a.account_id === session.account_id && a.is_master !== false; });
+        if (!master) throw new Error('仅主账号可操作');
+        var body = await request.json();
+        var action = body.action || 'save';
+        var savedUrl = await env.DATA_KV.get('config:wework_webhook_url') || '';
+        if (action === 'save') {
+          var url = String(body.webhook_url || '').trim();
+          if (!/^https:\/\/qyapi\.weixin\.qq\.com\/cgi-bin\/webhook\/send\?key=[A-Za-z0-9-]{20,}$/i.test(url)) throw new Error('Webhook 地址格式不正确');
+          await env.DATA_KV.put('config:wework_webhook_url', url);
+          return new Response(JSON.stringify({ success: true, configured: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+        }
+        if (action === 'test') {
+          if (!savedUrl) throw new Error('请先保存 Webhook 地址');
+          var resp = await fetch(savedUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msgtype: 'text', text: { content: 'BHP 企业微信通知测试成功。后续客户新增明细及业绩报表将发送到此群。' } }) });
+          var result = await resp.json().catch(function() { return {}; });
+          if (!resp.ok || result.errcode !== 0) throw new Error('企业微信发送失败，错误码：' + (result.errcode == null ? resp.status : result.errcode));
+          return new Response(JSON.stringify({ success: true, tested: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+        }
+        if (action === 'status') return new Response(JSON.stringify({ success: true, configured: !!savedUrl }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+        throw new Error('未知操作');
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), { status: e.message === '未登录' ? 401 : 400, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
       }
     }
 
