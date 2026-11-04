@@ -1924,7 +1924,7 @@
               </svg>
               <span class="drawer-ring-value" id="drawerDialedRingText">0%</span>
             </div>
-            <span class="drawer-ring-label">拨打进度</span>
+            <span class="drawer-ring-label">今日拨打客户</span>
           </div>
           <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
             <div class="drawer-ring-wrap">
@@ -1934,7 +1934,7 @@
               </svg>
               <span class="drawer-ring-value" id="drawerWorkRingText">0%</span>
             </div>
-            <span class="drawer-ring-label">操作进度</span>
+            <span class="drawer-ring-label">今日操作客户</span>
           </div>
         </div>
       </div>
@@ -3363,6 +3363,7 @@
       if (!mobile) return;
       var payload = {
         mobile: mobile,
+        date: todayLocalStr(),
         entry: {
           type: type,
           ts: new Date().toISOString(),
@@ -3382,6 +3383,12 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
+      }).then(function(r) { return r.json(); }).then(function(res) {
+        if (res && res.success) {
+          _todayOperatedCustomers = res.operated_count || 0;
+          _todayDialedCustomers = res.dialed_count || 0;
+          renderDrawer();
+        }
       }).catch(function(err) {
         console.warn('[timeline] record failed:', err);
       });
@@ -11034,24 +11041,20 @@ function updateAutoDialBtn() {
         .catch(function() { _wechatWriteTs = Infinity; }); // 同步失败：本地值为准，直到下次点击成功确认
     }
     var DRAWER_RING_C = 226.2; // 环形周长：2πr (r=36)
+    var _todayDialedCustomers = 0;
+    var _todayOperatedCustomers = 0;
     function renderDrawer() {
-      var total = importedClients.length;
-      var dialed = 0, operated = 0;
-      importedClients.forEach(function(c) {
-        if (c.dialedStatus === 'success' || c.dialedStatus === 'failed') dialed++;
-        if (c.copied || c.dialedStatus === 'success' || c.dialedStatus === 'failed') operated++;
-      });
-      var dialedPct = total > 0 ? Math.round((dialed / total) * 100) : 0;
-      var workPct = total > 0 ? Math.round((operated / total) * 100) : 0;
-      // 环形进度：stroke-dashoffset = C × (1 - 进度)，C=226.2
+      var dialed = _todayDialedCustomers;
+      var operated = _todayOperatedCustomers;
+      // 圆环改为实际客户数展示，不再用当前导入列表计算百分比
       var dRing = document.getElementById('drawerDialedRing');
-      if (dRing) dRing.style.strokeDashoffset = (DRAWER_RING_C * (1 - (total > 0 ? dialed / total : 0))).toFixed(1);
+      if (dRing) dRing.style.strokeDashoffset = dialed > 0 ? '0' : DRAWER_RING_C.toFixed(1);
       var dRingT = document.getElementById('drawerDialedRingText');
-      if (dRingT) dRingT.textContent = dialedPct + '%';
+      if (dRingT) dRingT.textContent = String(dialed);
       var wRing = document.getElementById('drawerWorkRing');
-      if (wRing) wRing.style.strokeDashoffset = (DRAWER_RING_C * (1 - (total > 0 ? operated / total : 0))).toFixed(1);
+      if (wRing) wRing.style.strokeDashoffset = operated > 0 ? '0' : DRAWER_RING_C.toFixed(1);
       var wRingT = document.getElementById('drawerWorkRingText');
-      if (wRingT) wRingT.textContent = workPct + '%';
+      if (wRingT) wRingT.textContent = String(operated);
       var rInfo = getRoundInfo();
       var rv = (rInfo && rInfo.count) ? rInfo.count : 1;
       var rvEl = document.getElementById('drawerRoundVal');
@@ -11233,6 +11236,8 @@ function updateAutoDialBtn() {
             if (getTs >= _wechatWriteTs) applyWechatCount(res.wechat_count);
             _weekWechat = res.week_count || 0;
             _monthWechat = res.month_count || 0;
+            _todayOperatedCustomers = res.operated_count || 0;
+            _todayDialedCustomers = res.dialed_count || 0;
             renderRoundInfo();
             renderDrawer();
           }
