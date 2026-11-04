@@ -283,7 +283,7 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
   var accounts=await dialerGetAccounts(env), children=accounts.filter(function(a){return a&&a.active!==false&&a.is_master===false;});
   var startMs=new Date(startDate+'T00:00:00+08:00').getTime(), endMs=new Date(shiftDateKey(endDate,1)+'T00:00:00+08:00').getTime();
   var logs=await collectUploadLogs(env,startMs,endMs), addedTotal=0, passedTotal=0, lines=['### '+title,startDate+' 至 '+endDate,''];
-  for(var i=0;i<children.length;i++){var a=children[i],added=0,passed=0;logs.forEach(function(x){if(x.account_id===a.account_id)added+=Number(x.count||0);});var d=startDate;while(d<=endDate){var w=await fetchWorkRow(env,a.account_id,d);if(w)passed+=Number(w.wechat_count||0);d=shiftDateKey(d,1);}addedTotal+=added;passedTotal+=passed;lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜通过微信 '+passed+' 人');}
+  for(var i=0;i<children.length;i++){var a=children[i],added=0,passed=0;logs.forEach(function(x){if(x.account_id===a.account_id&&x.metric_version===2)added+=Number(x.count||0);});var d=startDate;while(d<=endDate){var w=await fetchWorkRow(env,a.account_id,d);if(w)passed+=Number(w.wechat_count||0);d=shiftDateKey(d,1);}addedTotal+=added;passedTotal+=passed;lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜通过微信 '+passed+' 人');}
   lines.push('','**总计：新增 '+addedTotal+' 人｜通过微信 '+passedTotal+' 人**');await sendWecomText(env,lines.join('\n'));
 }
 
@@ -1783,7 +1783,7 @@ export default {
           var ulAcctName = '', ulAccts = await dialerGetAccounts(env);
           for (var ua = 0; ua < ulAccts.length; ua++) { if (ulAccts[ua].account_id === accountId) { ulAcctName = ulAccts[ua].account_name || ulAccts[ua].label || ''; break; } }
           var ulNow = Date.now();
-          try { await env.DATA_KV.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,batch_label:batchLabel,created_at:ulNow})); }
+          try { await env.DATA_KV.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,metric_version:2,batch_label:batchLabel,created_at:ulNow})); }
           catch(e2) { console.error('upload log write failed:',e2.message); }
           try { await notifyNewCustomers(env,ulAcctName,newCustomers); } catch(notifyErr) { console.error('[wecom] detail notification failed:',notifyErr.message); }
         }
