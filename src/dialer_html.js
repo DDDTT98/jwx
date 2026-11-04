@@ -3652,7 +3652,17 @@
       });
     }
 
+    // 统一批次锁：达到本轮操作阈值后，未完成清空前禁止通过任何导入入口加载下一批。
+    function canStartNextImportBatch() {
+      if (window._roundTransferBlocked || window._roundTransferPending) {
+        alert('本轮客户尚未完成清空，暂不能导入/加载下一批。请等待本轮自动转入公海并清空成功，或先手动清空当前拨号列表。');
+        return false;
+      }
+      return true;
+    }
+
     function uploadCustomersToSupabase(customers, batchLabel) {
+      if (!canStartNextImportBatch()) return Promise.resolve({ success: false, error: '本轮尚未清空，禁止导入下一批' });
       if (!customers || customers.length === 0) return Promise.resolve({ success: false, error: '无数据' });
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
       var payload = serializeCustomersForSupabase(customers);
@@ -4179,6 +4189,7 @@
     }
 
     function executeAIImportExcel() {
+      if (!canStartNextImportBatch()) return;
       var nameCol = parseInt(document.getElementById('aiSelName').value);
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
@@ -4272,6 +4283,7 @@
     }
 
     function executeAIImportVcf() {
+      if (!canStartNextImportBatch()) return;
       if (!tempImportData || tempImportData.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
@@ -6311,6 +6323,7 @@
     }
 
     function executeAIImportUnstructured() {
+      if (!canStartNextImportBatch()) return;
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
