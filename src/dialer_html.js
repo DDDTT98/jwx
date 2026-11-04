@@ -2522,6 +2522,19 @@
       </span>
     </div>
 
+    <div id="dbWecomConfig" style="display:none; padding:12px 16px; border-bottom:1px solid var(--card-border); background:var(--card-bg);">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:7px;">
+        <strong style="font-size:0.78rem; color:var(--text-main);">企业微信通知配置</strong>
+        <span id="dbWecomStatus" style="font-size:0.68rem; color:var(--text-soft);">检查配置中…</span>
+      </div>
+      <div style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
+        <input id="dbWecomWebhookInput" type="password" autocomplete="new-password" placeholder="粘贴企业微信群机器人 Webhook 地址" style="flex:1; min-width:220px; height:34px; padding:0 10px; border:1px solid var(--card-border); border-radius:5px; background:var(--btn-bg); color:var(--text-main); font-size:0.72rem;">
+        <button id="dbWecomSaveBtn" class="crm-tool-btn blue" style="height:34px;">保存</button>
+        <button id="dbWecomTestBtn" class="crm-tool-btn" style="height:34px;">发送测试</button>
+      </div>
+      <div style="font-size:0.65rem; color:var(--text-soft); margin-top:6px;">仅主账号可配置。地址保存在服务端，不会显示完整密钥，也不会提交到 GitHub。</div>
+    </div>
+
     <!-- CRM Shortcut Filters -->
     <div class="crm-shortcut-bar">
       <button class="crm-shortcut-btn active" data-shortcut="all">全部</button>
@@ -10331,6 +10344,52 @@ function updateAutoDialBtn() {
  if (bcpStatus) { bcpStatus.textContent = '网络错误'; bcpStatus.style.color = '#e74c3c'; }
  });
  });
+
+ // 企业微信通知配置（仅主账号）
+ var dbWecomPanel = document.getElementById('dbWecomConfig');
+ if (dbWecomPanel) {
+   if (isSessionMaster()) {
+     dbWecomPanel.style.display = 'block';
+     var dbWecomStatus = document.getElementById('dbWecomStatus');
+     var dbWecomInput = document.getElementById('dbWecomWebhookInput');
+     var dbWecomSave = document.getElementById('dbWecomSaveBtn');
+     var dbWecomTest = document.getElementById('dbWecomTestBtn');
+     function dbWecomRequest(action, url) {
+       return fetch('/api/admin/wecom-config', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('dialer_sess_token') || '') },
+         body: JSON.stringify({ action: action, webhook_url: url || '' })
+       }).then(function(r) { return r.json(); });
+     }
+     dbWecomRequest('status').then(function(r) {
+       if (dbWecomStatus) {
+         dbWecomStatus.textContent = r.success && r.configured ? '已配置（密钥已隐藏）' : '尚未配置';
+         dbWecomStatus.style.color = r.configured ? '#07a35a' : 'var(--text-soft)';
+       }
+     }).catch(function() { if (dbWecomStatus) dbWecomStatus.textContent = '读取配置状态失败'; });
+     if (dbWecomSave) dbWecomSave.addEventListener('click', function() {
+       var value = dbWecomInput ? dbWecomInput.value.trim() : '';
+       if (!value) { alert('请先粘贴企业微信群机器人 Webhook 地址'); return; }
+       dbWecomSave.disabled = true; dbWecomSave.textContent = '保存中…';
+       dbWecomRequest('save', value).then(function(r) {
+         if (!r.success) throw new Error(r.error || '保存失败');
+         if (dbWecomInput) dbWecomInput.value = '';
+         if (dbWecomStatus) { dbWecomStatus.textContent = '已配置（密钥已隐藏）'; dbWecomStatus.style.color = '#07a35a'; }
+         alert('企业微信 Webhook 已安全保存');
+       }).catch(function(e) { alert(e.message || '保存失败'); })
+       .finally(function() { dbWecomSave.disabled = false; dbWecomSave.textContent = '保存'; });
+     });
+     if (dbWecomTest) dbWecomTest.addEventListener('click', function() {
+       dbWecomTest.disabled = true; dbWecomTest.textContent = '发送中…';
+       dbWecomRequest('test').then(function(r) {
+         if (!r.success) throw new Error(r.error || '测试发送失败');
+         if (dbWecomStatus) { dbWecomStatus.textContent = '测试发送成功'; dbWecomStatus.style.color = '#07a35a'; }
+         alert('企业微信群已收到测试消息');
+       }).catch(function(e) { alert(e.message || '测试发送失败'); })
+       .finally(function() { dbWecomTest.disabled = false; dbWecomTest.textContent = '发送测试'; });
+     });
+   }
+ }
 
  // AI 公积金修正（仅主账号：后端 /api/admin/ai-correct-fund 同样仅主账号，子账号直接隐藏按钮）
  var aiFundBtn = document.getElementById('dbAiCorrectFundBtn');
