@@ -447,6 +447,8 @@ export function createSupabaseClient(env) {
     // 跨账户保护：查询已存在的手机号归属，排除属于其他账户的记录
     // 防止 merge-duplicates 覆盖其他账户的 account_id
     var skippedForeignCount = 0;
+    var newCustomers = [];
+    var ownerPrecheckSucceeded = !acctId;
     if (acctId) {
       try {
         var existingMobiles = {};
@@ -466,14 +468,16 @@ export function createSupabaseClient(env) {
             }
           }
         }
-        // 过滤掉属于其他账户或公海的记录
+        // 过滤掉属于其他账户或公海的记录，并区分首次新增与同账号重复更新
+        ownerPrecheckSucceeded = true;
         var safeRows = [];
         for (var ri = 0; ri < uniqueRows.length; ri++) {
           var rowMobile = uniqueRows[ri].mobile;
           var existingOwner = existingMobiles[rowMobile];
           if (existingOwner === undefined) {
-            // 新记录，允许添加
+            // 数据库此前不存在：计入新增并通知主账号
             safeRows.push(uniqueRows[ri]);
+            newCustomers.push(uniqueRows[ri]);
           } else if (existingOwner === null) {
             // 已在公海，禁止任何账户重新添加
             skippedForeignCount++;
@@ -489,14 +493,16 @@ export function createSupabaseClient(env) {
         }
         uniqueRows = safeRows;
       } catch (preCheckErr) {
-        // 预检失败不影响上传，继续（保守策略：允许上传）
+        // 预检失败仍兼容原有上传，但不能把无法确认的新记录误报为业绩
+        ownerPrecheckSucceeded = false;
+        newCustomers = [];
         console.warn('[supabase] Pre-check for cross-account owners failed:', preCheckErr.message);
       }
     }
 
     if (uniqueRows.length === 0) {
       console.warn('[supabase] All ' + skippedForeignCount + ' mobiles owned by other accounts — nothing to upsert');
-      return { count: 0, skipped: skippedForeignCount };
+      return { count: 0, skipped: skippedForeignCount, new_customers: [] };
     }
 
     let count = 0;
@@ -556,7 +562,7 @@ export function createSupabaseClient(env) {
       count += chunk.length;
     }
 
-    return { count: count, skipped: skippedForeignCount || 0 };
+    return { count: count, skipped: skippedForeignCount || 0, new_customers: ownerPrecheckSucceeded ? newCustomers : [] };
   }
 
   /**
