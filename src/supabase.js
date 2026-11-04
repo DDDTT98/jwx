@@ -459,7 +459,11 @@ export function createSupabaseClient(env) {
           var inFilter = 'mobile=in.(' + mobileChunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
           var checkUrl = baseUrl + '/rest/v1/customers?select=mobile,account_id&' + inFilter;
           var checkResp = await fetch(checkUrl, { headers: headers() });
-          if (checkResp.ok) {
+          if (!checkResp.ok) {
+            var checkError = await checkResp.text();
+            throw new Error('Customer ownership pre-check failed [' + checkResp.status + ']: ' + checkError);
+          }
+          {
             var checkData = await checkResp.json();
             if (Array.isArray(checkData)) {
               for (var ci = 0; ci < checkData.length; ci++) {
@@ -493,10 +497,9 @@ export function createSupabaseClient(env) {
         }
         uniqueRows = safeRows;
       } catch (preCheckErr) {
-        // 预检失败仍兼容原有上传，但不能把无法确认的新记录误报为业绩
-        ownerPrecheckSucceeded = false;
-        newCustomers = [];
-        console.warn('[supabase] Pre-check for cross-account owners failed:', preCheckErr.message);
+        // 无法确认手机号归属时终止本次写入，避免跨账号覆盖或漏记新增业绩
+        console.error('[supabase] Customer ownership pre-check failed:', preCheckErr.message);
+        throw preCheckErr;
       }
     }
 
