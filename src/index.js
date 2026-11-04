@@ -2082,7 +2082,7 @@ export default {
         const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
         const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
-        await sb.updateCustomer(mobile, { last_operation: entry }, accountId);
+        await sb.updateCustomerTimeline(mobile, entry, accountId);
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
           await env.DATA_KV.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
