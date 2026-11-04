@@ -814,6 +814,69 @@ export function createSupabaseClient(env) {
     }
   }
 
+  /** Reset prior call outcome so an old operation cannot complete a newly imported batch. */
+  async function resetBatchDialStatus(batchLabel, accountId) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!batchLabel || !accountId) throw new Error('batch_label and account_id required');
+    var resetUrl = baseUrl + '/rest/v1/customers?batch_label=eq.' + encodeURIComponent(batchLabel) +
+      '&account_id=eq.' + encodeURIComponent(accountId);
+    var resp = await fetch(resetUrl, {
+      method: 'PATCH',
+      headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' }),
+      body: JSON.stringify({ last_operation: null })
+    });
+    if (!resp.ok) {
+      var errText = await resp.text();
+      throw new Error('Batch call status reset failed [' + resp.status + ']: ' + errText);
+    }
+    return true;
+  }
+
+  /**
+   * Check a batch's persisted call outcomes. When deleteIfComplete is true,
+   * delete only if every row has a terminal call outcome.
+   */
+  async function getBatchDialStatus(batchLabel, accountId, deleteIfComplete) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!batchLabel || !accountId) throw new Error('batch_label and account_id required');
+    var rows = [];
+    var offset = 0;
+    var pageSize = 1000;
+    while (true) {
+      var queryUrl = baseUrl + '/rest/v1/customers?select=mobile,last_operation&batch_label=eq.' +
+        encodeURIComponent(batchLabel) + '&account_id=eq.' + encodeURIComponent(accountId) +
+        '&limit=' + pageSize + '&offset=' + offset;
+      var resp = await fetch(queryUrl, { headers: headers() });
+      if (!resp.ok) {
+        var errText = await resp.text();
+        throw new Error('Batch status query failed [' + resp.status + ']: ' + errText);
+      }
+      var page = await resp.json();
+      if (!Array.isArray(page) || page.length === 0) break;
+      rows = rows.concat(page);
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+    if (rows.length === 0) return { total: 0, remaining: 0, completed: false, deleted: false };
+    var remaining = rows.filter(function(row) {
+      var op = row.last_operation;
+      return !op || ['call_success', 'call_failed'].indexOf(op.type) === -1;
+    }).length;
+    if (remaining > 0) return { total: rows.length, remaining: remaining, completed: false, deleted: false };
+    if (!deleteIfComplete) return { total: rows.length, remaining: 0, completed: true, deleted: false };
+    var deleteUrl = baseUrl + '/rest/v1/customers?batch_label=eq.' + encodeURIComponent(batchLabel) +
+      '&account_id=eq.' + encodeURIComponent(accountId);
+    var deleteResp = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' })
+    });
+    if (!deleteResp.ok) {
+      var deleteErr = await deleteResp.text();
+      throw new Error('Completed batch delete failed [' + deleteResp.status + ']: ' + deleteErr);
+    }
+    return { total: rows.length, remaining: 0, completed: true, deleted: true, count: rows.length };
+  }
+
   return {
     upsertCompanies: upsertCompanies,
     getAllCompanies: getAllCompanies,
@@ -837,7 +900,9 @@ export function createSupabaseClient(env) {
     getCorrections: getCorrections,
     getCorrectionsForExport: getCorrectionsForExport,
     getCorrectionsCount: getCorrectionsCount,
-    exportAllCustomers: exportAllCustomers
+    exportAllCustomers: exportAllCustomers,
+    resetBatchDialStatus: resetBatchDialStatus,
+    getBatchDialStatus: getBatchDialStatus
   };
 
   /**
