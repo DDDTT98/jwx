@@ -3148,7 +3148,7 @@
       if (document.hidden) return;
       renderHeaderRoundCd(); // 回到页面立即按时间戳重算，倒计时不因锁屏/切后台/刷新而重置
       if (_pendingReminderClient && !_reminderShown) {
-        scheduleReminder(_pendingReminderClient); // 从微信返回后重新计时弹出
+        
       }
     });
 
@@ -3526,13 +3526,13 @@
       }
     }
 
-    // 操作满一轮（序号50触发提醒）：已操作客户（复制过号码/姓名/单位，或拨打完成）清出列表并转公海，
-    // 无论批次是否全部完成——每50人一轮，轮次+1并启动下一轮45-60分钟倒计时（由8秒弹窗回调统一触发）
+    // 操作满一轮（序号50触发提醒）：仅已标记通话结果（成功/失败）的客户清出列表并转公海，
+    // 复制号码/姓名/单位及添加微信不触发转移；每轮到达末位并标记通话结果后才触发。
     function checkAndTransferBatch(client) {
       if (!client) return; // 触发时 scheduleReminder 已校验序号≥50，此处不重复校验（避免8秒内列表重排误判）
       // 找出所有已操作客户
       var operatedClients = importedClients.filter(function(c) {
-        return c.copied || c.dialedStatus === 'success' || c.dialedStatus === 'failed';
+        return c.dialedStatus === 'success' || c.dialedStatus === 'failed';
       });
       if (operatedClients.length === 0) return;
       try {
@@ -6894,7 +6894,7 @@
               client.copied = true;
               client.phone_copied = true; // 复制过号码：卡片持久变色提醒
               saveState();
-              scheduleReminder(client);
+              
             }
             b.classList.add('copied');
             var card = document.getElementById('xdc_' + idx);
@@ -6930,7 +6930,7 @@
             if (client) {
               client.copied = true;
               saveState();
-              scheduleReminder(client);
+              
             }
 
             var card = document.getElementById('xdc_' + idx);
@@ -6975,7 +6975,7 @@
               clientComp.copied = true;
               clientComp.company_copied = true; // 复制过单位名称：卡片强提醒（绿底）
               saveState();
-              scheduleReminder(clientComp);
+              
             }
             if (cardEl) cardEl.classList.add('copied-company');
 
@@ -7006,7 +7006,7 @@
               client.copied = true;
               client.fund_copied = true; // 复制过公积金：卡片持久浅绿光晕提醒
               saveState();
-              scheduleReminder(client);
+              
             }
             var cardEl = b.closest('.xls-dial-card');
             if (cardEl) cardEl.classList.add('copied-card');
@@ -7122,7 +7122,7 @@
               if (copyType === 'copy_company') cl.company_copied = true;
               else if (copyType === 'copy_phone') cl.phone_copied = true;
               saveState();
-              scheduleReminder(cl); // 复制即算已操作：序号到 50/10 触发清列表+转公海
+              
             }
 
             navigator.clipboard.writeText(copyText).then(function() {
@@ -7427,7 +7427,7 @@ function updateAutoDialBtn() {
  client.copied = true;
  client.phone_copied = true; // 复制过号码：卡片持久变色提醒
  saveState();
- scheduleReminder(client); // 与主卡片一致：复制号码计入轮次机制
+ 
  }
 
  phoneDisp.classList.add('copied');
@@ -7468,7 +7468,7 @@ function updateAutoDialBtn() {
  if (client) {
  client.copied = true;
  saveState();
- scheduleReminder(client); // 复制姓名同样计入轮次机制（与主卡片一致）
+ 
  }
 
  if (phoneDisp) {
@@ -7507,7 +7507,7 @@ function updateAutoDialBtn() {
  client.copied = true;
  client.company_copied = true; // 复制过单位名称：卡片强提醒（绿底）
  saveState();
- scheduleReminder(client);
+ 
  }
 
  var oldText = companyDisp.textContent;
