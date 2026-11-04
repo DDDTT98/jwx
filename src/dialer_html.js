@@ -3128,6 +3128,7 @@
       var roundSize = isNewMode() ? 10 : 50; // 新号模式每轮 10 人，普通模式 50 人
       var qualifiedCount = importedClients.filter(function(c) { return c.name_copied || c.company_copied; }).length;
       if (qualifiedCount < roundSize) return;
+      window._roundTransferBlocked = true;
       _pendingReminderClient = client;
       if (document.hidden) return; // 不在页面时等待 visibilitychange 重新触发
       if (_reminderSeqTimer) clearTimeout(_reminderSeqTimer);
@@ -3526,66 +3527,76 @@
       }
     }
 
-    // 操作满一轮：累计复制过姓名或单位名称的不同客户达到阈值后，清出列表并转公海；拨打和复制手机号不计数。
+    // 本轮达到阈值后锁定换批；只有云端确认全部转入公海并自动清空，或用户手动清空，才解除锁定。
+    window._roundTransferBlocked = false;
+    window._roundTransferPending = false;
+
+    // 操作满一轮：累计复制过姓名或单位名称的不同客户达到阈值后转公海。
     function checkAndTransferBatch(client) {
-      if (!client) return;
-      // 只转移复制过姓名或单位名称的客户；同一客户两项都复制仍只计 1 人
+      if (!client || window._roundTransferPending || !window._roundTransferBlocked) return;
       var operatedClients = importedClients.filter(function(c) {
         return c.name_copied || c.company_copied;
       });
       if (operatedClients.length === 0) return;
-      try {
-        recordRoundTransferred(); // 完成一轮：轮次+1，从转出公海时刻起算下一轮45-60分钟随机倒计时
-      } catch (e) {
-        console.error('[round] recordRoundTransferred failed:', e); // 轮次记录失败不阻断清列表
-      }
+
       var mobiles = [];
       var mobileSet = {};
       for (var k = 0; k < operatedClients.length; k++) {
         var m = operatedClients[k].phone || operatedClients[k].mobile;
-        if (m) { mobiles.push(m); mobileSet[m] = true; }
+        if (m && !mobileSet[m]) { mobiles.push(m); mobileSet[m] = true; }
       }
-      console.log('[auto-transfer] 本轮已操作 ' + operatedClients.length + ' 人, 转入公海...');
+      if (!mobiles.length) {
+        showCopyLimitToast('本轮客户缺少有效手机号，未能转入公海；可手动清空后再加载', true);
+        return;
+      }
+
+      window._roundTransferPending = true;
+      console.log('[auto-transfer] 本轮已操作 ' + operatedClients.length + ' 人, 正在转入公海...');
       fetch('/api/dialer/customers/transfer-to-pool', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobiles: mobiles })
-      }).then(function(r) { return r.json(); })
-        .then(function(d) {
-          if (d.success) {
-            console.log('[auto-transfer] 已转入公海 ' + d.transferred + '/' + d.total);
-            // 部分号码未在云端匹配（可能已在公海/不存在），如实提示，避免误以为全部转出
-            if (d.transferred < d.total) {
-              showCopyLimitToast('自动转公海完成 ' + d.transferred + '/' + d.total + '，部分号码未匹配（可能已在公海）', true);
-            }
-            // 云端确认完成后刷新数量，避免读到 PATCH 生效前的旧值（自动转公海与本地清列表不同步的根源）
-            refreshAccountDataCount();
-            var dbOv = document.getElementById('dbOverlay');
-            if (dbOv && dbOv.classList.contains('active')) {
-              dbFetch();
-              if (isSessionMaster()) loadAccountStats();
-            }
-          } else {
-            console.error('[auto-transfer] 转公海失败: ' + (d.error || 'unknown'));
-            // 本地列表已清但云端未转，提示用户避免误以为已同步
-            showCopyLimitToast('自动转公海失败：' + (d.error || '云端未响应') + '，云端数量未同步', true);
-          }
-        })
-        .catch(function(e) {
-          console.error('[auto-transfer] 请求失败: ' + e.message);
-          showCopyLimitToast('自动转公海请求失败：' + e.message + '，云端数量未同步', true);
+      }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function(d) {
+        if (!d || !d.success || Number(d.transferred) !== Number(d.total) || Number(d.total) !== mobiles.length) {
+          var msg = d && d.error ? d.error : '云端未确认全部转移（' + (d && d.transferred != null ? d.transferred : 0) + '/' + mobiles.length + '）';
+          console.error('[auto-transfer] 未全部转入公海: ' + msg);
+          showCopyLimitToast('自动转公海未完成：' + msg + '。当前客户列表已保留，不能换一批；可右上角手动清空', true);
+          return;
+        }
+
+        // 仅在云端确认全部成功后，才清除本轮客户并推进轮次。
+        importedClients = importedClients.filter(function(c) {
+          var cm = c.phone || c.mobile;
+          return !mobileSet[cm];
         });
-      // 立即清空已操作客户（不等API响应），剩余未操作客户重新编号，下一轮从序号1重新计数
-      importedClients = importedClients.filter(function(c) {
-        var cm = c.phone || c.mobile;
-        return !mobileSet[cm];
+        saveState();
+        window._roundTransferBlocked = false;
+        try {
+          recordRoundTransferred();
+        } catch (e) {
+          console.error('[round] recordRoundTransferred failed:', e);
+        }
+        refreshAccountDataCount();
+        var dbOv = document.getElementById('dbOverlay');
+        if (dbOv && dbOv.classList.contains('active')) {
+          dbFetch();
+          if (isSessionMaster()) loadAccountStats();
+        }
+        try {
+          renderDialCards();
+        } catch (e) {
+          console.error('[round] render after transfer failed:', e);
+        }
+        showCopyLimitToast('本轮 ' + mobiles.length + ' 位客户已成功转入公海，列表已自动清空', true);
+      }).catch(function(e) {
+        console.error('[auto-transfer] 请求失败: ' + e.message);
+        showCopyLimitToast('自动转公海请求失败：' + e.message + '。当前客户列表已保留，不能换一批；可右上角手动清空', true);
+      }).then(function() {
+        window._roundTransferPending = false;
       });
-      saveState();
-      try {
-        renderDialCards();
-      } catch (e) {
-        console.error('[round] render after transfer failed:', e); // 渲染异常不阻断本轮完成
-      }
     }
 
     function uploadCustomersToSupabase(customers, batchLabel) {
@@ -7803,6 +7814,11 @@ function updateAutoDialBtn() {
         clearBtn.addEventListener('click', function() {
           if (confirm('确认清空当前导入的客户和所有的拨号记录吗？')) {
             importedClients = [];
+            window._roundTransferBlocked = false;
+            window._roundTransferPending = false;
+            _reminderShown = false;
+            _pendingReminderClient = null;
+            if (_reminderSeqTimer) { clearTimeout(_reminderSeqTimer); _reminderSeqTimer = null; }
             saveState();
             updateDashboardVisibility(false);
             var statusEl = document.getElementById('importStatus');
@@ -9408,6 +9424,10 @@ function updateAutoDialBtn() {
     window.refreshBatch = function() {
       var btn = document.getElementById('refreshBatchBtn');
       if (!btn || btn.disabled) return;
+      if (window._roundTransferBlocked || window._roundTransferPending) {
+        alert('本轮客户尚未全部成功转入公海，暂不能换一批/加载新客户。可等待自动转公海成功，或使用右上角手动清空。');
+        return;
+      }
 
       // 冷却期（转出公海后 45-60 分钟随机）未走完：第一次点换一批弹防频繁提醒，
       // 点「知道了」仅关闭弹窗、本次不拉列表；需再点一次换一批才真正拉取（防频繁）
