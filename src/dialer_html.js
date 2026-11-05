@@ -3731,8 +3731,10 @@
 
       var expBtn = document.getElementById('exportBtn');
       var clrBtn = document.getElementById('clearBtn');
+      var transferPoolBtn = document.getElementById('transferCurrentPoolBtn');
       if (expBtn) expBtn.style.display = hasData ? 'flex' : 'none';
       if (clrBtn) clrBtn.style.display = hasData ? 'flex' : 'none';
+      if (transferPoolBtn) transferPoolBtn.style.display = hasData ? 'inline-flex' : 'none';
 
       // Import panel is now a modal overlay — always hidden from flow by CSS
       // Just ensure it's closed when data state changes
