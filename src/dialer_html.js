@@ -10824,6 +10824,21 @@ function updateAutoDialBtn() {
       var close = document.getElementById('menuHelpClose');
       var dropdown = document.getElementById('headerDropdown');
       if (!modal || !dropdown) return;
+
+      // 将说明弹窗挂到 body，避免被页面中带 transform 的父容器限制 fixed 定位范围
+      if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+      modal.style.position = 'fixed';
+      modal.style.inset = '0';
+      modal.style.width = '100vw';
+      modal.style.height = '100dvh';
+      modal.style.boxSizing = 'border-box';
+      modal.style.display = 'none';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.style.padding = '20px';
+
       var help = {
         import: ['导入文件', '导入客户名单文件，读取客户资料并加入当前拨号列表，供后续拨打和跟进使用。导入前建议检查手机号是否完整、重复。'],
         dualSim: ['双卡轮换', '开启后，拨号过程中按设定规则在两张 SIM 卡之间轮换。关闭后使用当前默认拨号卡。'],
@@ -10845,6 +10860,8 @@ function updateAutoDialBtn() {
         title.textContent = item[0];
         body.textContent = item[1];
         modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
       }, true);
       if (close) close.addEventListener('click', function() { modal.style.display = 'none'; });
       modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
