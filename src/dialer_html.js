@@ -191,6 +191,36 @@
       background: var(--btn-hover);
       color: var(--text-main);
     }
+    /* More menu help icons: one consistent compact circular style */
+    .menu-help-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 16px;
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      box-sizing: border-box;
+      margin-left: 3px;
+      border: 1px solid var(--text-light);
+      border-radius: 50%;
+      color: var(--text-soft);
+      background: transparent;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      opacity: .78;
+      cursor: pointer;
+      vertical-align: middle;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .menu-help-btn:hover,
+    .menu-help-btn:focus-visible {
+      color: var(--accent-wechat);
+      border-color: var(--accent-wechat);
+      opacity: 1;
+      outline: none;
+    }
     .icon-btn {
       background: var(--btn-bg);
       border: none;
@@ -2105,7 +2135,7 @@
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 8px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 600; color: var(--text-soft); min-width: 44px; min-height: 34px; display:inline-flex;align-items:center;justify-content:center; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
-            <button class="dropdown-item" id="toggleImportBtn">导入文件 <span class="menu-help-btn" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;min-width:15px;border:1px solid currentColor;border-radius:50%;font-size:10px;line-height:1;font-weight:700;opacity:.65;cursor:pointer;vertical-align:middle;" data-help-key="import" role="button" aria-label="导入文件说明">?</span></button>
+            <button class="dropdown-item" id="toggleImportBtn">导入文件 <span class="menu-help-btn" data-help-key="import" role="button" aria-label="导入文件说明">?</span></button>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开 <span class="menu-help-btn" data-help-key="dualSim" role="button" aria-label="双卡轮换说明">?</span></button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通 <span class="menu-help-btn" data-help-key="rotation" role="button" aria-label="轮换频率说明">?</span></button>
             <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录 <span class="menu-help-btn" data-help-key="export" role="button" aria-label="导出记录说明">?</span></button>
