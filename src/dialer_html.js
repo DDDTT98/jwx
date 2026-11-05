@@ -1920,10 +1920,10 @@
         <span style="font-size:1rem;font-weight:700;color:var(--text-main);letter-spacing:-0.01em;">添加动作</span>
         <button class="drawer-close-btn" id="progressDrawerClose" title="关闭" style="color:var(--text-soft);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
-      <!-- 进度卡片：拨打 / 操作 环形进度 -->
+      <!-- 进度卡片：圆圈中心显示今日，圆圈下显示本周和本月 -->
       <div class="drawer-group-card">
         <div style="display:flex;gap:12px;">
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;">
             <div class="drawer-ring-wrap">
               <svg width="88" height="88" viewBox="0 0 88 88" style="display:block;">
                 <circle cx="44" cy="44" r="36" fill="none" stroke="var(--btn-bg)" stroke-width="6"/>
@@ -1932,8 +1932,12 @@
               <span class="drawer-ring-value" id="drawerDialedRingText">0</span>
             </div>
             <span class="drawer-ring-label">今日拨打客户</span>
+            <div style="width:100%;margin-top:7px;display:flex;justify-content:center;gap:12px;font-size:0.7rem;color:var(--text-light);white-space:nowrap;">
+              <span>本周 <strong id="drawerWeekDialedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
+              <span>本月 <strong id="drawerMonthDialedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
+            </div>
           </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;">
             <div class="drawer-ring-wrap">
               <svg width="88" height="88" viewBox="0 0 88 88" style="display:block;">
                 <circle cx="44" cy="44" r="36" fill="none" stroke="var(--btn-bg)" stroke-width="6"/>
@@ -1942,20 +1946,10 @@
               <span class="drawer-ring-value" id="drawerWorkRingText">0</span>
             </div>
             <span class="drawer-ring-label">今日操作客户</span>
-          </div>
-        </div>
-      </div>
-      <!-- 拨打与操作：本周、本月累计（周期内按手机号去重） -->
-      <div class="drawer-group-card">
-        <div style="font-size:0.68rem;font-weight:600;color:var(--text-light);letter-spacing:0.02em;margin-bottom:8px;">拨打 / 操作客户累计</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div>
-            <div class="drawer-stat-row"><span>拨打 · 本周</span><strong id="drawerWeekDialedVal">0</strong></div>
-            <div class="drawer-stat-row"><span>拨打 · 本月</span><strong id="drawerMonthDialedVal">0</strong></div>
-          </div>
-          <div>
-            <div class="drawer-stat-row"><span>操作 · 本周</span><strong id="drawerWeekOperatedVal">0</strong></div>
-            <div class="drawer-stat-row"><span>操作 · 本月</span><strong id="drawerMonthOperatedVal">0</strong></div>
+            <div style="width:100%;margin-top:7px;display:flex;justify-content:center;gap:12px;font-size:0.7rem;color:var(--text-light);white-space:nowrap;">
+              <span>本周 <strong id="drawerWeekOperatedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
+              <span>本月 <strong id="drawerMonthOperatedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
+            </div>
           </div>
         </div>
       </div>
