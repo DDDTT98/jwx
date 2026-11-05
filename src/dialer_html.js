@@ -2100,6 +2100,8 @@
         <button id="lockScreenBtn" title="锁定屏幕" style="font-size:0.68rem;padding:3px 6px;border:none;background:transparent;color:var(--text-soft);cursor:pointer;outline:none;font-weight:700;border-radius:3px;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
         <!-- 距离下轮添加倒计时：转出公海后冷却期（普通 45-60 分钟 / 新号模式 20-30 分钟，每轮随机），走完自动隐藏（鲜艳红底+白字胶囊，最醒目） -->
         <span id="headerRoundCd" title="距离下轮添加" style="display:none;font-size:0.55rem;font-weight:700;font-family:monospace;color:#fff;letter-spacing:-0.01em;white-space:nowrap;flex-shrink:0;border-radius:var(--radius-capsule);padding:2px 7px;line-height:1.1;background:#ff3b30;animation:roundCdPulse 1.8s ease-in-out infinite;">30:00</span>
+        <button id="transferCurrentPoolBtn" title="将当前拨号列表全部转移至公海" style="display:none;font-size:0.68rem;padding:6px 9px;border:1px solid rgba(231,76,60,0.28);background:rgba(231,76,60,0.08);color:#e74c3c;cursor:pointer;outline:none;font-weight:700;border-radius:6px;white-space:nowrap;min-height:32px;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">转移至公海</button>
+
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 8px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 600; color: var(--text-soft); min-width: 44px; min-height: 34px; display:inline-flex;align-items:center;justify-content:center; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
@@ -7918,6 +7920,65 @@ function updateAutoDialBtn() {
     // Clear and Export Data
     function initDataActions() {
       var clearBtn = document.getElementById('clearBtn');
+      var transferPoolBtn = document.getElementById('transferCurrentPoolBtn');
+      if (transferPoolBtn) {
+        transferPoolBtn.addEventListener('click', function() {
+          var clients = importedClients.slice();
+          if (!clients.length) { alert('当前客户列表为空，无需转移'); return; }
+
+          var mobiles = [];
+          var mobileSet = {};
+          var missingMobile = 0;
+          clients.forEach(function(c) {
+            var mobile = String(c.phone || c.mobile || '').replace(/\\D/g, '');
+            if (!mobile) { missingMobile++; return; }
+            if (!mobileSet[mobile]) { mobileSet[mobile] = true; mobiles.push(mobile); }
+          });
+          if (missingMobile > 0) {
+            alert('当前列表有 ' + missingMobile + ' 条客户缺少有效手机号。为避免遗漏，已取消转移，请先补全手机号。');
+            return;
+          }
+          if (!mobiles.length) { alert('当前客户列表没有可转移的有效手机号'); return; }
+          if (!confirm('确认将当前拨号列表全部 ' + clients.length + ' 位客户（去重后 ' + mobiles.length + ' 个号码）转移至公海？\\n\\n转移成功后，这些客户将从当前账户及拨号列表中移除。')) return;
+
+          transferPoolBtn.disabled = true;
+          transferPoolBtn.textContent = '转移中...';
+          fetch('/api/dialer/customers/transfer-to-pool', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobiles: mobiles })
+          }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          }).then(function(result) {
+            var transferred = Number(result && result.transferred || 0);
+            var total = Number(result && result.total || 0);
+            if (!result || !result.success || transferred !== mobiles.length || total !== mobiles.length) {
+              throw new Error((result && result.error) || ('云端未确认全部转移（' + transferred + '/' + mobiles.length + '）'));
+            }
+
+            importedClients = [];
+            window._roundTransferBlocked = false;
+            window._roundTransferPending = false;
+            _reminderShown = false;
+            _pendingReminderClient = null;
+            if (_reminderSeqTimer) { clearTimeout(_reminderSeqTimer); _reminderSeqTimer = null; }
+            saveState();
+            updateDashboardVisibility(false);
+            var statusEl = document.getElementById('importStatus');
+            if (statusEl) statusEl.innerText = '';
+            renderDialCards();
+            updateStats();
+            refreshAccountDataCount();
+            showCopyLimitToast('已将当前列表 ' + transferred + ' 位客户全部转移至公海', true);
+          }).catch(function(err) {
+            alert('转移未完成，当前拨号列表已保留：' + err.message);
+          }).then(function() {
+            transferPoolBtn.disabled = false;
+            transferPoolBtn.textContent = '转移至公海';
+          });
+        });
+      }
       var exportBtn = document.getElementById('exportBtn');
       var closeExport = document.getElementById('closeExportBtn');
       var copyExport = document.getElementById('copyExportBtn');
