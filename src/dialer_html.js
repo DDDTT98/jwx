@@ -7932,7 +7932,7 @@ function updateAutoDialBtn() {
           var mobileSet = {};
           var missingMobile = 0;
           clients.forEach(function(c) {
-            var mobile = String(c.phone || c.mobile || '').replace(/\\D/g, '');
+            var mobile = String(c.phone || c.mobile || '').replace(/\D/g, '');
             if (!mobile) { missingMobile++; return; }
             if (!mobileSet[mobile]) { mobileSet[mobile] = true; mobiles.push(mobile); }
           });
@@ -7941,7 +7941,7 @@ function updateAutoDialBtn() {
             return;
           }
           if (!mobiles.length) { alert('当前客户列表没有可转移的有效手机号'); return; }
-          if (!confirm('确认将当前拨号列表全部 ' + clients.length + ' 位客户（去重后 ' + mobiles.length + ' 个号码）转移至公海？\\n\\n转移成功后，这些客户将从当前账户及拨号列表中移除。')) return;
+          if (!confirm('确认将当前拨号列表全部 ' + clients.length + ' 位客户（去重后 ' + mobiles.length + ' 个号码）转移至公海？\n\n转移成功后，这些客户将从当前账户及拨号列表中移除。')) return;
 
           transferPoolBtn.disabled = true;
           transferPoolBtn.textContent = '转移中...';
