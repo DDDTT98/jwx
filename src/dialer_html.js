@@ -2100,20 +2100,30 @@
         <button id="lockScreenBtn" title="锁定屏幕" style="font-size:0.68rem;padding:3px 6px;border:none;background:transparent;color:var(--text-soft);cursor:pointer;outline:none;font-weight:700;border-radius:3px;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
         <!-- 距离下轮添加倒计时：转出公海后冷却期（普通 45-60 分钟 / 新号模式 20-30 分钟，每轮随机），走完自动隐藏（鲜艳红底+白字胶囊，最醒目） -->
         <span id="headerRoundCd" title="距离下轮添加" style="display:none;font-size:0.55rem;font-weight:700;font-family:monospace;color:#fff;letter-spacing:-0.01em;white-space:nowrap;flex-shrink:0;border-radius:var(--radius-capsule);padding:2px 7px;line-height:1.1;background:#ff3b30;animation:roundCdPulse 1.8s ease-in-out infinite;">30:00</span>
-        <button id="transferCurrentPoolBtn" title="将当前拨号列表全部转移至公海" style="display:none;font-size:0.68rem;padding:6px 9px;border:1px solid rgba(231,76,60,0.28);background:rgba(231,76,60,0.08);color:#e74c3c;cursor:pointer;outline:none;font-weight:700;border-radius:6px;white-space:nowrap;min-height:32px;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">转移至公海</button>
 
         <!-- Dropdown Menu Trigger on the Right -->
         <div style="position: relative; display: inline-block;">
           <button id="headerMenuBtn" title="更多设置" style="font-size: 0.8rem; padding: 6px 8px; border: none; background: transparent; cursor: pointer; outline: none; font-weight: 600; color: var(--text-soft); min-width: 44px; min-height: 34px; display:inline-flex;align-items:center;justify-content:center; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
           <div class="header-dropdown" id="headerDropdown" style="display: none;">
-            <button class="dropdown-item" id="toggleImportBtn">导入文件</button>
-            <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开</button>
-            <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通</button>
-            <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录</button>
-            <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据</button>
-            <button class="dropdown-item" id="darkToggleBtn">切换主题</button>
-            <div class="dropdown-item" id="copyPrefTrigger" title="设置复制内容偏好" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;color:var(--text-soft);"><span style="font-size:0.7rem;">账户</span><span style="display:flex;align-items:center;gap:4px;"><span id="accountDisplay" style="font-size:0.68rem;font-weight:700;font-family:monospace;color:var(--text-main);"></span><span id="accountDataCount" style="font-size:0.62rem;font-weight:600;color:var(--text-light);"></span></span></div>
-            <button class="dropdown-item" id="headerLogoutBtn" style="color: #e74c3c;">退出登录</button>
+            <button class="dropdown-item" id="toggleImportBtn">导入文件 <span class="menu-help-btn" data-help-key="import" role="button" aria-label="导入文件说明">?</span></button>
+            <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开 <span class="menu-help-btn" data-help-key="dualSim" role="button" aria-label="双卡轮换说明">?</span></button>
+            <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通 <span class="menu-help-btn" data-help-key="rotation" role="button" aria-label="轮换频率说明">?</span></button>
+            <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录 <span class="menu-help-btn" data-help-key="export" role="button" aria-label="导出记录说明">?</span></button>
+            <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据 <span class="menu-help-btn" data-help-key="clear" role="button" aria-label="清空数据说明">?</span></button>
+            <button class="dropdown-item" id="transferCurrentPoolBtn" style="display:none;color:#e74c3c;">转移至公海 <span class="menu-help-btn" data-help-key="transferPool" role="button" aria-label="转移至公海说明">?</span></button>
+            <button class="dropdown-item" id="darkToggleBtn">切换主题 <span class="menu-help-btn" data-help-key="theme" role="button" aria-label="切换主题说明">?</span></button>
+            <div class="dropdown-item" id="copyPrefTrigger" title="设置复制内容偏好" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;color:var(--text-soft);"><span style="display:flex;align-items:center;gap:7px;font-size:0.7rem;">账户 <span class="menu-help-btn" data-help-key="account" role="button" aria-label="账户说明">?</span></span><span style="display:flex;align-items:center;gap:4px;"><span id="accountDisplay" style="font-size:0.68rem;font-weight:700;font-family:monospace;color:var(--text-main);"></span><span id="accountDataCount" style="font-size:0.62rem;font-weight:600;color:var(--text-light);"></span></span></div>
+            <button class="dropdown-item" id="headerLogoutBtn" style="color: #e74c3c;">退出登录 <span class="menu-help-btn" data-help-key="logout" role="button" aria-label="退出登录说明">?</span></button>
+          </div>
+        </div>
+
+        <div id="menuHelpModal" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.48);align-items:center;justify-content:center;padding:20px;">
+          <div style="width:min(340px,100%);background:var(--card-bg,#fff);color:var(--text-main,#222);border:1px solid var(--card-border,#ddd);border-radius:14px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.22);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+              <strong id="menuHelpTitle" style="font-size:0.95rem;">功能说明</strong>
+              <button id="menuHelpClose" type="button" aria-label="关闭说明" style="border:0;background:transparent;color:var(--text-soft);font-size:1.35rem;padding:0 4px;cursor:pointer;">×</button>
+            </div>
+            <div id="menuHelpText" style="font-size:0.82rem;line-height:1.7;color:var(--text-soft);"></div>
           </div>
         </div>
 
@@ -10805,6 +10815,39 @@ function updateAutoDialBtn() {
       document.getElementById('cpfDate').addEventListener('change', function() {
         toggleField('date', this.checked);
       });
+    }
+
+  function initMenuHelp() {
+      var modal = document.getElementById('menuHelpModal');
+      var title = document.getElementById('menuHelpTitle');
+      var body = document.getElementById('menuHelpText');
+      var close = document.getElementById('menuHelpClose');
+      var dropdown = document.getElementById('headerDropdown');
+      if (!modal || !dropdown) return;
+      var help = {
+        import: ['导入文件', '导入客户名单文件，读取客户资料并加入当前拨号列表，供后续拨打和跟进使用。导入前建议检查手机号是否完整、重复。'],
+        dualSim: ['双卡轮换', '开启后，拨号过程中按设定规则在两张 SIM 卡之间轮换。关闭后使用当前默认拨号卡。'],
+        rotation: ['轮换频率', '设置拨打多少通后切换一次 SIM 卡。数值越小切换越频繁，请按实际拨号习惯设置。'],
+        export: ['导出记录', '导出当前拨号记录，便于备份、整理和复盘。导出内容以当前页面已有记录为准。'],
+        clear: ['清空数据', '清除当前本地拨号列表及相关拨打进度。执行前请确认需要保留的数据已导出或同步。'],
+        transferPool: ['转移至公海', '把当前拨号列表中的客户按手机号转入云端公海，从当前账户移出。系统会先检查手机号并二次确认；成功后才清空当前拨号列表。此操作会影响客户归属，请谨慎执行。'],
+        theme: ['切换主题', '在浅色和深色界面主题之间切换，只改变页面显示效果，不会修改客户数据。'],
+        account: ['账户', '显示当前登录账户及账户数据数量。点击账户区域可打开复制内容偏好设置，配置点击客户单位名称时要复制的字段及顺序。'],
+        logout: ['退出登录', '退出当前账户并清除本地登录会话，之后需要重新登录才能继续使用。']
+      };
+      dropdown.addEventListener('click', function(e) {
+        var helpBtn = e.target.closest ? e.target.closest('.menu-help-btn') : null;
+        if (!helpBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var item = help[helpBtn.getAttribute('data-help-key')];
+        if (!item) return;
+        title.textContent = item[0];
+        body.textContent = item[1];
+        modal.style.display = 'flex';
+      });
+      if (close) close.addEventListener('click', function() { modal.style.display = 'none'; });
+      modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
     }
 
   function initHeaderMenu() {
