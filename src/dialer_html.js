@@ -3160,15 +3160,16 @@
     window._reminderTimer = null;
     var _reminderSeqTimer = null;
 
-    // 操作到本轮最后一个客户卡片时，8秒后弹出提醒并清空列表（普通模式序号50 / 新号模式序号10）
-    // 页面不可见（如切到微信粘贴号码）时暂停倒计时，回到页面后再重新触发，避免回来时列表已被清空
+    // 操作比例达到 80% 且达到模式最低人数后，触发本轮自动转公海并清空列表
+    // 普通模式最低 50 人；新号模式最低 10 人。页面不可见时暂停倒计时，返回后重新检查。
     var _pendingReminderClient = null;
     function scheduleReminder(client) {
       if (_reminderShown) return;
       if (!client) return;
-      var roundSize = isNewMode() ? 10 : 50; // 新号模式每轮 10 人，普通模式 50 人
+      var minRoundSize = isNewMode() ? 10 : 50;
       var qualifiedCount = importedClients.filter(function(c) { return c.name_copied || c.company_copied; }).length;
-      if (qualifiedCount < roundSize) return;
+      var requiredCount = Math.max(minRoundSize, Math.ceil(importedClients.length * 0.8));
+      if (qualifiedCount < requiredCount) return;
       window._roundTransferBlocked = true;
       _pendingReminderClient = client;
       if (document.hidden) return; // 不在页面时等待 visibilitychange 重新触发
