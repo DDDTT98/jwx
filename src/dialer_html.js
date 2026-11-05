@@ -201,7 +201,7 @@
       height: 16px;
       min-width: 16px;
       box-sizing: border-box;
-      margin-left: 3px;
+      margin-left: auto;
       border: 1px solid var(--text-light);
       border-radius: 50%;
       color: var(--text-soft);
@@ -2142,7 +2142,7 @@
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据 <span class="menu-help-btn" data-help-key="clear" role="button" aria-label="清空数据说明">?</span></button>
             <button class="dropdown-item" id="transferCurrentPoolBtn" style="display:none;color:#e74c3c;">转移至公海 <span class="menu-help-btn" data-help-key="transferPool" role="button" aria-label="转移至公海说明">?</span></button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题 <span class="menu-help-btn" data-help-key="theme" role="button" aria-label="切换主题说明">?</span></button>
-            <div class="dropdown-item" id="copyPrefTrigger" title="设置复制内容偏好" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;color:var(--text-soft);"><span style="display:flex;align-items:center;gap:7px;font-size:0.7rem;">账户 <span class="menu-help-btn" data-help-key="account" role="button" aria-label="账户说明">?</span></span><span style="display:flex;align-items:center;gap:4px;"><span id="accountDisplay" style="font-size:0.68rem;font-weight:700;font-family:monospace;color:var(--text-main);"></span><span id="accountDataCount" style="font-size:0.62rem;font-weight:600;color:var(--text-light);"></span></span></div>
+            <div class="dropdown-item" id="copyPrefTrigger" title="设置复制内容偏好" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;color:var(--text-soft);"><span style="display:flex;align-items:center;gap:7px;font-size:0.7rem;">账户</span><span style="display:flex;align-items:center;gap:4px;"><span id="accountDisplay" style="font-size:0.68rem;font-weight:700;font-family:monospace;color:var(--text-main);"></span><span id="accountDataCount" style="font-size:0.62rem;font-weight:600;color:var(--text-light);"></span></span><span class="menu-help-btn" data-help-key="account" role="button" aria-label="账户说明">?</span></div>
             <button class="dropdown-item" id="headerLogoutBtn" style="color: #e74c3c;">退出登录 <span class="menu-help-btn" data-help-key="logout" role="button" aria-label="退出登录说明">?</span></button>
           </div>
         </div>
