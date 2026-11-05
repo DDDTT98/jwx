@@ -3160,15 +3160,19 @@
     window._reminderTimer = null;
     var _reminderSeqTimer = null;
 
-    // 操作比例达到 80% 且达到模式最低人数后，触发本轮自动转公海并清空列表
-    // 普通模式最低 50 人；新号模式最低 10 人。页面不可见时暂停倒计时，返回后重新检查。
+    // 只统计本轮前 50 位（新号前 10 位）：操作到对应位置，且该区间操作率达到 80% 才触发自动转公海。
+    // 普通模式必须到第 50 位；新号模式必须到第 10 位。中间允许少量客户未操作。
+    // 页面不可见时暂停倒计时，返回后按同一位置和比例条件重新检查。
     var _pendingReminderClient = null;
     function scheduleReminder(client) {
       if (_reminderShown) return;
       if (!client) return;
-      var minRoundSize = isNewMode() ? 10 : 50;
-      var qualifiedCount = importedClients.filter(function(c) { return c.name_copied || c.company_copied; }).length;
-      var requiredCount = Math.max(minRoundSize, Math.ceil(importedClients.length * 0.8));
+      var roundSize = isNewMode() ? 10 : 50;
+      var clientPosition = importedClients.indexOf(client);
+      if (importedClients.length < roundSize || clientPosition < roundSize - 1) return;
+      var roundClients = importedClients.slice(0, roundSize);
+      var qualifiedCount = roundClients.filter(function(c) { return c.name_copied || c.company_copied; }).length;
+      var requiredCount = Math.ceil(roundSize * 0.8);
       if (qualifiedCount < requiredCount) return;
       window._roundTransferBlocked = true;
       _pendingReminderClient = client;
