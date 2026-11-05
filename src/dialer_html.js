@@ -7924,62 +7924,123 @@ function updateAutoDialBtn() {
       var clearBtn = document.getElementById('clearBtn');
       var transferPoolBtn = document.getElementById('transferCurrentPoolBtn');
       if (transferPoolBtn) {
-        transferPoolBtn.addEventListener('click', function() {
-          var clients = importedClients.slice();
-          if (!clients.length) { alert('当前客户列表为空，无需转移'); return; }
+        // 手动将当前拨号列表整体转入公海。用 onclick 覆盖绑定，避免初始化重复时重复提交。
+        transferPoolBtn.onclick = async function() {
+          if (transferPoolBtn.disabled) return;
 
-          var mobiles = [];
-          var mobileSet = {};
-          var missingMobile = 0;
-          clients.forEach(function(c) {
-            var mobile = String(c.phone || c.mobile || '').replace(/\D/g, '');
-            if (!mobile) { missingMobile++; return; }
-            if (!mobileSet[mobile]) { mobileSet[mobile] = true; mobiles.push(mobile); }
-          });
-          if (missingMobile > 0) {
-            alert('当前列表有 ' + missingMobile + ' 条客户缺少有效手机号。为避免遗漏，已取消转移，请先补全手机号。');
+          var clients = Array.isArray(importedClients) ? importedClients.slice() : [];
+          if (!clients.length) {
+            alert('当前拨号列表为空，无需转移。');
             return;
           }
-          if (!mobiles.length) { alert('当前客户列表没有可转移的有效手机号'); return; }
-          if (!confirm('确认将当前拨号列表全部 ' + clients.length + ' 位客户（去重后 ' + mobiles.length + ' 个号码）转移至公海？\n\n转移成功后，这些客户将从当前账户及拨号列表中移除。')) return;
 
+          // 统一提取手机号并去重；只要有一条无号码，就中止，避免“全部转移”实际遗漏。
+          var mobiles = [];
+          var mobileSet = Object.create(null);
+          var invalidRows = [];
+          clients.forEach(function(client, index) {
+            var raw = client && (client.phone || client.mobile || client.tel || client.telephone);
+            var mobile = String(raw || '').replace(/\\D/g, '');
+            if (!mobile) {
+              invalidRows.push(index + 1);
+              return;
+            }
+            if (!mobileSet[mobile]) {
+              mobileSet[mobile] = true;
+              mobiles.push(mobile);
+            }
+          });
+
+          if (invalidRows.length) {
+            alert('当前列表有 ' + invalidRows.length + ' 条客户缺少有效手机号（行号：' +
+              invalidRows.slice(0, 10).join('、') + (invalidRows.length > 10 ? '…' : '') +
+              '）。本次未执行转移，请先补全号码。');
+            return;
+          }
+          if (!mobiles.length) {
+            alert('当前列表没有可转移的有效手机号。');
+            return;
+          }
+
+          var confirmText = '即将把当前拨号列表中的 ' + clients.length + ' 条客户记录转入公海。' +
+            '\\n手机号去重后：' + mobiles.length + ' 个。' +
+            '\\n\\n转移成功后，客户将从当前账户移出，当前拨号列表也会清空。' +
+            '\\n此操作不可直接撤销，确定继续吗？';
+          if (!window.confirm(confirmText)) return;
+
+          var originalText = transferPoolBtn.textContent;
           transferPoolBtn.disabled = true;
-          transferPoolBtn.textContent = '转移中...';
-          fetch('/api/dialer/customers/transfer-to-pool', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobiles: mobiles })
-          }).then(function(r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-          }).then(function(result) {
-            var transferred = Number(result && result.transferred || 0);
-            var total = Number(result && result.total || 0);
-            if (!result || !result.success || transferred !== mobiles.length || total !== mobiles.length) {
-              throw new Error((result && result.error) || ('云端未确认全部转移（' + transferred + '/' + mobiles.length + '）'));
+          transferPoolBtn.textContent = '正在转移…';
+          transferPoolBtn.style.opacity = '0.65';
+
+          try {
+            var token = getSessionToken();
+            if (!token) throw new Error('登录状态已失效，请重新登录后再试。');
+
+            var headers = {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            };
+            // 主账户正在查看子账户数据时，必须把视图账户一起传给后端。
+            if (_viewAccountId) headers['X-View-Account-Id'] = _viewAccountId;
+
+            var response = await window.fetch('/api/dialer/customers/transfer-to-pool', {
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify({ mobiles: mobiles })
+            });
+
+            var result = await response.json().catch(function() { return null; });
+            if (!response.ok) {
+              var httpMessage = result && (result.error || result.message);
+              if (response.status === 401) httpMessage = '登录已过期，请重新登录后再执行。';
+              throw new Error(httpMessage || ('服务器请求失败（HTTP ' + response.status + '）'));
+            }
+            if (!result || result.success !== true) {
+              throw new Error((result && result.error) || '服务器没有确认转移成功。');
             }
 
+            var transferred = Number(result.transferred);
+            if (!Number.isFinite(transferred)) transferred = 0;
+
+            // 后端返回的是实际更新的数据库行数。同一手机号若在多个账户存在，
+            // 更新行数可能大于去重手机号数，因此只检查是否少于请求数，不要求严格相等。
+            if (transferred < mobiles.length) {
+              throw new Error('云端只确认转移 ' + transferred + '/' + mobiles.length +
+                ' 个号码。为防止丢失数据，当前拨号列表暂时保留；请核对公海和账户数据后再重试。');
+            }
+
+            // 只有云端确认全部号码均已转移，才清空本地拨号列表。
             importedClients = [];
+            currentCallIdx = -1;
             window._roundTransferBlocked = false;
             window._roundTransferPending = false;
             _reminderShown = false;
             _pendingReminderClient = null;
-            if (_reminderSeqTimer) { clearTimeout(_reminderSeqTimer); _reminderSeqTimer = null; }
+            if (_reminderSeqTimer) {
+              clearTimeout(_reminderSeqTimer);
+              _reminderSeqTimer = null;
+            }
             saveState();
             updateDashboardVisibility(false);
+
             var statusEl = document.getElementById('importStatus');
-            if (statusEl) statusEl.innerText = '';
+            if (statusEl) statusEl.textContent = '';
             renderDialCards();
             updateStats();
             refreshAccountDataCount();
-            showCopyLimitToast('已将当前列表 ' + transferred + ' 位客户全部转移至公海', true);
-          }).catch(function(err) {
-            alert('转移未完成，当前拨号列表已保留：' + err.message);
-          }).then(function() {
+
+            showCopyLimitToast('转移完成：' + clients.length + ' 条客户记录已转入公海', true);
+          } catch (err) {
+            console.error('[transfer-to-pool] failed:', err);
+            alert('转移失败：' + (err && err.message ? err.message : '未知错误') +
+              '\\n\\n当前拨号列表已保留，没有清空。');
+          } finally {
             transferPoolBtn.disabled = false;
-            transferPoolBtn.textContent = '转移至公海';
-          });
-        });
+            transferPoolBtn.textContent = originalText || '转移至公海';
+            transferPoolBtn.style.opacity = '';
+          }
+        };
       }
       var exportBtn = document.getElementById('exportBtn');
       var closeExport = document.getElementById('closeExportBtn');
