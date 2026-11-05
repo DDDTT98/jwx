@@ -1960,9 +1960,12 @@
       <div class="drawer-group-card">
         <div class="drawer-stat-row">
           <span>本机新号</span>
-          <button id="newModeToggle" title="本机新号：每轮 10 个客户，加完冷却 20-30 分钟（普通模式 50 个、45-60 分钟）">
-            <span class="nm-track"><span class="nm-thumb"></span></span>
-          </button>
+          <span style="display:inline-flex;align-items:center;gap:7px;">
+            <button id="newModeInfo" type="button" aria-label="本机新号说明" title="本机新号模式说明" style="width:19px;height:19px;padding:0;border:1px solid var(--text-light);border-radius:50%;background:transparent;color:var(--text-soft);font-size:12px;font-weight:700;line-height:17px;cursor:pointer;">!</button>
+            <button id="newModeToggle" title="本机新号：每轮 10 个客户，加完冷却 20-30 分钟（普通模式 50 个、45-60 分钟）">
+              <span class="nm-track"><span class="nm-thumb"></span></span>
+            </button>
+          </span>
         </div>
       </div>
       <!-- 通过微信 -->
@@ -2861,6 +2864,12 @@
     function initNewModeToggle() {
       var btn = document.getElementById('newModeToggle');
       if (!btn) return;
+      var infoBtn = document.getElementById('newModeInfo');
+      if (infoBtn) infoBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        alert('本机新号模式说明：\\n\\n开启后，每轮只加载 10 位客户；完成本轮后，系统会安排约 20-30 分钟冷却，再继续下一轮。\\n\\n关闭时为普通模式：每轮加载 50 位客户；完成本轮后，冷却约 45-60 分钟。\\n\\n此设置按当前账号和当前设备单独保存，不影响其他账号或设备。');
+      });
       var apply = function() { btn.classList.toggle('on', isNewMode()); };
       apply();
       btn.addEventListener('click', function() {
