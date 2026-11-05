@@ -1950,15 +1950,14 @@
               <span>本周 <strong id="drawerWeekOperatedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
               <span>本月 <strong id="drawerMonthOperatedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
             </div>
+            <div style="margin-top:5px;font-size:0.7rem;color:var(--text-light);">
+              今日添加 <strong id="drawerRoundVal" style="color:var(--text-main);font-weight:700;">第 1 轮</strong>
+            </div>
           </div>
         </div>
       </div>
       <!-- 轮次与模式 -->
       <div class="drawer-group-card">
-        <div class="drawer-stat-row">
-          <span>今日添加轮数</span>
-          <span class="drawer-round-pill" id="drawerRoundVal">第 1 轮</span>
-        </div>
         <div class="drawer-stat-row">
           <span>本机新号</span>
           <button id="newModeToggle" title="本机新号：每轮 10 个客户，加完冷却 20-30 分钟（普通模式 50 个、45-60 分钟）">
