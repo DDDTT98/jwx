@@ -10845,7 +10845,7 @@ function updateAutoDialBtn() {
         title.textContent = item[0];
         body.textContent = item[1];
         modal.style.display = 'flex';
-      });
+      }, true);
       if (close) close.addEventListener('click', function() { modal.style.display = 'none'; });
       modal.addEventListener('click', function(e) { if (e.target === modal) modal.style.display = 'none'; });
     }
