@@ -782,6 +782,14 @@
       transition: opacity 0.8s ease-in-out;
     }
     .global-wallpaper.loaded { opacity: 1; }
+    /* 深色模式下压暗壁纸，降低背景干扰并提升文字可读性 */
+    body.dark-mode .global-wallpaper,
+    body.dark-mode .lock-wallpaper {
+      filter: brightness(0.52);
+    }
+    body.dark-mode .lock-wallpaper-overlay {
+      background: rgba(0,0,0,0.38);
+    }
     /* Glass-morphism lock screen card */
     /* ── Anime-style lock card ── */
     .auth-overlay .auth-card {
