@@ -207,6 +207,42 @@ async function countKvPrefix(env, prefix) {
 function clientOperationKey(accountId, date, mobile, kind) {
   return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\D/g, ''));
 }
+// 按统计周期对客户手机号去重：同一客户在周期内多天拨打/操作只计 1 人
+async function clientOperationRangeCounts(env, accountId, startDate, endDate) {
+  var dateObj = new Date(endDate + 'T00:00:00Z');
+  var weekStart = addDays(endDate, -((dateObj.getUTCDay() + 6) % 7));
+  var result = { week_operated_count: 0, month_operated_count: 0, week_dialed_count: 0, month_dialed_count: 0 };
+  for (var k = 0; k < 2; k++) {
+    var kind = k === 0 ? 'all' : 'dial';
+    var prefix = 'client_ops_' + kind + ':' + accountId + ':';
+    var weekMobiles = new Set();
+    var monthMobiles = new Set();
+    var cursor;
+    do {
+      var page = await env.DATA_KV.list({ prefix: prefix, limit: 1000, cursor: cursor });
+      (page.keys || []).forEach(function(item) {
+        var rest = item.name.slice(prefix.length);
+        var sep = rest.indexOf(':');
+        if (sep < 0) return;
+        var opDate = rest.slice(0, sep);
+        if (opDate < startDate || opDate > endDate) return;
+        var mobile = rest.slice(sep + 1);
+        if (!mobile) return;
+        monthMobiles.add(mobile);
+        if (opDate >= weekStart) weekMobiles.add(mobile);
+      });
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+    if (kind === 'all') {
+      result.week_operated_count = weekMobiles.size;
+      result.month_operated_count = monthMobiles.size;
+    } else {
+      result.week_dialed_count = weekMobiles.size;
+      result.month_dialed_count = monthMobiles.size;
+    }
+  }
+  return result;
+}
 // 设备级冷却倒计时（每台设备各自走 45-60 分钟）：与账号级轮次统计分开存，互不覆盖
 function cooldownKey(accountId, date, deviceId) {
   return 'work_stats_cd:' + accountId + ':' + date + ':' + deviceId;
@@ -990,6 +1026,11 @@ export default {
         var wsDeviceId = url.searchParams.get('device_id') || '';
         var wsRow = await fetchWorkRow(env, wsSession.account_id, wsDate);
         var wm = await weekMonthCounts(env, wsSession.account_id, wsDate);
+        var wsMonthStart = wsDate.slice(0, 8) + '01';
+        var wsDateObj = new Date(wsDate + 'T00:00:00Z');
+        var wsWeekStart = addDays(wsDate, -((wsDateObj.getUTCDay() + 6) % 7));
+        var wsOps = await clientOperationRangeCounts(env, wsSession.account_id, wsMonthStart, wsDate);
+        // 周统计从本周一开始；月统计从每月 1 日开始
         var wsResp = wsRow || { date: wsDate, rounds: 0, wechat_count: 0 };
         // 设备级冷却：本设备键优先；无设备键时回退旧版账号级 transfer_ts/cooldown_ms（升级过渡期用一次）
         var wsCd = null;
@@ -1004,6 +1045,10 @@ export default {
         wsResp.month_count = wm.month_count;
         wsResp.operated_count = await countKvPrefix(env, 'client_ops_all:' + wsSession.account_id + ':' + wsDate + ':');
         wsResp.dialed_count = await countKvPrefix(env, 'client_ops_dial:' + wsSession.account_id + ':' + wsDate + ':');
+        wsResp.week_operated_count = wsOps.week_operated_count;
+        wsResp.month_operated_count = wsOps.month_operated_count;
+        wsResp.week_dialed_count = wsOps.week_dialed_count;
+        wsResp.month_dialed_count = wsOps.month_dialed_count;
         return new Response(JSON.stringify(wsResp), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
