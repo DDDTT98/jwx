@@ -1945,6 +1945,20 @@
           </div>
         </div>
       </div>
+      <!-- 拨打与操作：本周、本月累计（周期内按手机号去重） -->
+      <div class="drawer-group-card">
+        <div style="font-size:0.68rem;font-weight:600;color:var(--text-light);letter-spacing:0.02em;margin-bottom:8px;">拨打 / 操作客户累计</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <div class="drawer-stat-row"><span>拨打 · 本周</span><strong id="drawerWeekDialedVal">0</strong></div>
+            <div class="drawer-stat-row"><span>拨打 · 本月</span><strong id="drawerMonthDialedVal">0</strong></div>
+          </div>
+          <div>
+            <div class="drawer-stat-row"><span>操作 · 本周</span><strong id="drawerWeekOperatedVal">0</strong></div>
+            <div class="drawer-stat-row"><span>操作 · 本月</span><strong id="drawerMonthOperatedVal">0</strong></div>
+          </div>
+        </div>
+      </div>
       <!-- 轮次与模式 -->
       <div class="drawer-group-card">
         <div class="drawer-stat-row">
@@ -11242,6 +11256,10 @@ function updateAutoDialBtn() {
     var DRAWER_RING_C = 226.2; // 环形周长：2πr (r=36)
     var _todayDialedCustomers = 0;
     var _todayOperatedCustomers = 0;
+    var _weekDialedCustomers = 0;
+    var _monthDialedCustomers = 0;
+    var _weekOperatedCustomers = 0;
+    var _monthOperatedCustomers = 0;
     function renderDrawer() {
       var dialed = _todayDialedCustomers;
       var operated = _todayOperatedCustomers;
@@ -11264,6 +11282,14 @@ function updateAutoDialBtn() {
       if (ww) ww.textContent = _weekWechat;
       var wm = document.getElementById('drawerMonthWechatVal');
       if (wm) wm.textContent = _monthWechat;
+      var wd = document.getElementById('drawerWeekDialedVal');
+      if (wd) wd.textContent = _weekDialedCustomers;
+      var md = document.getElementById('drawerMonthDialedVal');
+      if (md) md.textContent = _monthDialedCustomers;
+      var wo = document.getElementById('drawerWeekOperatedVal');
+      if (wo) wo.textContent = _weekOperatedCustomers;
+      var mo = document.getElementById('drawerMonthOperatedVal');
+      if (mo) mo.textContent = _monthOperatedCustomers;
     }
     function initProgressDrawer() {
       var stats = document.getElementById('headerStatsMinimal');
@@ -11437,6 +11463,10 @@ function updateAutoDialBtn() {
             _monthWechat = res.month_count || 0;
             _todayOperatedCustomers = res.operated_count || 0;
             _todayDialedCustomers = res.dialed_count || 0;
+            _weekOperatedCustomers = res.week_operated_count || 0;
+            _monthOperatedCustomers = res.month_operated_count || 0;
+            _weekDialedCustomers = res.week_dialed_count || 0;
+            _monthDialedCustomers = res.month_dialed_count || 0;
             renderRoundInfo();
             renderDrawer();
           }
