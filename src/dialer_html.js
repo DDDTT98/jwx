@@ -2138,7 +2138,6 @@
             <button class="dropdown-item" id="toggleImportBtn">导入文件 <span class="menu-help-btn" data-help-key="import" role="button" aria-label="导入文件说明">?</span></button>
             <button class="dropdown-item" id="toggleDualSimBtn">双卡轮换: 开 <span class="menu-help-btn" data-help-key="dualSim" role="button" aria-label="双卡轮换说明">?</span></button>
             <button class="dropdown-item" id="toggleRotationBtn">轮换频率: 10通 <span class="menu-help-btn" data-help-key="rotation" role="button" aria-label="轮换频率说明">?</span></button>
-            <button class="dropdown-item" id="exportBtn" style="display:none;">导出记录 <span class="menu-help-btn" data-help-key="export" role="button" aria-label="导出记录说明">?</span></button>
             <button class="dropdown-item" id="clearBtn" style="display:none; color: #e74c3c;">清空数据 <span class="menu-help-btn" data-help-key="clear" role="button" aria-label="清空数据说明">?</span></button>
             <button class="dropdown-item" id="transferCurrentPoolBtn" style="display:none;color:#e74c3c;">转移至公海 <span class="menu-help-btn" data-help-key="transferPool" role="button" aria-label="转移至公海说明">?</span></button>
             <button class="dropdown-item" id="darkToggleBtn">切换主题 <span class="menu-help-btn" data-help-key="theme" role="button" aria-label="切换主题说明">?</span></button>
@@ -10873,7 +10872,6 @@ function updateAutoDialBtn() {
         import: ['导入文件', '导入客户名单文件，读取客户资料并加入当前拨号列表，供后续拨打和跟进使用。导入前建议检查手机号是否完整、重复。'],
         dualSim: ['双卡轮换', '开启后，拨号过程中按设定规则在两张 SIM 卡之间轮换。关闭后使用当前默认拨号卡。'],
         rotation: ['轮换频率', '设置拨打多少通后切换一次 SIM 卡。数值越小切换越频繁，请按实际拨号习惯设置。'],
-        export: ['导出记录', '导出当前拨号记录，便于备份、整理和复盘。导出内容以当前页面已有记录为准。'],
         clear: ['清空数据', '清除当前本地拨号列表及相关拨打进度。执行前请确认需要保留的数据已导出或同步。'],
         transferPool: ['转移至公海', '把当前拨号列表中的客户按手机号转入云端公海，从当前账户移出。系统会先检查手机号并二次确认；成功后才清空当前拨号列表。此操作会影响客户归属，请谨慎执行。'],
         theme: ['切换主题 / 自动模式', '支持浅色、深色和自动三种显示模式。选择“自动模式”时，页面会跟随设备或浏览器的系统外观设置，在系统切换浅色/深色时同步切换；选择浅色或深色则固定使用对应主题。此设置只影响页面显示，不会修改客户数据。'],
