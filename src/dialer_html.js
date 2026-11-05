@@ -1947,6 +1947,39 @@
     #dbmMgrBody .dbm-mgr-inner .auth-btn { background: #07c160; color: #fff; }
     #dbmMgrBody .dbm-mgr-inner textarea { border-radius: 10px; border: none; background: var(--btn-bg); color: var(--text-main); padding: 10px; font-size: 0.78rem; outline: none; }
     #dbmMgrBody .dbm-mgr-inner .auth-input { background: var(--btn-bg); border: none; }
+    /* 小屏手机紧凑模式：按实际视口宽度自动启用，缩小字体、卡片留白和控件尺寸 */
+    @media screen and (max-width: 390px) and (pointer: coarse) {
+      html { font-size: 15px; }
+      body { font-size: 0.94rem; }
+      .header-bar { padding-left: 8px; padding-right: 8px; }
+      .header-stats-minimal { font-size: 0.68rem; }
+      .control-bar { gap: 3px; padding-left: 6px; padding-right: 6px; }
+      .cards-content { padding-left: 6px; padding-right: 6px; gap: 5px; }
+      .xls-dial-card {
+        padding: 7px 8px;
+        gap: 4px;
+        border-radius: 10px;
+      }
+      .client-card-name-btn { font-size: 0.84rem; }
+      .client-phone { font-size: 0.76rem; }
+      .client-card-tag { font-size: 0.74rem; padding: 1px 5px; }
+      .client-card-text { font-size: 0.6rem; line-height: 1.35; }
+      .client-card-body { gap: 1px; padding-left: 4px; }
+      .client-card-actions { gap: 4px; padding-top: 3px; }
+      .xls-card-dial-btn { height: 25px; padding: 0 8px; font-size: 0.68rem; }
+      .card-copy-btn { font-size: 0.58rem; padding: 2px 4px; }
+      .filter-tab { padding-left: 5px; padding-right: 5px; font-size: 0.66rem; }
+      .search-input { width: 88px; font-size: 0.7rem; }
+      .crm-toolbar, .crm-badge-bar { padding-left: 8px; padding-right: 8px; }
+      .crm-tab, .crm-tool-btn { font-size: 0.7rem; padding-left: 6px; padding-right: 6px; }
+      .dbm-topbar { gap: 7px; padding-left: 9px; padding-right: 9px; }
+      .dbm-icon-btn { width: 33px; height: 33px; }
+      .dbm-searchbar, .dbm-filterbar { padding-left: 8px; padding-right: 8px; gap: 6px; }
+      .dbm-actionbar { gap: 6px; padding-left: 8px; padding-right: 8px; }
+      .dbm-action-btn { min-height: 40px; padding: 0 11px; font-size: 0.74rem; }
+      .dbm-nav-btn { height: 46px; font-size: 0.74rem; }
+      .reminder-card, .cooldown-card { padding: 19px 15px 16px; gap: 11px; }
+    }
   </style>
 </head>
 <body>
