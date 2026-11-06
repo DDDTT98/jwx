@@ -3048,7 +3048,7 @@
         e.stopPropagation();
         alert('本机新号模式说明：\\n\\n新号模式是为了让新开的小号不要一次性添加过多客户，降低短时间内添加过于频繁的情况。\\n\\n开启后，每轮只加载 10 位客户；完成本轮后，系统会安排约 20-30 分钟冷却，再继续下一轮。\\n\\n关闭时为普通模式：每轮加载 50 位客户；完成本轮后，冷却约 45-60 分钟。\\n\\n此设置按当前账号和当前设备单独保存，不影响其他账号或设备。');
       });
-      var apply = function() { btn.classList.toggle('on', isNewMode()); };
+      var apply = function() { var enabled = isNewMode(); btn.classList.toggle('on', enabled); var state = document.getElementById('newModeState'); if (state) state.textContent = enabled ? '已开启' : '已关闭'; };
       apply();
       btn.addEventListener('click', function() {
         localStorage.setItem(newModeKey(), isNewMode() ? '0' : '1');
