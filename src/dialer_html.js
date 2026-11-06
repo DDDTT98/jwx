@@ -9826,6 +9826,7 @@ function updateAutoDialBtn() {
     function openDBMobile() {
       var ov = document.getElementById('dbMobileOverlay');
       if (!ov) return;
+      syncManagerTabVisibility();
       if (!ov.classList.contains('active')) lockDBMobileBackground();
       ov.classList.add('active');
       // 复位到客户列表视图
