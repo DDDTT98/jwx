@@ -2465,35 +2465,41 @@
     body.dark-mode #dbOverlay .crm-pager-left,
     body.dark-mode #dbOverlay .db-empty,
     body.dark-mode .dbm-empty { color:#929eae !important; }
-    /* 模糊关联搜索区：压低背景与输入框亮度，避免橙色高亮刺眼 */
-    body.dark-mode #dbOverlay .crm-search-card {
+    /* 模糊关联搜索区：整个搜索卡片、输入框及按钮统一深色 */
+    body.dark-mode #dbOverlay .crm-search-card,
+    body.dark-mode #dbOverlay .crm-search-card .crm-search-grid,
+    body.dark-mode #dbOverlay .crm-search-card .crm-search-item,
+    body.dark-mode #dbOverlay .crm-search-card .crm-search-item-full,
+    body.dark-mode #dbOverlay .crm-search-card .crm-search-actions {
       background: #1b212a !important;
-      border-color: #2c3541 !important;
-    }
-    body.dark-mode #dbOverlay .crm-search-grid,
-    body.dark-mode #dbOverlay .crm-search-item-full {
-      background: transparent !important;
-    }
-    body.dark-mode #dbOverlay #dbFuzzySearch,
-    body.dark-mode #dbOverlay .crm-search-item-full .crm-input {
-      background: #202630 !important;
-      color: #c5ced9 !important;
-      border: 1px solid #394452 !important;
+      background-color: #1b212a !important;
+      color: #aeb8c6 !important;
+      border-color: #303946 !important;
       box-shadow: none !important;
     }
-    body.dark-mode #dbOverlay #dbFuzzySearch::placeholder {
-      color: #788596 !important;
+    body.dark-mode #dbOverlay .crm-search-card #dbFuzzySearch,
+    body.dark-mode #dbOverlay .crm-search-card .crm-input {
+      background: #252d38 !important;
+      background-color: #252d38 !important;
+      color: #d0d7e1 !important;
+      border: 1px solid #3a4553 !important;
+      box-shadow: none !important;
     }
-    body.dark-mode #dbOverlay #dbFuzzySearch:focus {
+    body.dark-mode #dbOverlay .crm-search-card #dbFuzzySearch::placeholder {
+      color: #8491a2 !important;
+      opacity: 1 !important;
+    }
+    body.dark-mode #dbOverlay .crm-search-card #dbFuzzySearch:focus {
       border-color: #65758a !important;
       box-shadow: 0 0 0 2px rgba(101,117,138,.12) !important;
     }
-    body.dark-mode #dbOverlay .crm-search-label {
+    body.dark-mode #dbOverlay .crm-search-card .crm-search-label {
       color: #aeb8c6 !important;
     }
-    body.dark-mode #dbOverlay .crm-search-actions .crm-btn-search {
+    body.dark-mode #dbOverlay .crm-search-card .crm-btn-search {
       background: #35404e !important;
-      color: #c7d0dc !important;
+      background-color: #35404e !important;
+      color: #d0d8e2 !important;
       border: 1px solid #465363 !important;
       box-shadow: none !important;
     }
