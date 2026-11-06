@@ -7033,7 +7033,7 @@
               if (phoneSet.has(phone)) break;
               phoneSet.add(phone);
               var fundVal = '';
-              if (/^d{4,5}$/.test(note)) {
+              if (/^\d{4,5}$/.test(note)) {
                 fundVal = note;
                 note = '';
               }
