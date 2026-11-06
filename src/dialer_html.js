@@ -9737,34 +9737,62 @@ function updateAutoDialBtn() {
     function populateReassignSel() {
       var reassignSel = document.getElementById('crmReassignSel');
       var reassignGroup = document.getElementById('crmReassignGroup');
-      if (!reassignSel || !reassignGroup) return;
-      if (!canManageTeam()) { reassignGroup.style.display = 'none'; return; }
+      var toggle = document.getElementById('crmReassignToggle');
+      if (!reassignSel || !reassignGroup || !toggle) return;
+      if (!canManageTeam()) { toggle.style.display = 'none'; reassignGroup.style.display = 'none'; return; }
       var reassignTitle = document.getElementById('crmReassignTitle');
       if (reassignTitle) reassignTitle.textContent = isSessionManager() ? '分配给本组组员' : '分配给所有小组和组员';
+      if (!toggle._wired) {
+        toggle._wired = true;
+        toggle.addEventListener('click', function() {
+          var opening = reassignGroup.style.display === 'none' || !reassignGroup.style.display;
+          reassignGroup.style.display = opening ? 'flex' : 'none';
+          toggle.textContent = opening ? '收起分配' : '分配数据';
+        });
+        var closeBtn = document.getElementById('crmReassignClose');
+        if (closeBtn) closeBtn.addEventListener('click', function() {
+          reassignGroup.style.display = 'none';
+          toggle.textContent = '分配数据';
+        });
+        var modeSel = document.getElementById('crmReassignMode');
+        if (modeSel) modeSel.addEventListener('change', function() {
+          var manual = this.value === 'manual';
+          reassignSel.querySelectorAll('.crm-reassign-count').forEach(function(input) {
+            input.style.display = manual ? 'inline-block' : 'none';
+          });
+          var hint = document.getElementById('crmReassignHint');
+          if (hint) hint.textContent = manual ? '勾选成员并填写各自数量，系统从当前批次自动扣减' : '勾选接收成员，系统将当前批次剩余客户平均分配';
+        });
+      }
+      toggle.style.display = 'inline-flex';
       fetch('/api/dialer/accounts')
         .then(function(r) { return r.json(); })
         .then(function(res) {
-          if (!res || !res.accounts) { reassignGroup.style.display = 'none'; return; }
+          if (!res || !res.accounts) { toggle.style.display = 'none'; reassignGroup.style.display = 'none'; return; }
           reassignSel.innerHTML = '';
-          res.accounts.forEach(function(s) {
-            if (!s.active || s.is_master || (isSessionManager() && (s.role !== 'member' || s.parent_account_id && s.parent_account_id !== getSessionAccountId()))) return;
-            var name = (s.role === 'manager' ? '小组长：' : '组员：') + (s.real_name || s.account_name || s.label || s.account_id.slice(0, 10));
+          res.accounts.forEach(function(a) {
+            if (!a.active || a.is_master || (isSessionManager() && (a.role !== 'member' || a.parent_account_id && a.parent_account_id !== getSessionAccountId()))) return;
+            var name = (a.role === 'manager' ? '小组长：' : '组员：') + (a.real_name || a.account_name || a.label || a.account_id.slice(0, 10));
             var label = document.createElement('label');
-            label.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);';
+            label.style.cssText = 'display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);';
             var cb = document.createElement('input');
-            cb.type = 'checkbox'; cb.className = 'crm-reassign-account'; cb.value = s.account_id;
+            cb.type = 'checkbox'; cb.className = 'crm-reassign-account'; cb.value = a.account_id;
             cb.style.cssText = 'width:14px;height:14px;accent-color:#07c160;margin:0;';
             var txt = document.createElement('span'); txt.textContent = name;
             var qty = document.createElement('input');
             qty.type = 'number'; qty.min = '0'; qty.step = '1'; qty.value = '0';
-            qty.className = 'crm-reassign-count'; qty.setAttribute('data-account-id', s.account_id);
+            qty.className = 'crm-reassign-count'; qty.setAttribute('data-account-id', a.account_id);
             qty.setAttribute('aria-label', name + '分配数量');
-            qty.style.cssText = 'width:58px;height:26px;padding:0 4px;border:1px solid var(--card-border);border-radius:5px;background:var(--bg-app);color:var(--text-main);font-size:0.72rem;';
+            qty.style.cssText = 'display:none;width:58px;height:26px;padding:0 4px;border:1px solid var(--card-border);border-radius:5px;background:var(--bg-app);color:var(--text-main);font-size:0.72rem;';
             label.appendChild(cb); label.appendChild(txt); label.appendChild(qty); reassignSel.appendChild(label);
           });
-          reassignGroup.style.display = reassignSel.querySelectorAll('.crm-reassign-account').length ? 'flex' : 'none';
+          var hasTargets = !!reassignSel.querySelector('.crm-reassign-account');
+          toggle.style.display = hasTargets ? 'inline-flex' : 'none';
+          if (!hasTargets) reassignGroup.style.display = 'none';
+          var modeSel = document.getElementById('crmReassignMode');
+          if (modeSel && modeSel.value === 'manual') reassignSel.querySelectorAll('.crm-reassign-count').forEach(function(input) { input.style.display = 'inline-block'; });
         })
-        .catch(function() { reassignGroup.style.display = 'none'; });
+        .catch(function() { toggle.style.display = 'none'; reassignGroup.style.display = 'none'; });
     }
 
     function _openDBDashboardInner() {
@@ -11293,9 +11321,10 @@ function updateAutoDialBtn() {
         });
       }
 
-      // 主账号分配到所有小组/组员；小组长分配到本组组员
+      // 主账号/小组长按平均或手动数量分配当前批次客户
       var reassignBtn = document.getElementById('crmReassignBtn');
-      if (reassignBtn) {
+      if (reassignBtn && !reassignBtn._wired) {
+        reassignBtn._wired = true;
         reassignBtn.addEventListener('click', function() {
           if (!canManageTeam()) { alert('当前账号无权分配客户'); return; }
           var batchLabel = (document.getElementById('dbBatchFilter') || {}).value || '';
@@ -11303,24 +11332,28 @@ function updateAutoDialBtn() {
           var targetSel = document.getElementById('crmReassignSel');
           var checked = targetSel ? Array.prototype.slice.call(targetSel.querySelectorAll('.crm-reassign-account:checked')) : [];
           if (!checked.length) { alert(isSessionManager() ? '请至少选择一个本组组员' : '请至少选择一个小组或组员'); return; }
+          var mode = (document.getElementById('crmReassignMode') || {}).value || 'equal';
           var allocations = [], totalCount = 0;
           checked.forEach(function(cb) {
             var qty = targetSel.querySelector('.crm-reassign-count[data-account-id="' + cb.value + '"]');
-            var count = qty ? Number(qty.value) : 0;
-            if (!Number.isSafeInteger(count) || count < 0) count = -1;
+            var count = mode === 'equal' ? 1 : (qty ? Number(qty.value) : 0);
+            if (!Number.isSafeInteger(count) || count <= 0) count = -1;
             allocations.push({ account_id: cb.value, count: count, account_name: cb.parentNode.querySelector('span').textContent });
             totalCount += count;
           });
-          if (allocations.some(function(a) { return a.count < 0; })) { alert('分配数量必须是大于或等于 0 的整数'); return; }
-          allocations = allocations.filter(function(a) { return a.count > 0; });
-          if (!allocations.length || totalCount <= 0) { alert('请填写至少一位成员的分配数量'); return; }
-          var targetIds = allocations.map(function(a) { return a.account_id; });
-          var summary = allocations.map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
-          if (!confirm('从当前批次「' + batchLabel + '」自动分配 ' + totalCount + ' 条客户：\\n' + summary + '\\n确认执行？')) return;
+          if (allocations.some(function(a) { return a.count < 0; })) { alert('请为每位勾选的成员填写大于 0 的整数'); return; }
+          var summary = mode === 'equal'
+            ? allocations.map(function(a) { return a.account_name; }).join('、')
+            : allocations.map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
+          var confirmText = mode === 'equal'
+            ? '将当前批次剩余客户平均分配给：' + summary + '？'
+            : '从当前批次「' + batchLabel + '」分配 ' + totalCount + ' 条客户：\\n' + summary + '\\n确认执行？';
+          if (!confirm(confirmText)) return;
           reassignBtn.disabled = true; reassignBtn.textContent = '分配中...';
           fetch('/api/dialer/customers/reassign', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken(), 'X-View-Account-Id': _viewAccountId || '' },
-            body: JSON.stringify({ batch_label: batchLabel, allocations: allocations.map(function(a) { return { account_id: a.account_id, count: a.count }; }) })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken(), 'X-View-Account-Id': _viewAccountId || '' },
+            body: JSON.stringify({ batch_label: batchLabel, mode: mode, allocations: allocations.map(function(a) { return { account_id: a.account_id, count: a.count }; }) })
           }).then(function(r) { return r.json(); }).then(function(res) {
             if (res.success) {
               var details = (res.allocations || []).map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
@@ -11328,7 +11361,7 @@ function updateAutoDialBtn() {
               DB.selectedIds = {}; dbFetch(); loadAccountStats(); populateReassignSel();
             } else alert('分配失败: ' + (res.error || '未知错误'));
           }).catch(function(err) { alert('网络错误: ' + err.message); })
-            .finally(function() { reassignBtn.disabled = false; reassignBtn.textContent = '分配'; });
+            .finally(function() { reassignBtn.disabled = false; reassignBtn.textContent = '确认分配'; });
         });
       }
     }
