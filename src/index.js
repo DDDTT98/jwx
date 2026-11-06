@@ -576,7 +576,7 @@ export default {
         var visible=aa.filter(function(a){return role==='master' || (role==='manager' && (a.account_id===caller.account_id || a.parent_account_id===caller.account_id)) || (role==='member' && a.account_id===caller.account_id);});
         var root=aa.find(function(a){return a.is_master!==false;});
         return new Response(JSON.stringify({accounts:visible.map(function(a){return {
-          account_id:a.account_id,account_name:a.account_name||'',label:a.label||'',is_master:a.is_master!==false,
+          account_id:a.account_id,account_name:a.account_name||'',real_name:a.real_name||'',label:a.label||'',is_master:a.is_master!==false,
           role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),
           parent_account_id:a.parent_account_id||(a.is_master===false?(root||{}).account_id||'':''),
           active:a.active!==false,created_at:a.created_at
@@ -591,15 +591,17 @@ export default {
         if(!caller||caller.active===false)throw new Error('账户不可用');
         var cr=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
         if(cr==='member')throw new Error('普通子账号无权创建账户');
-        var body=await request.json(),name=String(body.account_name||'').trim(),pin=String(body.pin||'').trim(),label=String(body.label||name).trim();
+        var body=await request.json(),name=String(body.account_name||'').trim(),realName=String(body.real_name||'').trim(),pin=String(body.pin||'').trim(),label=String(body.label||name).trim();
         var role=(cr==='master'&&body.role==='manager')?'manager':'member';
         if(!name)throw new Error('请输入账户名');
+        if(!realName)throw new Error('请输入真实姓名');
+        if(realName.length>20)throw new Error('姓名不能超过20个字');
         if(!/^\d{4,6}$/.test(pin))throw new Error('PIN 必须为 4-6 位数字');
         if(aa.some(function(a){return a.account_name===name;}))throw new Error('账户名已存在');
         var parent=cr==='manager'?caller.account_id:(role==='member'?String(body.parent_account_id||caller.account_id):caller.account_id);
         if(parent!==caller.account_id&&!aa.some(function(a){return a.account_id===parent&&a.role==='manager'&&a.active!==false;}))throw new Error('指定的小组长不存在或已停用');
         var id='sub_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
-        aa.push({account_id:id,account_name:name,pin_hash:dialerHashPin(pin),label:label,is_master:false,role:role,parent_account_id:parent,active:true,created_at:new Date().toISOString()});
+        aa.push({account_id:id,account_name:name,real_name:realName,pin_hash:dialerHashPin(pin),label:label,is_master:false,role:role,parent_account_id:parent,active:true,created_at:new Date().toISOString()});
         await dialerSaveAccounts(env,aa);
         return new Response(JSON.stringify({success:true,account_id:id,label:label,role:role,parent_account_id:parent}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
@@ -616,6 +618,7 @@ export default {
         if(!(cr==='master'||(cr==='manager'&&target.role!=='manager'&&target.parent_account_id===caller.account_id)))throw new Error('无权管理该账户');
         if(body.active!==undefined)target.active=!!body.active;
         if(body.label!==undefined)target.label=String(body.label).trim();
+        if(body.real_name!==undefined){var rn=String(body.real_name||'').trim();if(!rn)throw new Error('姓名不能为空');if(rn.length>20)throw new Error('姓名不能超过20个字');target.real_name=rn;}
         if(cr==='master'&&body.parent_account_id!==undefined&&target.role!=='manager'){
           var p=String(body.parent_account_id||caller.account_id);
           if(p!==caller.account_id&&!aa.some(function(a){return a.account_id===p&&a.role==='manager'&&a.active!==false;}))throw new Error('目标小组长无效');
