@@ -2009,7 +2009,7 @@ export default {
           addWhitelistProduct(wa, productName);
         });
         (result.data || []).forEach(function(c) {
-          var companyNames = String(c.company_name || '').split(/[；;\\n、|]+/);
+          var companyNames = String(c.company_name || '').split(/[；;\n、|]+/);
           var products = [];
           companyNames.forEach(function(companyName) {
             var companyKey = companyName.trim().toLowerCase();
