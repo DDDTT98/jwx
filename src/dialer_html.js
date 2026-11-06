@@ -9894,6 +9894,7 @@ function updateAutoDialBtn() {
         });
     }
     var DBM_PAGE = 1;
+    var DBM_SEARCH_TIMER = null;
     function dbmUpdatePager() {
       var totalPages = Math.max(1, Math.ceil(DBM_TOTAL / DBM_PAGE_SIZE));
       var input = document.getElementById('dbmPageInput');
@@ -10423,17 +10424,19 @@ function updateAutoDialBtn() {
       if (searchInput) searchInput.oninput = function() {
         var clearBtn = document.getElementById('dbmSearchClearBtn');
         if (clearBtn) clearBtn.style.display = this.value ? 'block' : 'none';
-        dbmRender();
+        DBM_PAGE = 1;
+        clearTimeout(DBM_SEARCH_TIMER);
+        DBM_SEARCH_TIMER = setTimeout(dbmFetch, 250);
       };
       var clearBtn = document.getElementById('dbmSearchClearBtn');
       if (clearBtn) clearBtn.onclick = function() {
         var si = document.getElementById('dbmSearchInput');
-        if (si) { si.value = ''; this.style.display = 'none'; dbmRender(); }
+        if (si) { si.value = ''; this.style.display = 'none'; DBM_PAGE = 1; dbmFetch(); }
       };
       var catSel = document.getElementById('dbmCatFilter');
-      if (catSel) catSel.onchange = dbmRender;
+      if (catSel) catSel.onchange = function() { DBM_PAGE = 1; dbmFetch(); };
       var batchSel = document.getElementById('dbmBatchFilter');
-      if (batchSel) batchSel.onchange = dbmRender;
+      if (batchSel) batchSel.onchange = function() { DBM_PAGE = 1; dbmFetch(); };
       var selAll = document.getElementById('dbmSelectAll');
       if (selAll) {
         selAll.onchange = function() {
