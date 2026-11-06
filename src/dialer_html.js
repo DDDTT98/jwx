@@ -704,12 +704,16 @@
       color: var(--text-main);
     }
     .client-phone-btn.copied {
-      color: #e53935 !important;
-      text-shadow: none;
+      color: #078c49 !important;
+      background: rgba(7,193,96,.13) !important;
+      text-shadow: none !important;
       font-weight: 800;
+      border-radius: 6px;
     }
     body.dark-mode .client-phone-btn.copied {
-      text-shadow: 0 0 8px rgba(7, 193, 96, 0.6);
+      color: #65d995 !important;
+      background: rgba(7,193,96,.20) !important;
+      text-shadow: none !important;
     }
     .crm-copy-btn.copied-phone {
       color: #e53935 !important;
@@ -2298,9 +2302,10 @@
       text-shadow: none !important;
     }
     .client-phone-btn.privacy-add-vx.copied {
-      color: #fff !important;
-      background: #07c160 !important;
-      border-color: #07c160 !important;
+      color: #078c49 !important;
+      background: rgba(7,193,96,.13) !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
     }
     body.dark-mode .client-phone-btn.privacy-add-vx {
       color: #52df91 !important;
@@ -2425,8 +2430,9 @@
       border-color: transparent !important;
     }
     body.dark-mode .client-card-tag-company.privacy-action-done {
-      color: #102b1b !important;
-      background: #52df91 !important;
+      color: #65d995 !important;
+      background: rgba(7,193,96,.20) !important;
+      border-color: transparent !important;
     }
     body.dark-mode .xls-dial-badge-whitelist {
       color: #58dc91 !important;
