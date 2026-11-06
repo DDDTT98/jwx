@@ -691,17 +691,14 @@ export default {
     // GET /api/dialer/accounts — 账号列表（所有已登录账号可用，用于数据分配目标选择；不含统计数据）
     if (path === '/api/dialer/accounts' && request.method === 'GET') {
       try {
-        var accList = await dialerGetAccounts(env);
-        return new Response(JSON.stringify({ success: true, accounts: accList.map(function(a) {
-          return { account_id: a.account_id, account_name: a.account_name, label: a.label, is_master: a.is_master !== false, active: a.active !== false };
-        }) }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: e.message }), {
-          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        var auth=request.headers.get('Authorization')||'', token=auth.startsWith('Bearer ')?auth.slice(7):'';
+        var sess=await dialerValidateSession(env,token); if(!sess) throw new Error('未登录');
+        var accList=await dialerGetAccounts(env), caller=accList.find(function(a){return a.account_id===sess.account_id;});
+        if(!caller) throw new Error('账户不存在');
+        var role=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        var visible=accList.filter(function(a){return role==='master'||(role==='manager'&&(a.account_id===caller.account_id||a.parent_account_id===caller.account_id));});
+        return new Response(JSON.stringify({success:true,accounts:visible.map(function(a){return {account_id:a.account_id,account_name:a.account_name,label:a.label,is_master:a.is_master!==false,role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),active:a.active!==false};})}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e){return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});}
     }
 
     if (path === '/api/dialer/stats/accounts' && request.method === 'GET') {
@@ -716,7 +713,9 @@ export default {
         for (var ak = 0; ak < accounts.length; ak++) {
           if (accounts[ak].account_id === session.account_id) { master = accounts[ak]; break; }
         }
-        if (!master || !master.is_master) throw new Error('仅主账户可查看');
+        if (!master) throw new Error('账户不存在');
+        var statsRole = master.is_master !== false ? 'master' : (master.role === 'manager' ? 'manager' : 'member');
+        if (statsRole === 'member') throw new Error('无权查看小组统计');
 
         var supabaseUrl = env.SUPABASE_URL;
         var supabaseKey = env.SUPABASE_KEY;
@@ -747,8 +746,9 @@ export default {
           }
         }
 
-        for (var ak2 = 0; ak2 < accounts.length; ak2++) {
-          var a = accounts[ak2];
+        var statsAccounts = statsRole === 'master' ? accounts : accounts.filter(function(a){ return a.account_id === master.account_id || a.parent_account_id === master.account_id; });
+        for (var ak2 = 0; ak2 < statsAccounts.length; ak2++) {
+          var a = statsAccounts[ak2];
           stats.push({
             account_id: a.account_id,
             account_name: a.account_name || a.label || a.account_id.slice(0, 12),
@@ -759,8 +759,8 @@ export default {
           });
         }
         for (var ck in countMap) {
-          if (ck !== '_unknown' && !accounts.some(function(a) { return a.account_id === ck; })) {
-            stats.push({ account_id: ck, account_name: ck.slice(0, 12), label: '', is_master: false, active: true, upload_count: countMap[ck] });
+          if (ck !== '_unknown' && !statsAccounts.some(function(a) { return a.account_id === ck; })) {
+            if (statsRole === 'master') stats.push({ account_id: ck, account_name: ck.slice(0, 12), label: '', is_master: false, active: true, upload_count: countMap[ck] });
           }
         }
 
