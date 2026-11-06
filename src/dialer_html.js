@@ -4,6 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover, shrink-to-fit=no">
   <title>减肥打卡</title>
+  <script>
+    // Independent boot watchdog: this runs even if the main application script
+    // fails to parse or throws before reaching its normal completion marker.
+    (function () {
+      var bootErrors = [];
+      window.__BHP_BOOT_ERRORS = bootErrors;
+      window.addEventListener('error', function (event) {
+        bootErrors.push((event.message || 'Script error') +
+          (event.lineno ? ' (line ' + event.lineno + ')' : ''));
+      });
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        bootErrors.push('Unhandled promise: ' +
+          (reason && reason.message ? reason.message : String(reason || 'unknown')));
+      });
+      window.setTimeout(function () {
+        if (window.__BHP_BOOT_OK) return;
+        var notice = document.getElementById('bootFallbackNotice');
+        if (notice) {
+          notice.style.display = 'block';
+          notice.textContent = '页面启动中断：' +
+            (bootErrors.length ? bootErrors.slice(0, 2).join('；') : '主脚本未完成初始化') +
+            '。请刷新页面；问题仍存在时请将此提示截图发给管理员。';
+          notice.style.color = '#b42318';
+          notice.style.background = 'rgba(255, 80, 80, 0.12)';
+        }
+        var login = document.getElementById('authLoginOverlay');
+        if (login) {
+          login.classList.remove('auth-hidden');
+          login.style.display = 'flex';
+          login.style.zIndex = '2147483647';
+        }
+      }, 12000);
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -13142,6 +13177,7 @@ function updateAutoDialBtn() {
 
     // Hide the static warning only after all startup initializers have completed.
     var bootFallbackNotice = document.getElementById("bootFallbackNotice");
+    window.__BHP_BOOT_OK = true;
     if (bootFallbackNotice) bootFallbackNotice.style.display = "none";
 
   })();
