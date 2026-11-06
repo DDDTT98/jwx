@@ -9704,7 +9704,7 @@ function updateAutoDialBtn() {
           reassignSel.innerHTML = '';
           res.accounts.forEach(function(s) {
             if (!s.active || s.is_master || (isSessionManager() && (s.role !== 'member' || s.parent_account_id && s.parent_account_id !== getSessionAccountId()))) return;
-            var name = s.account_name || s.label || s.account_id.slice(0, 10);
+            var name = (s.role === 'manager' ? '小组长：' : '组员：') + (s.real_name || s.account_name || s.label || s.account_id.slice(0, 10));
             var label = document.createElement('label');
             label.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);';
             var cb = document.createElement('input');
