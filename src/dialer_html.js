@@ -11501,9 +11501,7 @@ function updateAutoDialBtn() {
           };
       }
 
-      // Hash trigger: /dialer#db auto-opens
-      if(window.location.hash==='#db'){setTimeout(openDBDashboard,300);}
-      window.addEventListener('hashchange',function(){if(window.location.hash==='#db'){openDBDashboard();}});
+      // #db 自动打开逻辑移至全局初始化完成后，避免本函数前段任一初始化异常导致深链接失效。
 
       // Polling is only for displaying progress; the scheduled Worker owns execution.
       function watchCrmBackgroundJob(jobId, statusEl, onDone) {
@@ -13603,6 +13601,19 @@ function updateAutoDialBtn() {
         });
       }
     });
+
+    // 数据库看板深链接：放在所有 safeInit 之后，确保 initCustViewer 内部异常不会阻断 #db。
+    (function() {
+      var openDbHash = function() {
+        if (window.location.hash === '#db' && typeof window.openDBDashboard === 'function') {
+          window.openDBDashboard();
+        }
+      };
+      if (window.location.hash === '#db') setTimeout(openDbHash, 350);
+      window.addEventListener('hashchange', function() {
+        if (window.location.hash === '#db') openDbHash();
+      });
+    })();
 
     // Hide the static warning only after all startup initializers have completed.
     var bootFallbackNotice = document.getElementById("bootFallbackNotice");
