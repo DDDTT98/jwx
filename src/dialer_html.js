@@ -3897,7 +3897,11 @@
     // 操作满一轮：累计复制过姓名或单位名称的不同客户达到阈值后转公海。
     function checkAndTransferBatch(client) {
       if (!client || window._roundTransferPending || !window._roundTransferBlocked) return;
-      var operatedClients = importedClients.filter(function(c) {
+      // 与 scheduleReminder 保持同一轮次边界：普通模式前 50 位，新号模式前 10 位。
+      // 不得把后续轮次中提前操作的客户一并转入公海。
+      var roundSize = isNewMode() ? 10 : 50;
+      var roundClients = importedClients.slice(0, roundSize);
+      var operatedClients = roundClients.filter(function(c) {
         return c.name_copied || c.company_copied || c.note_copied;
       });
       if (operatedClients.length === 0) return;
