@@ -740,7 +740,6 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-      border-left: 2px solid var(--border-light);
       padding-left: 8px;
     }
     .client-card-content-block {
@@ -1234,7 +1233,6 @@
     /* Mobile Adaptive Styles for iOS & Android */
     @media (max-width: 480px) {
       .container {
-        border-left: none;
         border-right: none;
         border-radius: 0;
         box-shadow: none;
@@ -2218,15 +2216,6 @@
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
       transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
     }
-    .xls-dial-card::before {
-      content: "";
-      position: absolute;
-      inset: 0 auto 0 0;
-      width: 4px;
-      background: #07c160;
-      opacity: .92;
-      pointer-events: none;
-    }
     .xls-dial-card:hover {
       border-color: rgba(7,193,96,.42) !important;
       box-shadow: 0 3px 11px rgba(26, 54, 38, .075) !important;
@@ -2236,7 +2225,6 @@
       border-color: #35483b !important;
       box-shadow: 0 2px 9px rgba(0,0,0,.22) !important;
     }
-    body.dark-mode .xls-dial-card::before { background: #07c160; }
     .corner-seq {
       width: 22px !important;
       height: 22px !important;
@@ -2446,21 +2434,18 @@
       flex-direction: column;
       gap: 5px !important;
       padding: 0 0 0 10px !important;
-      border-left: 2px solid rgba(7,193,96,.38) !important;
       margin-top: 3px !important;
     }
     .client-card-content-block {
       gap: 4px !important;
       padding: 8px 10px !important;
       border: 1px solid #edf1ee;
-      border-left: 3px solid #07c160 !important;
-      border-radius: 0 9px 9px 0 !important;
+      border-radius: 9px !important;
       background: #f8faf8 !important;
     }
     .client-card-content-block.follow-up {
       background: #f7faf8 !important;
       border-color: #e8efe9 !important;
-      border-left-color: #07c160 !important;
     }
     .client-card-label {
       color: #849188 !important;
@@ -2484,7 +2469,6 @@
     body.dark-mode .client-card-content-block {
       background: #252f29 !important;
       border-color: #39483e !important;
-      border-left-color: #07c160 !important;
     }
     body.dark-mode .client-card-label { color: #91a398 !important; }
     body.dark-mode .client-card-text { color: #c5d1c9 !important; }
@@ -2512,14 +2496,12 @@
       border-color: rgba(7,193,96,.48) !important;
       box-shadow: 0 0 0 1px rgba(7,193,96,.12), 0 3px 10px rgba(7,193,96,.09) !important;
     }
-    .xls-dial-card.copied-card::before,
-    .xls-dial-card.copied-company::before { width: 5px; }
     body.dark-mode .xls-dial-card.copied-card,
     body.dark-mode .xls-dial-card.copied-company {
       border-color: rgba(7,193,96,.48) !important;
       box-shadow: 0 0 0 1px rgba(7,193,96,.13), 0 3px 12px rgba(0,0,0,.2) !important;
     }
-    /* Android keeps copied-state feedback subtle, while retaining the green identity rail. */
+    /* Android copied-state feedback stays subtle; cards have no decorative side rails. */
     body.android .xls-dial-card.copied-card,
     body.android .xls-dial-card.copied-company,
     body.android .xls-dial-card.copied-phone {
@@ -7399,7 +7381,7 @@
             var hasEdits = c.edit_count > 0;
             var borderColor = hasEdits ? 'var(--accent-wechat)' : 'var(--card-border)';
             var badgeColor = hasEdits ? '#07c160' : '#999';
-            html += '<div style="border-left:3px solid ' + borderColor + '; border-bottom:0.5px solid var(--card-border); padding:6px 8px; background:var(--card-bg);">' +
+            html += '<div style="border-bottom:0.5px solid var(--card-border); padding:6px 8px; background:var(--card-bg);">' +
               '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.58rem;color:var(--text-light);">' +
                 '<span style="font-weight:700;">' + esc(c.source_file || '未知文件') + '</span>' +
                 '<span style="display:flex;align-items:center;gap:4px;">' +
@@ -7761,7 +7743,7 @@
             '</div>' +
             (c.note ? 
               '<div class="client-card-body" style="margin-top: 4px;">' +
-                '<div class="client-card-content-block follow-up" style="background:rgba(74,108,247,0.03); border-left:3px solid #4a6cf7; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                '<div class="client-card-content-block follow-up" style="background:rgba(74,108,247,0.03); padding: 6px 8px; border-radius: var(--radius-xs);">' +
                   '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
                     '<span class="client-card-label" style="color:#4a6cf7; font-weight:800; font-size:0.65rem;">资料备注</span>' +
                     '<span class="client-card-tag-note" data-note="' + esc(c.note) + '" style="font-size:0.6rem; color:#4a6cf7; cursor:pointer; text-decoration:underline;">' + (showClientInfo ? '[放大查看]' : '☆') + '</span>' +
@@ -7778,7 +7760,7 @@
               '</div>' : '') +
             (c.last_operation ?
               '<div class="client-card-body" style="margin-top: 4px;">' +
-                '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); border-left:3px solid #ffc107; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
+                '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); padding: 6px 8px; border-radius: var(--radius-xs);">' +
                   '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.52rem;">最近操作</span>' +
                   '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.5rem;">' +
                     (showClientInfo ? TimelineDisplay.render(c.last_operation) : '☆☆☆☆') +
