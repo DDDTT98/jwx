@@ -7191,7 +7191,8 @@
             jumpToWechat(); // 同步调用：setTimeout 脱离手势，鸿蒙/华为 WebView 会拦截 scheme 跳转
 
             setTimeout(function() {
-              b.textContent = maskPhone(phone);
+              // 隐私模式下添加微信后保留“已添加”状态；正常模式恢复脱敏号码
+              b.textContent = isClientInfoVisible() ? maskPhone(phone) : '已添加';
               b.style.color = oldColor;
             }, 1500);
           });
@@ -7247,8 +7248,16 @@
 
             var idx = parseInt(b.dataset.idx);
             var client = importedClients[idx];
-            // 按复制偏好组合（姓名/单位/公积金/日期，勾选哪个就包含哪个）；全部未勾选时兜底仅单位名称
-            var copyText = b.dataset.copyNote === '1' ? (client && client.note ? client.note : '') : (buildCopyText(client) || company);
+            // “复制备注”也遵循账户的复制内容偏好，按自定义勾选顺序组合姓名、手机号、单位、公积金和日期
+            // 若偏好字段没有可复制内容，再退回原始备注
+            var preferredCopyText = buildCopyText(client);
+            var copyText = b.dataset.copyNote === '1'
+              ? (preferredCopyText || (client && client.note ? client.note : ''))
+              : (preferredCopyText || company);
+            if (!copyText) {
+              showCopyLimitToast('没有可复制的客户资料', true);
+              return;
+            }
             copyTextToClipboard(copyText);
 
             var cardEl = b.closest('.xls-dial-card');
