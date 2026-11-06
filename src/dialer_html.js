@@ -3975,6 +3975,46 @@
         } else {
           document.body.classList.remove('dark-mode');
         }
+        // 强制同步数据库看板搜索区域主题，避免局部样式/内联样式残留白底
+        var syncDbSearchTheme = function() {
+          var card = document.querySelector('#dbOverlay .crm-search-card');
+          if (!card) return;
+          var set = function(el, prop, value) {
+            if (el) el.style.setProperty(prop, value, 'important');
+          };
+          if (isDark) {
+            set(card, 'background', '#1b212a');
+            set(card, 'background-color', '#1b212a');
+            set(card, 'border-color', '#303946');
+            card.querySelectorAll('.crm-search-grid, .crm-search-item, .crm-search-item-full, .crm-search-actions').forEach(function(el) {
+              set(el, 'background', '#1b212a');
+              set(el, 'background-color', '#1b212a');
+              set(el, 'box-shadow', 'none');
+            });
+            card.querySelectorAll('#dbFuzzySearch, .crm-input').forEach(function(el) {
+              set(el, 'background', '#252d38');
+              set(el, 'background-color', '#252d38');
+              set(el, 'color', '#d0d7e1');
+              set(el, 'border-color', '#3a4553');
+              set(el, 'box-shadow', 'none');
+            });
+            card.querySelectorAll('.crm-search-label').forEach(function(el) { set(el, 'color', '#aeb8c6'); });
+            card.querySelectorAll('.crm-btn-search').forEach(function(el) {
+              set(el, 'background', '#35404e');
+              set(el, 'background-color', '#35404e');
+              set(el, 'color', '#d0d8e2');
+              set(el, 'border-color', '#465363');
+              set(el, 'box-shadow', 'none');
+            });
+          } else {
+            [card].concat(Array.prototype.slice.call(card.querySelectorAll('*'))).forEach(function(el) {
+              ['background','background-color','color','border-color','box-shadow'].forEach(function(prop) {
+                el.style.removeProperty(prop);
+              });
+            });
+          }
+        };
+        syncDbSearchTheme();
         var themeMeta = document.querySelector('meta[name="theme-color"]');
         if (themeMeta) themeMeta.content = isDark ? '#1c1c1e' : '#f2f2f7';
       };
@@ -9979,6 +10019,29 @@ function updateAutoDialBtn() {
 
     function _openDBDashboardInner() {
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
+      // 看板打开时再次同步搜索区域主题，覆盖可能存在的组件内联样式
+      var darkEnabled = document.body.classList.contains('dark-mode');
+      var searchCard = document.querySelector('#dbOverlay .crm-search-card');
+      if (searchCard && darkEnabled) {
+        var forceDark = function(el, prop, value) { if (el) el.style.setProperty(prop, value, 'important'); };
+        forceDark(searchCard, 'background', '#1b212a');
+        forceDark(searchCard, 'background-color', '#1b212a');
+        searchCard.querySelectorAll('.crm-search-grid, .crm-search-item, .crm-search-item-full, .crm-search-actions').forEach(function(el) {
+          forceDark(el, 'background', '#1b212a');
+          forceDark(el, 'background-color', '#1b212a');
+        });
+        searchCard.querySelectorAll('#dbFuzzySearch, .crm-input').forEach(function(el) {
+          forceDark(el, 'background', '#252d38');
+          forceDark(el, 'background-color', '#252d38');
+          forceDark(el, 'color', '#d0d7e1');
+          forceDark(el, 'border-color', '#3a4553');
+        });
+        searchCard.querySelectorAll('.crm-btn-search').forEach(function(el) {
+          forceDark(el, 'background', '#35404e');
+          forceDark(el, 'background-color', '#35404e');
+          forceDark(el, 'color', '#d0d8e2');
+        });
+      }
       syncManagerTabVisibility();
       ov.classList.add('active'); DB.page=1;
       // Reset view account and load stats for master
