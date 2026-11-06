@@ -3071,6 +3071,14 @@
                 <option value="未分类">未分类</option>
               </select>
             </div>
+            <div id="whitelistProductImportPanel" style="display:flex;flex-direction:column;gap:7px;width:100%;margin-top:12px;padding:10px;border:1px solid var(--card-border);border-radius:10px;background:var(--card-bg);">
+              <div style="font-size:0.76rem;font-weight:800;color:var(--text-main);">白名单产品导入</div>
+              <div style="font-size:0.64rem;line-height:1.5;color:var(--text-light);">先填写白名单名称，再上传 Excel。系统自动识别“单位名称 / 企业名称 / 公司名称”等列，导入后新增或更新对应白名单。</div>
+              <input type="text" id="whitelistProductNameInput" maxlength="60" placeholder="先编辑白名单名称，例如：建行建易贷" style="box-sizing:border-box;width:100%;height:32px;padding:0 9px;border:1px solid var(--card-border);border-radius:7px;background:var(--btn-bg);color:var(--text-main);font-size:0.72rem;outline:none;">
+              <input type="file" id="whitelistExcelFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+              <label for="whitelistExcelFileInput" id="whitelistExcelSelectBtn" class="btn-secondary" style="display:flex;align-items:center;justify-content:center;width:100%;min-height:34px;box-sizing:border-box;padding:7px 10px;border:1px solid var(--card-border);border-radius:7px;background:var(--btn-bg);color:var(--text-main);font-size:0.72rem;font-weight:700;cursor:pointer;">选择 Excel 并识别导入</label>
+              <div id="whitelistImportStatus" role="status" aria-live="polite" style="min-height:14px;font-size:0.62rem;line-height:1.45;color:var(--text-soft);"></div>
+            </div>
           </div>
 
           <!-- 2. SCANNING STATE -->
