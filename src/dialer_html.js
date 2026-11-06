@@ -3935,7 +3935,8 @@
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       }).then(function(d) {
-        if (!d || !d.success || Number(d.transferred) !== Number(d.total) || Number(d.total) !== mobiles.length) {
+        var autoTransferred = d ? Number(d.transferred) : NaN;
+        if (!d || !d.success || !Number.isFinite(autoTransferred) || autoTransferred < mobiles.length) {
           var msg = d && d.error ? d.error : '云端未确认全部转移（' + (d && d.transferred != null ? d.transferred : 0) + '/' + mobiles.length + '）';
           console.error('[auto-transfer] 未全部转入公海: ' + msg);
           // 云端未完整确认时保留本地数据，并释放提醒锁；再次复制/返回页面可重新触发检查。
