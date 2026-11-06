@@ -8858,6 +8858,105 @@ function updateAutoDialBtn() {
  });
  }
 
+ // 白名单产品导入：先填写产品名称，再自动识别 Excel 中的单位名称列。
+ var whitelistFileInput = document.getElementById('whitelistExcelFileInput');
+ if (whitelistFileInput) {
+ whitelistFileInput.addEventListener('change', function(e) {
+   var file = e.target.files && e.target.files[0];
+   e.target.value = '';
+   var productInput = document.getElementById('whitelistProductNameInput');
+   var statusEl = document.getElementById('whitelistImportStatus');
+   var selectBtn = document.getElementById('whitelistExcelSelectBtn');
+   var productName = productInput ? productInput.value.trim() : '';
+   function setWhitelistStatus(message, isError) {
+     if (!statusEl) return;
+     statusEl.textContent = message;
+     statusEl.style.color = isError ? '#e74c3c' : 'var(--text-soft)';
+   }
+   if (!file) return;
+   if (!productName) {
+     setWhitelistStatus('请先填写白名单名称，再选择 Excel 文件。', true);
+     if (productInput) productInput.focus();
+     return;
+   }
+   if (!/\\.(xlsx|xls|csv)$/i.test(file.name)) {
+     setWhitelistStatus('仅支持 .xlsx、.xls 或 .csv 文件。', true);
+     return;
+   }
+   if (file.size > 15 * 1024 * 1024) {
+     setWhitelistStatus('文件不能超过 15MB。', true);
+     return;
+   }
+   if (!window.XLSX || !window.XLSX.read) {
+     setWhitelistStatus('Excel 识别组件尚未加载，请稍后重试。', true);
+     return;
+   }
+   if (selectBtn) { selectBtn.style.pointerEvents = 'none'; selectBtn.style.opacity = '0.6'; }
+   setWhitelistStatus('正在读取文件并识别单位名称列…', false);
+   var reader = new FileReader();
+   reader.onerror = function() {
+     if (selectBtn) { selectBtn.style.pointerEvents = ''; selectBtn.style.opacity = ''; }
+     setWhitelistStatus('文件读取失败，请重新选择。', true);
+   };
+   reader.onload = function(ev) {
+     try {
+       var workbook = window.XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+       var firstSheet = workbook.SheetNames && workbook.SheetNames[0];
+       if (!firstSheet) throw new Error('Excel 中没有可读取的工作表');
+       var sheetRows = window.XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, raw: false, defval: '' });
+       var headerRowIndex = -1, companyCol = -1, aliasCol = -1;
+       var companyHeader = /^(单位名称?|企业名称?|公司名称?|用人单位|单位全称|企业全称|公司全称|company_?name|company|employer|organization)$/i;
+       var aliasHeader = /^(单位别名|企业别名|公司别名|别名|简称|曾用名|alias)$/i;
+       for (var ri = 0; ri < Math.min(sheetRows.length, 20); ri++) {
+         var cells = sheetRows[ri] || [];
+         for (var ci = 0; ci < cells.length; ci++) {
+           var header = String(cells[ci] || '').trim().toLowerCase().replace(/[\\s_*：:（）()【】\\[\\]-]/g, '');
+           if (companyHeader.test(header) || /^(单位|企业|公司)$/.test(header)) companyCol = ci;
+           if (aliasHeader.test(header)) aliasCol = ci;
+         }
+         if (companyCol >= 0) { headerRowIndex = ri; break; }
+         companyCol = -1; aliasCol = -1;
+       }
+       if (headerRowIndex < 0 || companyCol < 0) {
+         throw new Error('未识别到单位名称列。请确保表头包含“单位名称、企业名称或公司名称”。');
+       }
+       var companies = [], seen = Object.create(null);
+       for (var rowIndex = headerRowIndex + 1; rowIndex < sheetRows.length; rowIndex++) {
+         var row = sheetRows[rowIndex] || [];
+         var companyName = String(row[companyCol] || '').trim();
+         if (!companyName) continue;
+         var key = companyName.toLowerCase();
+         if (seen[key]) continue;
+         seen[key] = true;
+         companies.push({ company_name: companyName, alias: aliasCol >= 0 ? String(row[aliasCol] || '').trim() : '' });
+       }
+       if (!companies.length) throw new Error('已识别单位名称列，但没有找到有效数据行。');
+       setWhitelistStatus('已识别 ' + companies.length + ' 家单位，正在新增或更新白名单…', false);
+       fetch('/api/dialer/whitelist/import', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ product_name: productName, companies: companies })
+       }).then(function(response) {
+         return response.json().then(function(data) {
+           if (!response.ok || !data.success) throw new Error(data.error || '导入失败');
+           return data;
+         });
+       }).then(function(result) {
+         setWhitelistStatus('导入完成：新增 ' + (result.added || 0) + ' 家，更新 ' + (result.updated || 0) + ' 家，重复跳过 ' + (result.skipped || 0) + ' 家。', false);
+       }).catch(function(err) {
+         setWhitelistStatus(err.message || '导入失败，请稍后重试。', true);
+       }).finally(function() {
+         if (selectBtn) { selectBtn.style.pointerEvents = ''; selectBtn.style.opacity = ''; }
+       });
+     } catch (err) {
+       if (selectBtn) { selectBtn.style.pointerEvents = ''; selectBtn.style.opacity = ''; }
+       setWhitelistStatus(err.message || 'Excel 识别失败。', true);
+     }
+   };
+   reader.readAsArrayBuffer(file);
+ });
+ }
+
  if (vcfFile) {
  vcfFile.addEventListener('change', function(e) {
  var file = e.target.files[0];
