@@ -12998,7 +12998,27 @@ function updateAutoDialBtn() {
     })();
 
     function safeInit(name, fn) {
-      try { fn(); } catch (e) { console.error('Init error: ' + name, e); }
+      try { fn(); } catch (e) {
+        console.error('Init error: ' + name, e);
+        if (name === 'initAuth') {
+          try {
+            var login = document.getElementById('authLoginOverlay');
+            var setup = document.getElementById('authSetupOverlay');
+            var lock = document.getElementById('lockScreenOverlay');
+            var shell = document.querySelector('.app-shell');
+            if (shell) shell.style.display = 'none';
+            if (setup) setup.classList.add('auth-hidden');
+            if (lock) lock.classList.add('auth-hidden');
+            if (login) {
+              login.classList.remove('auth-hidden');
+              login.style.display = 'flex';
+              login.style.zIndex = '2147483647';
+              var err = document.getElementById('authLoginError');
+              if (err) err.textContent = '页面初始化异常，请刷新后重试';
+            }
+          } catch (fallbackError) { console.error('Auth fallback failed', fallbackError); }
+        }
+      }
     }
     safeInit('loadWallpaper', loadWallpaper);
     safeInit('initAuth', initAuth);
