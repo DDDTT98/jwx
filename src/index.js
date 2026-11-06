@@ -2272,9 +2272,10 @@ export default {
 
         var body = await request.json();
         var batchLabel = String(body.batch_label || '').trim();
+        var mode = body.mode === 'equal' ? 'equal' : 'manual';
         var requested = Array.isArray(body.allocations) ? body.allocations : [];
         if (!batchLabel) throw new Error('请先选择导入批次');
-        if (!requested.length) throw new Error('请填写成员分配数量');
+        if (!requested.length) throw new Error('请至少选择一位接收成员');
         var allocationMap = {}, totalRequested = 0;
         requested.forEach(function(item) {
           var id = String(item.account_id || '');
@@ -2283,7 +2284,6 @@ export default {
           allocationMap[id] = count;
           totalRequested += count;
         });
-        if (!Number.isSafeInteger(totalRequested) || totalRequested <= 0 || totalRequested > 5000) throw new Error('本次分配总数必须在 1 至 5000 条之间');
         var targetIds = Object.keys(allocationMap);
         var targets = allAccounts.filter(function(a) {
           if (targetIds.indexOf(a.account_id) < 0 || a.active === false || a.is_master !== false) return false;
@@ -2296,19 +2296,33 @@ export default {
         var hdr = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
         var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
         var batchFilter = '&batch_label=eq.' + encodeURIComponent(batchLabel);
-        var readResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&order=created_at.asc,mobile.asc&limit=' + totalRequested + sourceFilter + batchFilter, { headers: hdr });
+        if (mode === 'manual' && (!Number.isSafeInteger(totalRequested) || totalRequested <= 0 || totalRequested > 5000)) throw new Error('本次分配总数必须在 1 至 5000 条之间');
+        var readLimit = mode === 'equal' ? 5000 : totalRequested;
+        var readResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&order=created_at.asc,mobile.asc&limit=' + readLimit + sourceFilter + batchFilter, { headers: hdr });
         if (!readResp.ok) throw new Error('读取当前批次失败：' + (await readResp.text()).slice(0, 180));
         var batchRows = await readResp.json();
-        if (!Array.isArray(batchRows) || batchRows.length < totalRequested) throw new Error('当前批次剩余客户不足：需要 ' + totalRequested + ' 条，实际仅有 ' + (Array.isArray(batchRows) ? batchRows.length : 0) + ' 条');
-        var mobiles = batchRows.map(function(row) { return row.mobile; }).filter(Boolean);
+        if (!Array.isArray(batchRows) || !batchRows.length) throw new Error('当前批次没有可分配的剩余客户');
+        if (mode === 'equal') {
+          totalRequested = batchRows.length;
+          if (totalRequested > 5000) throw new Error('当前批次超过 5000 条，请使用手动分配');
+          var eachCount = Math.floor(totalRequested / targets.length);
+          var remainder = totalRequested % targets.length;
+          targets.forEach(function(account, index) { allocationMap[account.account_id] = eachCount + (index < remainder ? 1 : 0); });
+        } else if (batchRows.length < totalRequested) {
+          throw new Error('当前批次剩余客户不足：需要 ' + totalRequested + ' 条，实际仅有 ' + batchRows.length + ' 条');
+        }
+        var mobiles = batchRows.slice(0, totalRequested).map(function(row) { return row.mobile; }).filter(Boolean);
         if (mobiles.length !== totalRequested) throw new Error('批次客户数据异常，请刷新后重试');
 
         var allocations = [], cursor = 0;
         targets.forEach(function(account) {
-          var count = allocationMap[account.account_id];
-          allocations.push({ account: account, mobiles: mobiles.slice(cursor, cursor + count) });
-          cursor += count;
+          var count = allocationMap[account.account_id] || 0;
+          if (count > 0) {
+            allocations.push({ account: account, mobiles: mobiles.slice(cursor, cursor + count) });
+            cursor += count;
+          }
         });
+        if (cursor !== totalRequested) throw new Error('分配数量计算异常，请刷新后重试');
         var updatedTotal = 0, allocationSummary = [];
         for (var ai = 0; ai < allocations.length; ai++) {
           var allocation = allocations[ai];
