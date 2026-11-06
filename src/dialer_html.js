@@ -7053,9 +7053,9 @@
               '</div>' +
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
-              (showClientInfo ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注">复制备注</span>') +
+              (showClientInfo ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">复制备注</span>') +
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
-              (c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + (showClientInfo ? esc(c.fund) : '☆') + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + (showClientInfo ? esc(c.fund) : '☆') + '</span>' : '') +
+              (showClientInfo && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
               (function() {
                 var customHtml = '';
                 if (c.custom && typeof c.custom === 'object') {
@@ -7324,7 +7324,7 @@
             '<td class="col-status">' + badgeHtml + '</td>' +
             '<td class="col-name"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc(c.name||'') : '☆') + '" title="点击复制">' + (showClientInfo ? esc(c.name||'-') : '☆') + '</span></td>' +
             '<td class="col-phone"><span class="crm-copy-btn' + (c.phone_copied ? ' copied-phone' : '') + '" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal ? maskPhone(phoneVal) : '-') + '</span></td>' +
-            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) : esc(c.note||'')) + '">' + (showClientInfo ? esc(c.company||'-') : '复制备注') + '</span>' + (showClientInfo ? wlBadge : '') + '</td>' +
+            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) : esc(c.note||'')) + '"' + (showClientInfo ? '' : ' style="font-size:14px;font-weight:800;padding:8px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;"') + '>' + (showClientInfo ? esc(c.company||'-') : '复制备注') + '</span>' + (showClientInfo ? wlBadge : '') + '</td>' +
             '<td class="col-note">' + (showClientInfo ? esc(c.note||'-') : '☆') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (showClientInfo ? (displayBatchLabel(c.batch_label) || '-') : '☆') + '</span>' + '</td>' +
             '<td class="col-lastop" style="font-size:0.52rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
