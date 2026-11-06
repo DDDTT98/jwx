@@ -1995,17 +1995,29 @@ export default {
           dialerWhitelistCache = { data: Array.isArray(whitelistRows) ? whitelistRows : [], ts: Date.now() };
         }
         var whitelistNameMap = {};
+        function addWhitelistProduct(key, productName) {
+          if (!key || !productName) return;
+          if (!whitelistNameMap[key]) whitelistNameMap[key] = [];
+          if (whitelistNameMap[key].indexOf(productName) === -1) whitelistNameMap[key].push(productName);
+        }
         (whitelistRows || []).forEach(function(w) {
           if (!w || w.status === '已失效' || w.status === '已删除') return;
           var wn = String(w.company_name || '').trim().toLowerCase();
           var wa = String(w.alias || '').trim().toLowerCase();
           var productName = String(w.bank_name || '').trim();
-          if (wn) whitelistNameMap[wn] = productName;
-          if (wa) whitelistNameMap[wa] = productName;
+          addWhitelistProduct(wn, productName);
+          addWhitelistProduct(wa, productName);
         });
         (result.data || []).forEach(function(c) {
-          var companyKey = String(c.company_name || '').trim().toLowerCase();
-          c.whitelist_name = companyKey && Object.prototype.hasOwnProperty.call(whitelistNameMap, companyKey) ? (whitelistNameMap[companyKey] || '') : '';
+          var companyNames = String(c.company_name || '').split(/[；;\\n、|]+/);
+          var products = [];
+          companyNames.forEach(function(companyName) {
+            var companyKey = companyName.trim().toLowerCase();
+            (whitelistNameMap[companyKey] || []).forEach(function(productName) {
+              if (products.indexOf(productName) === -1) products.push(productName);
+            });
+          });
+          c.whitelist_name = products.join('、');
         });
         var accountRows = await dialerGetAccounts(env);
         var accountNameMap = {};
