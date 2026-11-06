@@ -8,6 +8,8 @@ import { createSupabaseClient, createSupabaseKV } from './supabase.js';
 
 // KV 读取缓存
 const kvCache = new Map();
+// 白名单单位映射缓存，避免客户分页时每次重复读取白名单表。
+var dialerWhitelistCache = { data: [], ts: 0 };
 function getKVCached(env, key, ttlMs = 60000) {
   const entry = kvCache.get(key);
   if (entry && (Date.now() - entry.ts) < ttlMs) return entry.value;
@@ -1986,6 +1988,25 @@ export default {
           accountId = '__public_pool__:' + (poolMaster ? poolMaster.account_id : '');
         }
         const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles, accountId);
+        // 将客户单位与白名单单位名称/别名精确匹配，返回白名单产品名称（bank_name）。
+        var whitelistRows = dialerWhitelistCache.data;
+        if (!dialerWhitelistCache.ts || Date.now() - dialerWhitelistCache.ts > 5 * 60 * 1000) {
+          whitelistRows = await sb.getAllCompanies();
+          dialerWhitelistCache = { data: Array.isArray(whitelistRows) ? whitelistRows : [], ts: Date.now() };
+        }
+        var whitelistNameMap = {};
+        (whitelistRows || []).forEach(function(w) {
+          if (!w || w.status === '已失效' || w.status === '已删除') return;
+          var wn = String(w.company_name || '').trim().toLowerCase();
+          var wa = String(w.alias || '').trim().toLowerCase();
+          var productName = String(w.bank_name || '').trim();
+          if (wn) whitelistNameMap[wn] = productName;
+          if (wa) whitelistNameMap[wa] = productName;
+        });
+        (result.data || []).forEach(function(c) {
+          var companyKey = String(c.company_name || '').trim().toLowerCase();
+          c.whitelist_name = companyKey && Object.prototype.hasOwnProperty.call(whitelistNameMap, companyKey) ? (whitelistNameMap[companyKey] || '') : '';
+        });
         var accountRows = await dialerGetAccounts(env);
         var accountNameMap = {};
         accountRows.forEach(function(a) { accountNameMap[a.account_id] = a.real_name || a.account_name || a.label || a.account_id; });
