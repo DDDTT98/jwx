@@ -3775,6 +3775,7 @@
         'copy_phone': '已复制号码',
         'copy_name': '已复制姓名',
         'copy_company': '已复制公司',
+        'copy_note': '已复制备注',
         'dial': '已拨打电话',
         'call_success': '通话成功',
         'call_failed': '未接通'
@@ -3783,6 +3784,7 @@
         'copy_phone': '',
         'copy_name': '',
         'copy_company': '',
+        'copy_note': '',
         'dial': '',
         'call_success': '',
         'call_failed': ''
