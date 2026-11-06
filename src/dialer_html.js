@@ -9841,7 +9841,7 @@ function updateAutoDialBtn() {
                 renderDialCards();
                 updateStats();
                 if (Number(res.master_loaded || 0) > 0) {
-                  showCopyLimitToast('已从主账号自动补充 ' + Number(res.master_loaded) + ' 位客户，今日剩余额度 ' + Number(res.master_daily_remaining || 0) + ' 位', true);
+                  showCopyLimitToast('剩余补充配额：' + Number(res.master_daily_remaining || 0) + ' 位（本次补充 ' + Number(res.master_loaded) + ' 位）', true);
                 }
               })
               .catch(function(err) {
