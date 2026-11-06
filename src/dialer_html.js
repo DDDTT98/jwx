@@ -651,8 +651,14 @@
       box-shadow: 0 1px 3px rgba(7,193,96,.18);
     }
     .client-phone-btn.privacy-add-vx.copied {
-      background: #159b55;
-      color: #fff !important;
+      background: rgba(229,57,53,.10) !important;
+      color: #e53935 !important;
+      border: 1px solid rgba(229,57,53,.22);
+    }
+    .client-card-tag-company.privacy-action-done {
+      color: #e53935 !important;
+      background: rgba(229,57,53,.10) !important;
+      font-weight: 800 !important;
     }
     .client-phone-btn:hover {
       background: var(--btn-hover);
@@ -7156,7 +7162,8 @@
             cardClass += ' dialed';
           }
 
-          var phoneClass = c.phone_copied ? 'client-phone-btn copied' : 'client-phone-btn';
+          var phoneClass = 'client-phone-btn' + (c.phone_copied ? ' copied' : '');
+          if (!showClientInfo) phoneClass += ' privacy-add-vx';
 
           return '<div class="' + cardClass + '" id="xdc_' + i + '">' +
             '<div class="client-card-top">' +
@@ -7164,7 +7171,7 @@
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + (showClientInfo ? '' : ' privacy-add-vx') + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : '添加VX') + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
@@ -7173,7 +7180,7 @@
               '</div>' +
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
-              (showClientInfo ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">复制备注</span>') +
+              (showClientInfo ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company' + (c.note_copied ? ' privacy-action-done' : '') + '" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">' + (c.note_copied ? '已复制' : '复制备注') + '</span>') +
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
               (showClientInfo && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
               (function() {
@@ -7240,16 +7247,14 @@
             if (oldText === '已复制，正在打开微信...') return;
             copyTextToClipboard(phone);
             recordTimeline(phone, 'copy_phone');
-            b.textContent = '已复制，正在打开微信...';
-            var oldColor = b.style.color;
-            b.style.color = 'var(--accent-wechat)';
             var client = importedClients[idx];
             if (client) {
               client.copied = true;
-              client.phone_copied = true; // 复制过号码：卡片持久变色提醒
+              client.phone_copied = true;
               saveState();
-              
             }
+            // 隐私模式下点击添加VX后立即显示并持久记录“已添加”
+            b.textContent = isClientInfoVisible() ? '已复制' : '已添加';
             b.classList.add('copied');
             var card = document.getElementById('xdc_' + idx);
             if (card) card.classList.add('copied-card');
@@ -7257,9 +7262,8 @@
             jumpToWechat(); // 同步调用：setTimeout 脱离手势，鸿蒙/华为 WebView 会拦截 scheme 跳转
 
             setTimeout(function() {
-              // 隐私模式下添加微信后保留“已添加”状态；正常模式恢复脱敏号码
-              b.textContent = isClientInfoVisible() ? maskPhone(phone) : '已添加';
-              b.style.color = oldColor;
+              if (isClientInfoVisible()) b.textContent = maskPhone(phone);
+              else b.textContent = '已添加';
             }, 1500);
           });
         });
@@ -7331,25 +7335,31 @@
             var clientComp = importedClients[cardIdx];
             if (clientComp) recordTimeline(clientComp.phone || clientComp.mobile, 'copy_company');
 
-            var oldText = b.textContent;
-            if (oldText === '已复制，正在打开微信...') return;
-            b.textContent = '已复制，正在打开微信...';
-            var oldColor = b.style.color;
-            b.style.color = 'var(--accent-wechat)';
-
+            var isCopyNote = b.dataset.copyNote === '1';
+            if (isCopyNote) {
+              if (client) {
+                client.copied = true;
+                client.note_copied = true;
+                saveState();
+                scheduleReminder(client);
+              }
+              b.textContent = '已复制';
+              b.classList.add('privacy-action-done');
+              return;
+            }
             if (clientComp) {
               clientComp.copied = true;
-              clientComp.company_copied = true; // 复制过单位名称
+              clientComp.company_copied = true;
               saveState();
               scheduleReminder(clientComp);
             }
             if (cardEl) cardEl.classList.add('copied-company');
-
-            jumpToWechat(); // 与复制号码一致：复制单位后直接跳转微信（同步调用保持手势）
-
+            b.textContent = '已复制';
+            b.classList.add('privacy-action-done');
+            jumpToWechat();
             setTimeout(function() {
-              b.textContent = b.dataset.copyNote === '1' ? '复制备注' : company;
-              b.style.color = oldColor;
+              b.textContent = company;
+              b.classList.remove('privacy-action-done');
             }, 1500);
           });
         });
