@@ -11268,12 +11268,13 @@ function updateAutoDialBtn() {
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken(), 'X-View-Account-Id': _viewAccountId || '' },
             body: JSON.stringify({ batch_label: batchLabel, mode: mode, allocations: allocations.map(function(a) { return { account_id: a.account_id, count: a.count }; }) })
           }).then(function(r) { return r.json(); }).then(function(res) {
-            if (res.success) {
-              var details = (res.allocations || []).map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
-              alert('分配完成：成功 ' + res.updated + ' 条' + (details ? '\\n' + details : ''));
-              DB.selectedIds = {}; dbFetch(); loadAccountStats(); populateReassignSel();
-            } else alert('分配失败: ' + (res.error || '未知错误'));
-          }).catch(function(err) { alert('网络错误: ' + err.message); })
+            if (!res.success) throw new Error(res.error || '任务提交失败');
+            var details = (res.allocations || []).map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
+            alert('分配后台任务已提交（' + res.job_id + '）。服务器将继续执行，你可以关闭页面。' + (details ? '\\n' + details : ''));
+            watchCrmBackgroundJob(res.job_id, document.getElementById('crmReassignHint'), function(job) {
+              alert('后台分配任务' + (job.status === 'completed' ? '完成' : '结束') + '：成功 ' + (job.succeeded || 0) + ' 条，失败 ' + (job.failed || 0) + ' 条');
+            });
+          }).catch(function(err) { alert('分配任务提交失败: ' + err.message); })
             .finally(function() { reassignBtn.disabled = false; reassignBtn.textContent = '确认分配'; });
         });
       }
