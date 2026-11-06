@@ -2312,6 +2312,37 @@
       color: #75e6a0 !important;
     }
 
+
+    /* 已添加 / 已拨打状态统一使用浅绿色提示，不再出现红色描边或红色光晕。 */
+    .xls-dial-card .privacy-add-vx.copied,
+    .xls-dial-card .privacy-dial-icon.dial-attempted {
+      color: #079b50 !important;
+      background: rgba(7,193,96,.055) !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    .xls-dial-card .privacy-add-vx.copied:hover,
+    .xls-dial-card .privacy-add-vx.copied:active,
+    .xls-dial-card .privacy-dial-icon.dial-attempted:hover,
+    .xls-dial-card .privacy-dial-icon.dial-attempted:active {
+      color: #079b50 !important;
+      background: rgba(7,193,96,.09) !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+    }
+    body.dark-mode .xls-dial-card .privacy-add-vx.copied,
+    body.dark-mode .xls-dial-card .privacy-dial-icon.dial-attempted {
+      color: #75e6a0 !important;
+      background: rgba(48,209,88,.09) !important;
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+
   </style>
 </head>
 <body>
