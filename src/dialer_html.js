@@ -768,6 +768,27 @@
       padding-top: 6px;
       margin-top: 0px;
     }
+
+    /* 客户卡片文字增强：信息更清晰，手机号采用纯文字呈现 */
+    .client-card-name-btn,
+    .client-card-tag,
+    .client-card-label,
+    .client-card-text {
+      font-weight: 700;
+    }
+    .client-phone-btn:not(.privacy-add-vx) {
+      color: #1c1c1e;
+      font-weight: 700;
+      border: 0 !important;
+      outline: 0;
+      background: transparent;
+      box-shadow: none;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    body.dark-mode .client-phone-btn:not(.privacy-add-vx) {
+      color: #f2f2f7;
+    }
     
     /* AI Importer Animations */
     @keyframes pulse-ring {
