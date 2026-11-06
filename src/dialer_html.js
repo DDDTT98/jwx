@@ -3452,7 +3452,7 @@
       var clientPosition = importedClients.indexOf(client);
       if (importedClients.length < roundSize || clientPosition < roundSize - 1) return;
       var roundClients = importedClients.slice(0, roundSize);
-      var qualifiedCount = roundClients.filter(function(c) { return c.name_copied || c.company_copied; }).length;
+      var qualifiedCount = roundClients.filter(function(c) { return c.name_copied || c.company_copied || c.note_copied; }).length;
       var requiredCount = Math.ceil(roundSize * 0.8);
       if (qualifiedCount < requiredCount) return;
       window._roundTransferBlocked = true;
@@ -3898,7 +3898,7 @@
     function checkAndTransferBatch(client) {
       if (!client || window._roundTransferPending || !window._roundTransferBlocked) return;
       var operatedClients = importedClients.filter(function(c) {
-        return c.name_copied || c.company_copied;
+        return c.name_copied || c.company_copied || c.note_copied;
       });
       if (operatedClients.length === 0) return;
 
@@ -7518,7 +7518,7 @@
             var parentTd = btn.closest('td');
             var copyType = 'copy_phone';
             if (parentTd && parentTd.classList.contains('col-name')) copyType = 'copy_name';
-            else if (parentTd && parentTd.classList.contains('col-company')) copyType = 'copy_company';
+            else if (parentTd && parentTd.classList.contains('col-company')) copyType = showClientInfo ? 'copy_company' : 'copy_note';
 
             // 计入操作轮次（行 data-idx 是 sorted 内的序号，排序/筛选后不能直接按 importedClients 下标取）
             var tr = btn.closest('tr');
@@ -7533,6 +7533,7 @@
               recordTimeline(cl.phone || cl.mobile, copyType);
               cl.copied = true;
               if (copyType === 'copy_company') { cl.company_copied = true; scheduleReminder(cl); }
+              else if (copyType === 'copy_note') { cl.note_copied = true; scheduleReminder(cl); }
               else if (copyType === 'copy_name') { cl.name_copied = true; scheduleReminder(cl); }
               else if (copyType === 'copy_phone') { cl.phone_copied = true; btn.classList.add('copied-phone'); }
               saveState();
