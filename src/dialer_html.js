@@ -3101,7 +3101,7 @@
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
       <span id="crmReassignGroup" style="display:none; align-items:center; gap:5px; flex-wrap:wrap;">
-        <span style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给子账号</span>
+        <span id="crmReassignTitle" style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给小组和组员</span>
         <div id="crmReassignSel" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap; max-width:340px; font-size:0.68rem;"></div>
         <select id="crmReassignMode" title="分配方式" style="height:30px; padding:0 5px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:5px; font-weight:700; background:var(--card-bg); color:var(--text-main);">
           <option value="equal">平均分配</option><option value="proportional">按现有客户量比例</option>
@@ -9667,7 +9667,7 @@ function updateAutoDialBtn() {
             sel.innerHTML = '<option value="">我的数据</option>';
             res.stats.forEach(function(s) {
               if (!s.is_master) {
-                var name = s.account_name || s.label || s.account_id.slice(0, 10);
+                var name = (s.role === 'manager' ? '组长·' : '组员·') + (s.real_name || s.account_name || s.label || s.account_id.slice(0, 10));
                 sel.innerHTML += '<option value="' + s.account_id + '">' + name + '</option>';
               }
             });
@@ -9689,19 +9689,21 @@ function updateAutoDialBtn() {
         });
     }
 
-    // 仅主账号可批量分配；目标仅列出启用的子账号
+    // 主账号可分配给所有小组/组员；小组长仅可分配给本组组员
     function populateReassignSel() {
       var reassignSel = document.getElementById('crmReassignSel');
       var reassignGroup = document.getElementById('crmReassignGroup');
       if (!reassignSel || !reassignGroup) return;
       if (!canManageTeam()) { reassignGroup.style.display = 'none'; return; }
+      var reassignTitle = document.getElementById('crmReassignTitle');
+      if (reassignTitle) reassignTitle.textContent = isSessionManager() ? '分配给本组组员' : '分配给所有小组和组员';
       fetch('/api/dialer/accounts')
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (!res || !res.accounts) { reassignGroup.style.display = 'none'; return; }
           reassignSel.innerHTML = '';
           res.accounts.forEach(function(s) {
-            if (!s.active || s.is_master || (isSessionManager() && s.role !== 'member')) return;
+            if (!s.active || s.is_master || (isSessionManager() && (s.role !== 'member' || s.parent_account_id && s.parent_account_id !== getSessionAccountId()))) return;
             var name = s.account_name || s.label || s.account_id.slice(0, 10);
             var label = document.createElement('label');
             label.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);';
@@ -11242,16 +11244,16 @@ function updateAutoDialBtn() {
         });
       }
 
-      // 主账号批量分配选中客户到多个子账号
+      // 主账号分配到所有小组/组员；小组长分配到本组组员
       var reassignBtn = document.getElementById('crmReassignBtn');
       if (reassignBtn) {
         reassignBtn.addEventListener('click', function() {
-          if (!isSessionMaster()) { alert('仅主账号可批量分配'); return; }
+          if (!canManageTeam()) { alert('当前账号无权分配客户'); return; }
           var selectedMobiles = Object.keys(DB.selectedIds);
           if (!selectedMobiles.length) { alert('请先勾选要分配的客户'); return; }
           var targetSel = document.getElementById('crmReassignSel');
           var targetIds = targetSel ? Array.prototype.map.call(targetSel.querySelectorAll('.crm-reassign-account:checked'), function(o) { return o.value; }) : [];
-          if (!targetIds.length) { alert('请至少选择一个子账号'); return; }
+          if (!targetIds.length) { alert(isSessionManager() ? '请至少选择一个本组组员' : '请至少选择一个小组或组员'); return; }
           var mode = (document.getElementById('crmReassignMode') || {}).value || 'equal';
           var targetNames = Array.prototype.map.call(targetSel.querySelectorAll('.crm-reassign-account:checked'), function(o) { return o.parentNode.textContent.trim(); });
           var modeName = mode === 'equal' ? '平均分配' : '按现有客户量比例分配';
