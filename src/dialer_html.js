@@ -3993,19 +3993,29 @@
           break;
         }
       }
-      // 异步写入 Supabase（fire-and-forget）
+      // 时间线接口受中央登录门禁保护：显式携带会话与当前视图账户，不能依赖全局 fetch 包装器补充认证。
+      var timelineHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getSessionToken()
+      };
+      // 主账户查看子账户时，统计必须写入当前视图账户，避免计数落到主账户。
+      if (_viewAccountId) timelineHeaders['X-View-Account-Id'] = _viewAccountId;
       return fetch('/api/dialer/timeline', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: timelineHeaders,
         body: JSON.stringify(payload)
-      }).then(function(r) { return r.json(); }).then(function(res) {
-        if (res && res.success) {
-          _todayOperatedCustomers = res.operated_count || 0;
-          _todayDialedCustomers = res.dialed_count || 0;
-          renderDrawer();
-        }
+      }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(function(res) {
+        if (!res || !res.success) throw new Error((res && res.error) || '时间线写入失败');
+        _todayOperatedCustomers = Number(res.operated_count) || 0;
+        _todayDialedCustomers = Number(res.dialed_count) || 0;
+        renderDrawer();
+        return res;
       }).catch(function(err) {
         console.warn('[timeline] record failed:', err);
+        return null;
       });
     }
 
