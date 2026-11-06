@@ -2250,8 +2250,14 @@ export default {
         var session = await dialerValidateSession(env, sessionToken);
         if (!session) throw new Error('未登录');
         var allAccounts = await dialerGetAccounts(env);
-        var masterAccount = allAccounts.find(function(a) { return a.account_id === session.account_id && a.is_master !== false; });
-        if (!masterAccount) throw new Error('仅主账号可批量分配');
+        var callerAccount = allAccounts.find(function(a) { return a.account_id === session.account_id; });
+        if (!callerAccount) throw new Error('账户不存在');
+        var callerRole = callerAccount.is_master !== false ? 'master' : (callerAccount.role === 'manager' ? 'manager' : 'member');
+        if (callerRole === 'member') throw new Error('普通子账号无权分配客户');
+        var viewHeader = request.headers.get('X-View-Account-Id') || '';
+        var sourceAccountId = _dialerAccountId;
+        if (callerRole === 'manager' && viewHeader && viewHeader !== callerAccount.account_id && !allAccounts.some(function(a){return a.account_id===viewHeader && a.parent_account_id===callerAccount.account_id;})) throw new Error('只能分配本小组客户');
+        if (callerRole === 'master' && viewHeader) sourceAccountId = viewHeader;
 
         var body = await request.json();
         var mobiles = Array.isArray(body.mobiles) ? Array.from(new Set(body.mobiles.map(String).filter(Boolean))) : [];
@@ -2259,8 +2265,12 @@ export default {
         var mode = body.mode === 'proportional' ? 'proportional' : 'equal';
         if (!mobiles.length) throw new Error('请选择要分配的客户');
         if (!targetIds.length) throw new Error('至少选择一个子账号');
-        var targets = allAccounts.filter(function(a) { return targetIds.indexOf(a.account_id) >= 0 && a.active && !a.is_master; });
-        if (targets.length !== targetIds.length) throw new Error('目标账号无效或已停用');
+        var targets = allAccounts.filter(function(a) {
+          if (targetIds.indexOf(a.account_id) < 0 || a.active === false || a.is_master !== false) return false;
+          if (callerRole === 'manager') return a.role !== 'manager' && a.parent_account_id === callerAccount.account_id;
+          return true;
+        });
+        if (targets.length !== targetIds.length) throw new Error(callerRole === 'manager' ? '目标必须是本小组启用的普通子账号' : '目标账号无效或已停用');
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
 
         var hdr = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
@@ -2268,7 +2278,8 @@ export default {
         for (var i = 0; i < mobiles.length; i += 100) {
           var chunk = mobiles.slice(i, i + 100);
           var inFilter = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-          var check = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&mobile=in.(' + inFilter + ')&limit=100', { headers: hdr });
+          var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
+          var check = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&mobile=in.(' + inFilter + ')' + sourceFilter + '&limit=100', { headers: hdr });
           if (!check.ok) throw new Error('读取待分配客户失败：' + check.status);
           var rows = await check.json();
           if (Array.isArray(rows)) rows.forEach(function(row) { if (row.mobile) existing.push(row.mobile); });
@@ -2303,7 +2314,8 @@ export default {
           for (var bi = 0; bi < allocation.mobiles.length; bi += 200) {
             var patchChunk = allocation.mobiles.slice(bi, bi + 200);
             var patchFilter = patchChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-            var patchResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')', {
+            var sourcePatchFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
+            var patchResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')' + sourcePatchFilter, {
               method: 'PATCH',
               headers: Object.assign({}, hdr, { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
               body: JSON.stringify({ account_id: allocation.account.account_id, pulled_at: null })
