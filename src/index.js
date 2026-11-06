@@ -1973,9 +1973,20 @@ export default {
         const batchLabel = url2.searchParams.get('batch_label') || '';
         const exclude = url2.searchParams.get('exclude') || '';
         const excludeMobiles = exclude ? exclude.split(',').filter(Boolean) : [];
-        const accountId = _dialerAccountId;
+        var accountId = _dialerAccountId;
         const sb = createSupabaseClient(env);
+        if (category === '公海客户') {
+          var poolAccounts = await dialerGetAccounts(env);
+          var poolMaster = poolAccounts.find(function(a) { return a.is_master !== false; });
+          accountId = '__public_pool__:' + (poolMaster ? poolMaster.account_id : '');
+        }
         const result = await sb.getAllCustomers(page, pageSize, search, sortBy, sortDir, category, batchLabel, excludeMobiles, accountId);
+        var accountRows = await dialerGetAccounts(env);
+        var accountNameMap = {};
+        accountRows.forEach(function(a) { accountNameMap[a.account_id] = a.real_name || a.account_name || a.label || a.account_id; });
+        (result.data || []).forEach(function(c) {
+          c.owner_account_name = c.account_id ? (accountNameMap[c.account_id] || c.account_id) : '主账户';
+        });
         return new Response(JSON.stringify(result), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
@@ -2234,9 +2245,11 @@ export default {
         var tpViewId = request.headers.get('X-View-Account-Id') || '';
         var tpScopeId = _dialerAccountId;
         if (tpIsMaster && !tpViewId) tpScopeId = ''; // 主账户全视图：不限定账户
+        var tpMaster = tpAccts.find(function(a) { return a.is_master !== false; });
+        var tpPoolOwnerId = tpMaster ? tpMaster.account_id : '';
 
         const sb = createSupabaseClient(env);
-        const transferred = await sb.transferToPool(mobiles, tpScopeId);
+        const transferred = await sb.transferToPool(mobiles, tpScopeId, tpPoolOwnerId);
         return new Response(JSON.stringify({ success: true, transferred: transferred, total: mobiles.length }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -2286,6 +2299,12 @@ export default {
         const { mobile, entry } = body;
         const accountId = _dialerAccountId;
         if (!mobile || !entry || !entry.type) throw new Error('缺少参数');
+        var actorAccounts = await dialerGetAccounts(env);
+        var actor = actorAccounts.find(function(a) { return a.account_id === _session.account_id; });
+        entry = Object.assign({}, entry, {
+          operator_account_id: _session.account_id,
+          operator_account_name: actor ? (actor.real_name || actor.account_name || actor.label || actor.account_id) : _session.account_id
+        });
         const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
         const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
