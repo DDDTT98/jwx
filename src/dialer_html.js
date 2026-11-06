@@ -2610,6 +2610,7 @@
       <div class="crm-tab" data-tab="backupMgr">数据备份</div>
       <div class="crm-tab" data-tab="contentConfig">内容配置</div>
       <div class="crm-tab" data-tab="uploadLog">上传记录</div>
+      <div class="crm-tab" data-tab="masterPullLog">主账号补充</div>
       <div class="crm-tabs-right">
         <button class="db-close" id="dbMobileBtn" title="手机版界面" style="background:rgba(74,108,247,0.1);color:#4a6cf7;">手机版</button>
         <button class="db-close" id="dbClose">关闭</button>
@@ -2819,6 +2820,19 @@
         <button id="ulCopyBtn" style="flex:none; height:28px; padding:0 12px; border:none; border-radius:var(--radius-xs); font-size:0.68rem; font-weight:600; cursor:pointer; background:var(--accent-wechat); color:#fff;">复制</button>
       </div>
       <div id="ulList" style="display:flex; flex-direction:column; gap:6px; font-size:0.72rem;"></div>
+    </div>
+
+    <!-- 主账号客户补充流水 -->
+    <div id="dbMasterPullLogPanel" style="display:none; flex-direction:column; gap:12px; padding:16px; overflow-y:auto; flex:1;">
+      <div style="font-size:0.85rem; font-weight:900; color:var(--text-main);">主账号客户补充流水</div>
+      <div style="font-size:0.68rem; color:var(--text-light); font-weight:600;">记录每次子账号从主账号客户池实际转入的数量；主账号可查看全部子账号，子账号仅查看自己的记录。</div>
+      <div style="display:flex; gap:6px;">
+        <button data-master-pull-scope="day" style="flex:1; height:30px; border:none; border-radius:var(--radius-xs); font-size:0.72rem; font-weight:700; cursor:pointer; background:#07c160; color:#fff;">当天</button>
+        <button data-master-pull-scope="week" style="flex:1; height:30px; border:none; border-radius:var(--radius-xs); font-size:0.72rem; font-weight:700; cursor:pointer; background:var(--btn-bg); color:var(--text-soft);">本周</button>
+        <button data-master-pull-scope="month" style="flex:1; height:30px; border:none; border-radius:var(--radius-xs); font-size:0.72rem; font-weight:700; cursor:pointer; background:var(--btn-bg); color:var(--text-soft);">本月</button>
+      </div>
+      <div id="mplSummary" style="font-size:0.72rem; font-weight:700; color:var(--text-main);"></div>
+      <div id="mplList" style="display:flex; flex-direction:column; gap:6px; font-size:0.72rem;"></div>
     </div>
 
     <!-- Batch category mini-panel -->
@@ -9927,13 +9941,14 @@ function updateAutoDialBtn() {
       tabs.forEach(function(tab) {
         tab.onclick = function() {
           var tabName = tab.getAttribute('data-tab') || 'all';
-          if (tabName === 'accountMgr' || tabName === 'backupMgr' || tabName === 'contentConfig' || tabName === 'uploadLog') {
+          if (tabName === 'accountMgr' || tabName === 'backupMgr' || tabName === 'contentConfig' || tabName === 'uploadLog' || tabName === 'masterPullLog') {
             tabs.forEach(function(t) { t.classList.remove('active'); });
             tab.classList.add('active');
             var mp = document.getElementById('dbAccountMgrPanel');
             var bp = document.getElementById('dbBackupMgrPanel');
             var cp = document.getElementById('dbContentConfigPanel');
             var up = document.getElementById('dbUploadLogPanel');
+            var mpl = document.getElementById('dbMasterPullLogPanel');
             var tb = document.querySelector('#dbOverlay .crm-table');
             var sc = document.querySelector('#dbOverlay .crm-search-card');
             var tl = document.querySelector('#dbOverlay .crm-toolbar');
@@ -9941,6 +9956,7 @@ function updateAutoDialBtn() {
             if (bp) bp.style.display = tabName === 'backupMgr' ? 'flex' : 'none';
             if (cp) cp.style.display = tabName === 'contentConfig' ? 'flex' : 'none';
             if (up) up.style.display = tabName === 'uploadLog' ? 'flex' : 'none';
+            if (mpl) mpl.style.display = tabName === 'masterPullLog' ? 'flex' : 'none';
             // 桌面路径同样按主账户控制子账户管理区显示（初始内联为 none）
             if (tabName === 'accountMgr') {
               var subsEl = document.getElementById('dbAccountMgrSubs');
@@ -9953,11 +9969,13 @@ function updateAutoDialBtn() {
             if (tabName === 'backupMgr') { loadBackupConfig(); }
             if (tabName === 'contentConfig') { loadContentConfig(); }
             if (tabName === 'uploadLog') { loadUploadLog('day'); }
+            if (tabName === 'masterPullLog') { loadMasterPullLog('day'); }
           } else {
             var mp2 = document.getElementById('dbAccountMgrPanel');
             var bp2 = document.getElementById('dbBackupMgrPanel');
             var cp2 = document.getElementById('dbContentConfigPanel');
             var up2 = document.getElementById('dbUploadLogPanel');
+            var mpl2 = document.getElementById('dbMasterPullLogPanel');
             var tb2 = document.querySelector('#dbOverlay .crm-table');
             var sc2 = document.querySelector('#dbOverlay .crm-search-card');
             var tl2 = document.querySelector('#dbOverlay .crm-toolbar');
@@ -9965,6 +9983,7 @@ function updateAutoDialBtn() {
             if (bp2) bp2.style.display = 'none';
             if (cp2) cp2.style.display = 'none';
             if (up2) up2.style.display = 'none';
+            if (mpl2) mpl2.style.display = 'none';
             if (tb2) tb2.style.display = '';
             if (sc2) sc2.style.display = '';
             if (tl2) tl2.style.display = '';
@@ -11273,6 +11292,65 @@ function updateAutoDialBtn() {
         });
     }
 
+    function loadMasterPullLog(scope) {
+      var panel = document.getElementById('dbMasterPullLogPanel');
+      var listEl = document.getElementById('mplList');
+      var summaryEl = document.getElementById('mplSummary');
+      if (!panel || !listEl || !summaryEl) return;
+      scope = scope || 'day';
+      panel.querySelectorAll('button[data-master-pull-scope]').forEach(function(b) {
+        var active = b.getAttribute('data-master-pull-scope') === scope;
+        b.style.background = active ? '#07c160' : 'var(--btn-bg)';
+        b.style.color = active ? '#fff' : 'var(--text-soft)';
+      });
+      listEl.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-sub);">加载中…</div>';
+      summaryEl.textContent = '';
+      fetch('/api/dialer/stats/master-pull-records?scope=' + encodeURIComponent(scope))
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (res.error) throw new Error(res.error);
+          var records = res.records || [];
+          summaryEl.textContent = '共 ' + (res.record_count || 0) + ' 次补充，累计转入 ' + (res.total_count || 0) + ' 位客户';
+          if (!records.length) {
+            listEl.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-sub);">当前时间范围暂无主账号补充记录</div>';
+            return;
+          }
+          listEl.innerHTML = '';
+          records.forEach(function(rec) {
+            var row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px;background:var(--card-bg);border:0.5px solid var(--card-border);border-radius:var(--radius-sm);';
+            var info = document.createElement('div');
+            info.style.cssText = 'flex:1;min-width:0;';
+            var title = document.createElement('div');
+            title.textContent = (rec.target_account_name || rec.target_account_id || '子账号') + ' ← ' + (rec.source_account_name || '主账号');
+            title.style.cssText = 'font-size:0.73rem;font-weight:700;color:var(--text-main);';
+            var detail = document.createElement('div');
+            var reason = rec.trigger_reason === 'empty_dialer' ? '拨号列表无可用客户' : (rec.trigger_reason === 'low_inventory_and_empty_dialer' ? '客户总量不足且拨号列表为空' : '子账号客户总量低于 600');
+            detail.textContent = formatUploadTime(new Date(rec.created_at).getTime()) + ' · ' + reason + ' · 今日剩余 ' + rec.daily_remaining;
+            detail.style.cssText = 'font-size:0.61rem;color:var(--text-sub);margin-top:3px;';
+            info.appendChild(title);
+            info.appendChild(detail);
+            var count = document.createElement('span');
+            count.textContent = '+' + rec.loaded_count;
+            count.style.cssText = 'font-size:0.82rem;font-weight:800;color:var(--accent-wechat);';
+            row.appendChild(info);
+            row.appendChild(count);
+            listEl.appendChild(row);
+          });
+        })
+        .catch(function(err) {
+          listEl.innerHTML = '<div style="padding:14px;text-align:center;color:#e74c3c;">加载失败：' + esc(err.message) + '</div>';
+        });
+    }
+
+    function initMasterPullLogPanel() {
+      var panel = document.getElementById('dbMasterPullLogPanel');
+      if (!panel) return;
+      panel.querySelectorAll('button[data-master-pull-scope]').forEach(function(b) {
+        b.onclick = function() { loadMasterPullLog(b.getAttribute('data-master-pull-scope') || 'day'); };
+      });
+    }
+
     function initUploadLogPanel() {
       var panel = document.getElementById('dbUploadLogPanel');
       if (!panel) return;
@@ -12414,6 +12492,7 @@ function updateAutoDialBtn() {
     safeInit('initDBMobile', initDBMobile);
     safeInit('initContentConfigPanel', initContentConfigPanel);
     safeInit('initUploadLogPanel', initUploadLogPanel);
+    safeInit('initMasterPullLogPanel', initMasterPullLogPanel);
     safeInit('initProgressDrawer', initProgressDrawer);
     safeInit('initDestructPanel', initDestructPanel);
 
