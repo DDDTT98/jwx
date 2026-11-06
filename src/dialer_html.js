@@ -3042,15 +3042,17 @@
     <!-- CRM Top Tabs -->
     <div class="crm-tabs">
       <div class="crm-tab active" data-tab="all">首页</div>
-      <div class="crm-tab" data-tab="公海客户">公海客户 <span class="crm-tab-close">关闭</span></div>
+      <div class="crm-tab" data-tab="公海客户">公海客户</div>
       <div class="crm-tab" data-tab="accountMgr">账户管理</div>
       <div class="crm-tab" data-tab="backupMgr">数据备份</div>
       <div class="crm-tab" data-tab="contentConfig">内容配置</div>
       <div class="crm-tab" data-tab="uploadLog">上传记录</div>
       <div class="crm-tab" data-tab="masterPullLog">主账号补充</div>
       <div class="crm-tabs-right">
-        <button class="db-close" id="dbMobileBtn" title="手机版界面" style="background:rgba(74,108,247,0.1);color:#4a6cf7;">手机版</button>
-        <button class="db-close" id="dbClose">关闭</button>
+        <button class="db-close" id="dbMobileBtn" type="button" title="手机版界面" aria-label="手机版界面" style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:0 9px;font-size:0;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        </button>
+        <button class="db-close" id="dbClose" type="button" title="关闭" aria-label="关闭">❌</button>
       </div>
     </div>
 
