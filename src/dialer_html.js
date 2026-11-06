@@ -3103,9 +3103,7 @@
       <span id="crmReassignGroup" style="display:none; align-items:center; gap:5px; flex-wrap:wrap;">
         <span id="crmReassignTitle" style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给小组和组员</span>
         <div id="crmReassignSel" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap; max-width:340px; font-size:0.68rem;"></div>
-        <select id="crmReassignMode" title="分配方式" style="height:30px; padding:0 5px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:5px; font-weight:700; background:var(--card-bg); color:var(--text-main);">
-          <option value="equal">平均分配</option><option value="proportional">按现有客户量比例</option>
-        </select>
+        <span style="font-size:0.68rem;font-weight:700;color:var(--text-soft);">每人数量</span>
         <button class="crm-tool-btn" id="crmReassignBtn" style="background:#e67e22; color:#fff; border-color:#e67e22;">分配</button>
       </span>
     </div>
@@ -9711,7 +9709,12 @@ function updateAutoDialBtn() {
             cb.type = 'checkbox'; cb.className = 'crm-reassign-account'; cb.value = s.account_id;
             cb.style.cssText = 'width:14px;height:14px;accent-color:#07c160;margin:0;';
             var txt = document.createElement('span'); txt.textContent = name;
-            label.appendChild(cb); label.appendChild(txt); reassignSel.appendChild(label);
+            var qty = document.createElement('input');
+            qty.type = 'number'; qty.min = '0'; qty.step = '1'; qty.value = '0';
+            qty.className = 'crm-reassign-count'; qty.setAttribute('data-account-id', s.account_id);
+            qty.setAttribute('aria-label', name + '分配数量');
+            qty.style.cssText = 'width:58px;height:26px;padding:0 4px;border:1px solid var(--card-border);border-radius:5px;background:var(--bg-app);color:var(--text-main);font-size:0.72rem;';
+            label.appendChild(cb); label.appendChild(txt); label.appendChild(qty); reassignSel.appendChild(label);
           });
           reassignGroup.style.display = reassignSel.querySelectorAll('.crm-reassign-account').length ? 'flex' : 'none';
         })
@@ -11249,19 +11252,29 @@ function updateAutoDialBtn() {
       if (reassignBtn) {
         reassignBtn.addEventListener('click', function() {
           if (!canManageTeam()) { alert('当前账号无权分配客户'); return; }
-          var selectedMobiles = Object.keys(DB.selectedIds);
-          if (!selectedMobiles.length) { alert('请先勾选要分配的客户'); return; }
+          var batchLabel = (document.getElementById('dbBatchFilter') || {}).value || '';
+          if (!batchLabel) { alert('请先在“导入批次”中选择要分配的批次'); return; }
           var targetSel = document.getElementById('crmReassignSel');
-          var targetIds = targetSel ? Array.prototype.map.call(targetSel.querySelectorAll('.crm-reassign-account:checked'), function(o) { return o.value; }) : [];
-          if (!targetIds.length) { alert(isSessionManager() ? '请至少选择一个本组组员' : '请至少选择一个小组或组员'); return; }
-          var mode = (document.getElementById('crmReassignMode') || {}).value || 'equal';
-          var targetNames = Array.prototype.map.call(targetSel.querySelectorAll('.crm-reassign-account:checked'), function(o) { return o.parentNode.textContent.trim(); });
-          var modeName = mode === 'equal' ? '平均分配' : '按现有客户量比例分配';
-          if (!confirm('将勾选的 ' + selectedMobiles.length + ' 条客户，按「' + modeName + '」分配给：' + targetNames.join('、') + '？')) return;
+          var checked = targetSel ? Array.prototype.slice.call(targetSel.querySelectorAll('.crm-reassign-account:checked')) : [];
+          if (!checked.length) { alert(isSessionManager() ? '请至少选择一个本组组员' : '请至少选择一个小组或组员'); return; }
+          var allocations = [], totalCount = 0;
+          checked.forEach(function(cb) {
+            var qty = targetSel.querySelector('.crm-reassign-count[data-account-id="' + cb.value + '"]');
+            var count = qty ? Number(qty.value) : 0;
+            if (!Number.isSafeInteger(count) || count < 0) count = -1;
+            allocations.push({ account_id: cb.value, count: count, account_name: cb.parentNode.querySelector('span').textContent });
+            totalCount += count;
+          });
+          if (allocations.some(function(a) { return a.count < 0; })) { alert('分配数量必须是大于或等于 0 的整数'); return; }
+          allocations = allocations.filter(function(a) { return a.count > 0; });
+          if (!allocations.length || totalCount <= 0) { alert('请填写至少一位成员的分配数量'); return; }
+          var targetIds = allocations.map(function(a) { return a.account_id; });
+          var summary = allocations.map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
+          if (!confirm('从当前批次「' + batchLabel + '」自动分配 ' + totalCount + ' 条客户：\n' + summary + '\n确认执行？')) return;
           reassignBtn.disabled = true; reassignBtn.textContent = '分配中...';
           fetch('/api/dialer/customers/reassign', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
-            body: JSON.stringify({ mobiles: selectedMobiles, target_account_ids: targetIds, mode: mode })
+            body: JSON.stringify({ batch_label: batchLabel, allocations: allocations.map(function(a) { return { account_id: a.account_id, count: a.count }; }) })
           }).then(function(r) { return r.json(); }).then(function(res) {
             if (res.success) {
               var details = (res.allocations || []).map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
