@@ -656,8 +656,8 @@
       border: 1px solid rgba(229,57,53,.22);
     }
     .client-card-tag-company.privacy-action-done {
-      color: #e53935 !important;
-      background: rgba(229,57,53,.10) !important;
+      color: var(--accent-wechat) !important;
+      background: rgba(7,193,96,.10) !important;
       font-weight: 800 !important;
     }
     .client-phone-btn:hover {
