@@ -2936,6 +2936,7 @@
       <button class="dbm-mgr-tab" data-mgrtab="backup">数据备份</button>
       <button class="dbm-mgr-tab" data-mgrtab="content">内容配置</button>
       <button class="dbm-mgr-tab" data-mgrtab="upload">上传记录</button>
+      <button class="dbm-mgr-tab" data-mgrtab="masterPull">补充记录</button>
     </div>
     <div id="dbmMgrBody"></div>
   </div>
@@ -9488,7 +9489,8 @@ function updateAutoDialBtn() {
       { tab: 'account', panelId: 'dbAccountMgrPanel', load: function() { loadSubAccounts(); loadAccountStats(); } },
       { tab: 'backup', panelId: 'dbBackupMgrPanel', load: function() { loadBackupConfig(); } },
       { tab: 'content', panelId: 'dbContentConfigPanel', load: function() { loadContentConfig(); } },
-      { tab: 'upload', panelId: 'dbUploadLogPanel', load: function() { loadUploadLog('day'); } }
+      { tab: 'upload', panelId: 'dbUploadLogPanel', load: function() { loadUploadLog('day'); } },
+      { tab: 'masterPull', panelId: 'dbMasterPullLogPanel', load: function() { loadMasterPullLog('day'); } }
     ];
     var _dbmActiveTab = 'account';
 
