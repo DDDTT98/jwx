@@ -7147,6 +7147,7 @@
         container.querySelectorAll('.client-card-name-btn').forEach(function(b) {
           b.addEventListener('click', function(e) {
             e.stopPropagation();
+            if (!isClientInfoVisible()) return;
             var name = b.dataset.name;
             var idx = parseInt(b.dataset.idx);
 
@@ -7227,6 +7228,7 @@
         container.querySelectorAll('.crm-fund-tag').forEach(function(b) {
           b.addEventListener('click', function(e) {
             e.stopPropagation();
+            if (!isClientInfoVisible()) return;
             var fund = b.dataset.fund;
             var idx = parseInt(b.dataset.idx);
             var client = (idx >= 0) ? importedClients[idx] : null;
@@ -7256,6 +7258,7 @@
         container.querySelectorAll('.client-card-tag-note').forEach(function(b) {
           b.addEventListener('click', function(e) {
             e.stopPropagation();
+            if (!isClientInfoVisible()) return;
             var note = b.dataset.note || '(空)';
             var content = document.getElementById('noteModalContent');
             if (content) {
