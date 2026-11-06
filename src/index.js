@@ -422,7 +422,7 @@ export default {
         var token = dialerGenToken();
         await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
 
-        return new Response(JSON.stringify({ success: true, account_id: accountId, is_master: true, label: label, session_token: token }), {
+        return new Response(JSON.stringify({ success: true, account_id: accountId, is_master: true, role: 'master', label: label, session_token: token }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
@@ -490,6 +490,7 @@ export default {
 
         return new Response(JSON.stringify({
           success: true, account_id: accountId, is_master: account.is_master !== false,
+          role: account.is_master !== false ? 'master' : (account.role === 'manager' ? 'manager' : 'member'),
           label: account.label || '', session_token: token
         }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1789,7 +1790,8 @@ export default {
       _dialerAccountId = _session.account_id;
       var _viewId=request.headers.get('X-View-Account-Id')||'';
       var _gateAccounts=await dialerGetAccounts(env),_gateCaller=_gateAccounts.find(function(a){return a.account_id===_session.account_id;});
-      var _gateRole=!_gateCaller||_gateCaller.is_master!==false?'master':(_gateCaller.role==='manager'?'manager':'member');
+      if(!_gateCaller || _gateCaller.active===false) return new Response(JSON.stringify({error:'账户不存在或已停用'}),{status:401,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      var _gateRole=_gateCaller.is_master!==false?'master':(_gateCaller.role==='manager'?'manager':'member');
       if(_viewId){
         var _viewTarget=_gateAccounts.find(function(a){return a.account_id===_viewId;});
         var _viewAllowed=_gateRole==='master'||(_gateRole==='manager'&&(_viewId===_session.account_id||(_viewTarget&&_viewTarget.parent_account_id===_session.account_id)));
