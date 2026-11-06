@@ -7813,7 +7813,7 @@
     // 同一单位可能对应多个白名单产品；精确匹配时全部返回并去重。
     function matchWhitelistCompanies(company) {
       if (!company || !whitelistCompanies || whitelistCompanies.length === 0) return [];
-      var keys = String(company).split(/[；;\n、|]+/).map(function(v) { return v.trim().toLowerCase(); }).filter(Boolean);
+      var keys = String(company).split(/[；;\\n、|]+/).map(function(v) { return v.trim().toLowerCase(); }).filter(Boolean);
       var matches = [];
       keys.forEach(function(key) {
         whitelistCompanies.forEach(function(w) {
