@@ -11271,12 +11271,12 @@ function updateAutoDialBtn() {
       var toggleSearchBtn = document.getElementById('crmToggleSearchBtn');
       var searchCard = document.querySelector('#dbOverlay .crm-search-card');
       var badgeBar = document.querySelector('#dbOverlay .crm-badge-bar');
-      var dbSearchCollapsed = localStorage.getItem('db_search_collapsed') === '1';
-      if (dbSearchCollapsed && toggleSearchBtn && searchCard) {
-        searchCard.classList.add('collapsed');
-        badgeBar.classList.add('collapsed');
-        toggleSearchBtn.innerHTML = '展开搜索';
-      }
+      // 数据库看板每次打开默认展示模糊关联搜索框，避免旧的折叠状态让用户误以为搜索功能被删除。
+      // 用户仍可在本次看板使用期间手动收起；下次重新打开时自动恢复展开。
+      if (searchCard) searchCard.classList.remove('collapsed');
+      if (badgeBar) badgeBar.classList.remove('collapsed');
+      if (toggleSearchBtn) toggleSearchBtn.innerHTML = '收起搜索';
+      try { localStorage.setItem('db_search_collapsed', '0'); } catch (_) {}
       if (toggleSearchBtn) {
         toggleSearchBtn.addEventListener('click', function() {
           var isCollapsed = searchCard && searchCard.classList.contains('collapsed');
