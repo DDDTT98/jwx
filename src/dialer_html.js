@@ -2393,7 +2393,7 @@
     .client-card-tag-company.privacy-action-done {
       color: #fff !important;
       background: #07c160 !important;
-      border-color: #07c160 !important;
+      border-color: transparent !important;
     }
     .xls-dial-badge-whitelist {
       color: #078d49 !important;
@@ -2494,12 +2494,12 @@
     .xls-dial-card.copied-card,
     .xls-dial-card.copied-company {
       border-color: transparent !important;
-      box-shadow: 0 0 0 1px rgba(7,193,96,.12), 0 3px 10px rgba(7,193,96,.09) !important;
+      box-shadow: 0 3px 10px rgba(26,54,38,.075) !important;
     }
     body.dark-mode .xls-dial-card.copied-card,
     body.dark-mode .xls-dial-card.copied-company {
       border-color: transparent !important;
-      box-shadow: 0 0 0 1px rgba(7,193,96,.13), 0 3px 12px rgba(0,0,0,.2) !important;
+      box-shadow: 0 3px 12px rgba(0,0,0,.2) !important;
     }
     /* Android copied-state feedback stays subtle; cards have no decorative side rails. */
     body.android .xls-dial-card.copied-card,
