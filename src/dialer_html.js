@@ -9511,6 +9511,10 @@ function updateAutoDialBtn() {
         ov.classList.remove('active');
         unlockDBMobileBackground();
       }
+      // 通过 #dbm 深链接进入时，关闭后清理地址栏，避免刷新页面再次自动打开。
+      if (window.location.hash === '#dbm' && window.history && window.history.replaceState) {
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+      }
     }
     window.closeDBMobile = closeDBMobile;
 
@@ -9932,7 +9936,12 @@ function updateAutoDialBtn() {
       });
       // hash 支持 #dbm：直接进入手机版（数据独立加载，不需桌面密码流程）
       window.addEventListener('hashchange', function() {
-        if (window.location.hash === '#dbm') openDBMobile();
+        if (window.location.hash === '#dbm') {
+          openDBMobile();
+        } else {
+          var mobileOverlay = document.getElementById('dbMobileOverlay');
+          if (mobileOverlay && mobileOverlay.classList.contains('active')) closeDBMobile();
+        }
       });
       if (window.location.hash === '#dbm') {
         setTimeout(openDBMobile, 100);
