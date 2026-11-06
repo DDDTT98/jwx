@@ -145,17 +145,29 @@
       -webkit-tap-highlight-color: transparent; touch-action: manipulation;
     }
     .nm-track {
-      width: 30px; height: 18px; border-radius: 999px;
-      background: rgba(0,0,0,0.15); position: relative; transition: background 0.2s;
+      width: 38px; height: 22px; border-radius: 999px;
+      background: rgba(0,0,0,0.16); position: relative; transition: background 0.2s;
     }
-    body.dark-mode .nm-track { background: rgba(255,255,255,0.2); }
+    body.dark-mode .nm-track { background: rgba(255,255,255,0.22); }
     #newModeToggle.on .nm-track { background: var(--accent-wechat); }
     .nm-thumb {
-      position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+      position: absolute; top: 2px; left: 2px; width: 18px; height: 18px;
       border-radius: 50%; background: #fff;
       box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: left 0.2s;
     }
-    #newModeToggle.on .nm-thumb { left: 14px; }
+    #newModeToggle.on .nm-thumb { left: 18px; }
+    /* 两个设置卡片统一高度、对齐方式和开关尺寸 */
+    .drawer-setting-card { padding: 13px 14px; gap: 0; }
+    .drawer-setting-row { min-height: 30px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .drawer-setting-title { display:flex; align-items:center; gap:8px; min-width:0; font-size:0.86rem; font-weight:700; color:var(--text-soft); }
+    .drawer-info-btn { width:20px; height:20px; flex:0 0 20px; padding:0; border:1px solid var(--text-light); border-radius:50%; background:transparent; color:var(--text-soft); font-size:12px; font-weight:800; line-height:18px; cursor:pointer; }
+    .drawer-setting-control { display:inline-flex; align-items:center; justify-content:flex-end; gap:8px; flex-shrink:0; cursor:pointer; }
+    .drawer-setting-state { min-width:38px; text-align:right; font-size:0.7rem; color:var(--text-light); white-space:nowrap; }
+    .drawer-setting-checkbox { appearance:none; -webkit-appearance:none; width:38px; height:22px; margin:0; border:0; border-radius:999px; background:rgba(0,0,0,0.16); position:relative; cursor:pointer; transition:background .2s; flex:0 0 38px; }
+    body.dark-mode .drawer-setting-checkbox { background:rgba(255,255,255,0.22); }
+    .drawer-setting-checkbox::after { content:""; position:absolute; width:18px; height:18px; left:2px; top:2px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .2s; }
+    .drawer-setting-checkbox:checked { background:var(--accent-wechat); }
+    .drawer-setting-checkbox:checked::after { transform:translateX(16px); }
     .header-dropdown {
       position: absolute;
       top: 34px;
@@ -2073,26 +2085,32 @@
           </div>
         </div>
       </div>
-      <!-- 客户资料显示开关 -->
-      <div class="drawer-group-card" style="gap:8px;">
-        <label for="showClientInfoToggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;">
-          <span style="display:inline-flex;align-items:center;gap:7px;font-size:0.82rem;font-weight:700;color:var(--text-soft);">隐私操作 <button type="button" id="privacyOperationInfo" aria-label="隐私操作功能介绍" title="功能介绍" style="width:20px;height:20px;padding:0;border:1px solid var(--text-light);border-radius:50%;background:transparent;color:var(--text-soft);font-size:13px;font-weight:900;line-height:18px;cursor:pointer;">!</button></span>
-          <span style="display:flex;align-items:center;gap:8px;">
-            <span id="showClientInfoState" style="font-size:0.7rem;color:var(--text-light);">已关闭</span>
-            <input type="checkbox" id="showClientInfoToggle" style="width:18px;height:18px;accent-color:var(--accent-wechat);">
-          </span>
-        </label>
+      <!-- 隐私操作：统一设置行布局 -->
+      <div class="drawer-group-card drawer-setting-card">
+        <div class="drawer-setting-row">
+          <div class="drawer-setting-title">
+            <span>隐私操作</span>
+            <button type="button" id="privacyOperationInfo" aria-label="隐私操作功能介绍" title="功能介绍" class="drawer-info-btn">!</button>
+          </div>
+          <label class="drawer-setting-control" for="showClientInfoToggle">
+            <span id="showClientInfoState" class="drawer-setting-state">已关闭</span>
+            <input type="checkbox" id="showClientInfoToggle" class="drawer-setting-checkbox">
+          </label>
+        </div>
       </div>
-      <!-- 轮次与模式 -->
-      <div class="drawer-group-card">
-        <div class="drawer-stat-row">
-          <span>本机新号</span>
-          <span style="display:inline-flex;align-items:center;gap:7px;">
-            <button id="newModeInfo" type="button" aria-label="本机新号说明" title="本机新号模式说明" style="width:19px;height:19px;padding:0;border:1px solid var(--text-light);border-radius:50%;background:transparent;color:var(--text-soft);font-size:12px;font-weight:700;line-height:17px;cursor:pointer;">!</button>
-            <button id="newModeToggle" title="本机新号：每轮 10 个客户，加完冷却 20-30 分钟（普通模式 50 个、45-60 分钟）">
+      <!-- 本机新号：与隐私操作保持一致的布局 -->
+      <div class="drawer-group-card drawer-setting-card">
+        <div class="drawer-setting-row">
+          <div class="drawer-setting-title">
+            <span>本机新号</span>
+            <button id="newModeInfo" type="button" aria-label="本机新号说明" title="本机新号模式说明" class="drawer-info-btn">!</button>
+          </div>
+          <div class="drawer-setting-control">
+            <span id="newModeState" class="drawer-setting-state">已关闭</span>
+            <button id="newModeToggle" type="button" aria-label="切换本机新号模式" title="本机新号：每轮 10 个客户，加完冷却 20-30 分钟（普通模式 50 个、45-60 分钟）">
               <span class="nm-track"><span class="nm-thumb"></span></span>
             </button>
-          </span>
+          </div>
         </div>
       </div>
       <!-- 通过微信 -->
