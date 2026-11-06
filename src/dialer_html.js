@@ -9865,9 +9865,23 @@ function updateAutoDialBtn() {
       var listEl = document.getElementById('dbmList');
       if (listEl) listEl.innerHTML = '<div class="dbm-empty">加载中...</div>';
       var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
-      fetch(url)
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
+      var poolUrl = url + '&category=' + encodeURIComponent('公海客户');
+      var mergedData = [];
+      Promise.all([fetch(url).then(function(r) { return r.json(); }), fetch(poolUrl).then(function(r) { return r.json(); })])
+        .then(function(results) {
+          var res = results[0] || {};
+          var poolRes = results[1] || {};
+          if (!res.error && Array.isArray(res.data) && Array.isArray(poolRes.data)) {
+            var seenMobiles = {};
+            res.data.concat(poolRes.data).forEach(function(c) {
+              var key = String(c.mobile || c.phone || '');
+              if (!key || seenMobiles[key]) return;
+              seenMobiles[key] = true;
+              mergedData.push(c);
+            });
+            res.data = mergedData;
+          }
+
           if (res.error) {
             if (listEl) listEl.innerHTML = '<div class="dbm-empty">加载失败: ' + esc(res.error) + '</div>';
             return;
