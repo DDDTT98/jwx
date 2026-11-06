@@ -7417,6 +7417,30 @@
       reader.readAsText(file, 'utf-8');
     }
 
+    // 同一单位可能对应多个白名单产品；精确匹配时全部返回并去重。
+    function matchWhitelistCompanies(company) {
+      if (!company || !whitelistCompanies || whitelistCompanies.length === 0) return [];
+      var keys = String(company).split(/[；;\\n、|]+/).map(function(v) { return v.trim().toLowerCase(); }).filter(Boolean);
+      var matches = [];
+      keys.forEach(function(key) {
+        whitelistCompanies.forEach(function(w) {
+          if (!w || w.status === '已失效' || w.status === '已删除') return;
+          var name = String(w.company_name || '').trim().toLowerCase();
+          var alias = String(w.alias || '').trim().toLowerCase();
+          if (name === key || (alias && alias === key)) {
+            var product = String(w.bank_name || '白名单').trim();
+            if (product && !matches.some(function(item) { return item.bank_name === product; })) matches.push({ bank_name: product });
+          }
+        });
+      });
+      // 没有精确匹配时，沿用原有模糊匹配结果。
+      if (!matches.length) {
+        var fuzzy = matchWhitelistCompany(company);
+        if (fuzzy) matches.push(fuzzy);
+      }
+      return matches;
+    }
+
     // Fuzzy/partial match whitelist company
     function matchWhitelistCompany(company) {
       if (!company) return null;
@@ -7872,9 +7896,10 @@
 
           var wlBadge = '';
           if (c.company) {
-            var matchedWl = matchWhitelistCompany(c.company);
-            if (matchedWl) {
-              wlBadge = ' <span style="font-size:10px;background:rgba(7,193,96,0.1);color:#07c160;padding:0 4px;border-radius:2px;">' + esc(matchedWl.bank_name || '白名单') + '</span>';
+            var matchedWls = matchWhitelistCompanies(c.company);
+            if (matchedWls.length) {
+              var productNames = matchedWls.map(function(w) { return w.bank_name || '白名单'; });
+              wlBadge = ' <span style="font-size:10px;background:rgba(7,193,96,0.1);color:#07c160;padding:0 4px;border-radius:2px;">' + esc(productNames.join('、')) + '</span>';
             }
           }
 
