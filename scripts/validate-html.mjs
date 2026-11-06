@@ -38,15 +38,17 @@ if (!DIALER_HTML.includes('class="auth-overlay"') ||
 }
 
 const workerSource = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-if (!DIALER_HTML.includes('<option value="manager">二级管理账号（组长）</option>') ||
+if (!DIALER_HTML.includes('id="dbSubAccountGroupNameInput"') ||
+    !DIALER_HTML.includes('新建小组（同时创建组长账号）') ||
     !DIALER_HTML.includes('class="sub-group-select"') ||
-    !DIALER_HTML.includes('parent_account_id: role === "manager"')) {
-  throw new Error('[dialer] Group leader creation or member reassignment controls are missing');
+    !DIALER_HTML.includes('group_name: role === "manager"')) {
+  throw new Error('[dialer] Named group creation or member reassignment controls are missing');
 }
 if (!workerSource.includes("var requestedRole=String(body.role||'member')") ||
-    !workerSource.includes("if(requestedRole==='manager'&&cr!=='master')") ||
+    !workerSource.includes("if(requestedRole==='manager'&&!groupName)") ||
+    !workerSource.includes("group_name:role==='manager'?groupName:''") ||
     !workerSource.includes("target.parent_account_id=p")) {
-  throw new Error('[worker] Hierarchical account creation or group reassignment logic is missing');
+  throw new Error('[worker] Named group creation, leader creation, or group reassignment logic is missing');
 }
 
 console.log(`Validated ${pages.length} HTML pages and ${checkedScripts} inline browser scripts.`);
