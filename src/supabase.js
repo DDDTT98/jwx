@@ -600,7 +600,8 @@ export function createSupabaseClient(env) {
             if (Array.isArray(checkData)) {
               for (var ci = 0; ci < checkData.length; ci++) {
                 existingMobiles[checkData[ci].mobile] = checkData[ci].account_id;
-                existingCategories[checkData[ci].mobile] = checkData[ci].category || '';\n                existingCompanies[checkData[ci].mobile] = checkData[ci].company_name || '';
+                existingCategories[checkData[ci].mobile] = checkData[ci].category || '';
+                existingCompanies[checkData[ci].mobile] = checkData[ci].company_name || '';
               }
             }
           }
