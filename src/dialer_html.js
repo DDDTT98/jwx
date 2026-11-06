@@ -3285,12 +3285,6 @@
       <span id="dbBatchCatStatus" style="font-size:11px;color:#07c160;display:none;"></span>
     </div>
 
-    <!-- CRM Status Badges Bar -->
-    <div class="crm-badge-bar">
-      <div class="crm-badge-item"><span class="crm-dot blue"></span> 导入新客户待跟进：<span id="crmBlueCount">0</span></div>
-      <div class="crm-badge-item"><span class="crm-dot cyan"></span> 导入再分配待跟进：<span id="crmCyanCount">0</span></div>
-    </div>
-
     <!-- CRM Data Table -->
     <div class="db-table-wrap">
       <table class="crm-table">
@@ -10777,7 +10771,7 @@ function updateAutoDialBtn() {
       var searchCard = document.querySelector('#dbOverlay .crm-search-card');
       var badgeBar = document.querySelector('#dbOverlay .crm-badge-bar');
       var dbSearchCollapsed = localStorage.getItem('db_search_collapsed') === '1';
-      if (dbSearchCollapsed && toggleSearchBtn && searchCard && badgeBar) {
+      if (dbSearchCollapsed && toggleSearchBtn && searchCard) {
         searchCard.classList.add('collapsed');
         badgeBar.classList.add('collapsed');
         toggleSearchBtn.innerHTML = '展开搜索';
