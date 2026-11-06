@@ -384,9 +384,12 @@ export function createSupabaseClient(env) {
         excludeFilter = '&mobile=not.in.(' + capped.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
       }
 
-      // Account filter: if accountId provided, only show that account's data
+      // 普通首页按当前账户过滤；公海视图只显示主账户归属及历史未归属的公海数据。
       var accountFilter = '';
-      if (accountId) {
+      if (accountId && String(accountId).indexOf('__public_pool__:') === 0) {
+        var poolMasterId = String(accountId).slice('__public_pool__:'.length);
+        accountFilter = '&or=(account_id.is.null,account_id.eq.' + encodeURIComponent(poolMasterId) + ')';
+      } else if (accountId) {
         accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
       }
 
@@ -836,7 +839,7 @@ export function createSupabaseClient(env) {
    * Only affects records belonging to the specified accountId.
    * Chunked into batches of 100 to stay within URL and Worker limits.
    */
-  async function transferToPool(mobiles, accountId) {
+  async function transferToPool(mobiles, accountId, poolOwnerAccountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!Array.isArray(mobiles) || mobiles.length === 0) return 0;
 
@@ -861,7 +864,7 @@ export function createSupabaseClient(env) {
         var resp = await fetch(patchUrl, {
           method: 'PATCH',
           headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' }),
-          body: JSON.stringify({ account_id: null, category: '公海客户' })
+          body: JSON.stringify({ account_id: poolOwnerAccountId || null, category: '公海客户' })
         });
         if (!resp.ok) {
           var errorText = await resp.text();
