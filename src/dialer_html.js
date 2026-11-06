@@ -8895,6 +8895,7 @@ function updateAutoDialBtn() {
         html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + '<span class="sort-arrow"></span></th>';
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
+        '<th style="min-width: 130px; cursor: default;">白名单名称</th>' +
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
         '<th style="min-width:145px;cursor:default;">操作时间</th>' +
         '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -9304,6 +9305,7 @@ function updateAutoDialBtn() {
           batchTypeTd +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
+          '<td style="white-space: normal;">' + esc(c.whitelist_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
@@ -10096,6 +10098,7 @@ function updateAutoDialBtn() {
         headHtml += '<th style="min-width: 100px; cursor: default;">' + esc(col) + '</th>';
       });
       headHtml += '<th style="min-width: 200px; cursor: default;">单位</th>' +
+         '<th style="min-width:130px;cursor:default;">白名单名称</th>' +
          '<th style="width: 100px; cursor: default;">分类</th>' +
          '<th style="min-width:145px;cursor:default;">操作时间</th>' +
          '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -10151,6 +10154,7 @@ function updateAutoDialBtn() {
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
+          '<td style="white-space: normal;">' + esc(c.whitelist_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
