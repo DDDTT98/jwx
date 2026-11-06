@@ -730,46 +730,69 @@ export function createSupabaseClient(env) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!Array.isArray(mobiles) || mobiles.length === 0) return 0;
 
-    // Deduplicate
+    // Deduplicate and normalize requested mobile numbers.
     var unique = [];
     var seen = {};
     for (var mi = 0; mi < mobiles.length; mi++) {
-      var m = (mobiles[mi] || '').trim();
+      var m = String(mobiles[mi] || '').trim();
       if (m && !seen[m]) { seen[m] = true; unique.push(m); }
     }
+    if (!unique.length) return 0;
 
-    var total = 0;
     var chunkSize = 100;
+    var patchErrors = [];
     for (var ci = 0; ci < unique.length; ci += chunkSize) {
       var chunk = unique.slice(ci, ci + chunkSize);
       var inFilter = 'mobile=in.(' + chunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
       var patchUrl = baseUrl + '/rest/v1/customers?' + inFilter;
-      if (accountId) {
-        patchUrl += '&account_id=eq.' + encodeURIComponent(accountId);
-      }
-      var resp = await fetch(patchUrl, {
-        method: 'PATCH',
-        headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }),
-        body: JSON.stringify({ account_id: null, category: '公海客户' })
-      });
+      if (accountId) patchUrl += '&account_id=eq.' + encodeURIComponent(accountId);
 
-      if (!resp.ok) {
-        var text = await resp.text();
-        throw new Error('Supabase transferToPool chunk failed [' + resp.status + ']: ' + text);
-      }
-      // 真实更新行数：return=representation 时 200+JSON数组 = 实际更新的行；204 = 0 行（过滤条件未匹配/已被公海），避免"假成功"
-      var updated = 0;
-      if (resp.status === 200) {
-        try {
-          var updatedRows = await resp.json();
-          if (Array.isArray(updatedRows)) updated = updatedRows.length;
-        } catch (e) {
-          updated = chunk.length; // 响应解析异常时保守按整块计
+      try {
+        var resp = await fetch(patchUrl, {
+          method: 'PATCH',
+          headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' }),
+          body: JSON.stringify({ account_id: null, category: '公海客户' })
+        });
+        if (!resp.ok) {
+          var errorText = await resp.text();
+          patchErrors.push('chunk ' + (ci / chunkSize + 1) + ' [' + resp.status + ']: ' + errorText);
         }
+      } catch (e) {
+        patchErrors.push('chunk ' + (ci / chunkSize + 1) + ': ' + e.message);
       }
-      total += updated;
     }
-    return total;
+
+    // Verify final state from Supabase rather than summing PATCH response counts.
+    // This makes retries safe when an earlier chunk succeeded but a later chunk failed:
+    // already-transferred rows remain verifiable as public-pool rows on the next attempt.
+    var verified = {};
+    for (var vi = 0; vi < unique.length; vi += chunkSize) {
+      var verifyChunk = unique.slice(vi, vi + chunkSize);
+      var verifyFilter = 'select=mobile&mobile=in.(' +
+        verifyChunk.map(function(m) { return encodeURIComponent(m); }).join(',') +
+        ')&account_id=is.null&category=eq.' + encodeURIComponent('公海客户');
+      var verifyResp = await fetch(baseUrl + '/rest/v1/customers?' + verifyFilter, {
+        method: 'GET',
+        headers: headers()
+      });
+      if (!verifyResp.ok) {
+        var verifyError = await verifyResp.text();
+        throw new Error('Supabase transfer verification failed [' + verifyResp.status + ']: ' + verifyError);
+      }
+      var rows = await verifyResp.json();
+      if (!Array.isArray(rows)) throw new Error('Supabase transfer verification returned invalid data');
+      rows.forEach(function(row) {
+        var mobile = String(row && row.mobile || '').trim();
+        if (mobile && seen[mobile]) verified[mobile] = true;
+      });
+    }
+
+    var verifiedCount = Object.keys(verified).length;
+    if (verifiedCount !== unique.length) {
+      var detail = patchErrors.length ? '; ' + patchErrors.join(' | ') : '';
+      throw new Error('公海转移未全部确认：' + verifiedCount + '/' + unique.length + detail);
+    }
+    return verifiedCount;
   }
 
   /**
