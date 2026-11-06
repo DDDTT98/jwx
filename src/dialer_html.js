@@ -3114,13 +3114,9 @@
     <div id="dbAccountMgrPanel" style="display:none; flex-direction:column; gap:12px; padding:16px; overflow-y:auto; flex:1;">
       <div id="dbAccountMgrSubs" style="display:none;">
         <div style="font-size:0.85rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">小组与子账号管理</div>
-        <div id="dbCreateRoleRow" style="display:flex;gap:6px;margin-bottom:6px;">
-          <select id="dbSubAccountRoleInput" style="height:34px;flex:1;padding:0 8px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);">
-            <option value="member">新建组员账号</option><option value="manager">新建小组（同时创建组长账号）</option>
-          </select>
-          <select id="dbSubAccountParentInput" style="height:34px;flex:1;padding:0 8px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);"><option value="">归属：主账号默认组</option></select>
-        </div>
         <input type="text" id="dbSubAccountGroupNameInput" maxlength="30" placeholder="小组名称，例如：深圳一组" style="display:none;width:100%;height:34px;margin-bottom:6px;padding:0 9px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);">
+        <label id="dbAssignLeaderRow" style="display:none;align-items:center;gap:7px;margin:4px 0 7px;font-size:.72rem;font-weight:700;color:var(--text-soft);"><input type="checkbox" id="dbAssignLeaderCheck" style="width:16px;height:16px;"> 指定小组长</label>
+        <select id="dbSubAccountParentInput" style="display:none;width:100%;height:34px;margin-bottom:6px;padding:0 8px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);"><option value="">主账号默认组</option></select>
         <div id="dbSubAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; margin-bottom:8px;"></div>
         <div style="display:flex; gap:6px; margin-bottom:6px;">
           <input type="text" id="dbSubAccountRealNameInput" maxlength="20" placeholder="真实姓名（必填）" style="width:100%; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
@@ -3128,10 +3124,10 @@
         <div style="display:flex; gap:6px;">
           <input type="text" id="dbSubAccountNameInput" maxlength="20" placeholder="账户名" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
           <input type="password" id="dbSubAccountPinInput" maxlength="6" placeholder="PIN码" style="width:80px; height:32px; padding:0 6px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
-          <button id="dbCreateSubAccountBtn" class="btn-primary" style="padding:0 12px; height:32px; font-size:0.72rem;">创建小组和组长</button>
         </div>
-        <div style="display:flex;gap:6px;margin:6px 0;">
-          <button id="dbCreateMemberAccountBtn" type="button" style="flex:1;height:34px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);font-size:.75rem;font-weight:800;">＋ 创建组员账号</button>
+        <div style="display:flex;gap:7px;margin:7px 0;">
+          <button id="dbCreateGroupBtn" type="button" class="btn-primary" style="flex:1;height:36px;font-size:.75rem;">＋ 创建小组</button>
+          <button id="dbCreateMemberBtn" type="button" class="btn-secondary" style="flex:1;height:36px;font-size:.75rem;">＋ 创建组员</button>
         </div>
         <div id="dbSubAccountError" style="font-size:0.62rem; color:#e74c3c; min-height:16px; margin-top:4px;"></div>
       </div>
@@ -11450,71 +11446,61 @@ function updateAutoDialBtn() {
       var resetBtn = document.getElementById("dbResetAccountsBtn");
       if (resetBtn) resetBtn.style.display = isSessionMaster() ? "block" : "none";
 
-      // Create a named group together with its leader login, or create a member in an existing group.
-      var createRoleSelect = document.getElementById("dbSubAccountRoleInput");
+      // Two explicit workflows: create a group/leader, or create a member with optional leader assignment.
       var createParentSelect = document.getElementById("dbSubAccountParentInput");
       var createGroupNameInput = document.getElementById("dbSubAccountGroupNameInput");
-      var createSubBtn = document.getElementById("dbCreateSubAccountBtn");
-      function syncCreateAccountRoleUI() {
-        var creatingGroup = createRoleSelect && createRoleSelect.value === "manager";
-        if (createGroupNameInput) createGroupNameInput.style.display = creatingGroup ? "block" : "none";
-        if (createParentSelect) {
-          createParentSelect.disabled = !!creatingGroup;
-          createParentSelect.style.display = creatingGroup ? "none" : "";
-          createParentSelect.title = creatingGroup ? "新建小组默认归属于主账号" : "选择组员所属小组";
-        }
-        if (createSubBtn) createSubBtn.textContent = creatingGroup ? "创建小组和组长" : "创建组员";
+      var assignLeaderRow = document.getElementById("dbAssignLeaderRow");
+      var assignLeaderCheck = document.getElementById("dbAssignLeaderCheck");
+      var createGroupBtn = document.getElementById("dbCreateGroupBtn");
+      var createMemberBtn = document.getElementById("dbCreateMemberBtn");
+      function syncMemberLeaderUI() {
+        var show = !!(assignLeaderCheck && assignLeaderCheck.checked);
+        if (createParentSelect) createParentSelect.style.display = show ? "block" : "none";
       }
-      if (createRoleSelect) createRoleSelect.addEventListener("change", syncCreateAccountRoleUI);
-      var createMemberBtn = document.getElementById("dbCreateMemberAccountBtn");
-      if (createMemberBtn) createMemberBtn.addEventListener("click", function() {
-        if (!createRoleSelect) return;
-        createRoleSelect.value = "member";
-        syncCreateAccountRoleUI();
+      if (assignLeaderCheck) assignLeaderCheck.addEventListener("change", syncMemberLeaderUI);
+      if (assignLeaderRow) assignLeaderRow.style.display = isSessionMaster() ? "flex" : "none";
+      if (createParentSelect) createParentSelect.style.display = "none";
+
+      function submitSubAccount(role, button) {
+        var realName = document.getElementById("dbSubAccountRealNameInput").value.trim();
+        var accountName = document.getElementById("dbSubAccountNameInput").value.trim();
+        var pin = document.getElementById("dbSubAccountPinInput").value.trim();
+        var groupName = createGroupNameInput ? createGroupNameInput.value.trim() : "";
         var error = document.getElementById("dbSubAccountError");
-        if (error) error.textContent = "请填写组员信息后，点击上方“创建组员”完成创建";
-        var nameInput = document.getElementById("dbSubAccountRealNameInput");
-        if (nameInput) nameInput.focus();
-      });
-      syncCreateAccountRoleUI();
-      if (createSubBtn) {
-        createSubBtn.addEventListener("click", function() {
-          var realName = document.getElementById("dbSubAccountRealNameInput").value.trim();
-          var accountName = document.getElementById("dbSubAccountNameInput").value.trim();
-          var pin = document.getElementById("dbSubAccountPinInput").value.trim();
-          var groupName = createGroupNameInput ? createGroupNameInput.value.trim() : "";
-          var error = document.getElementById("dbSubAccountError");
-          var role = (createRoleSelect || {}).value || "member";
-          var parentId = (createParentSelect || {}).value || "";
-          error.style.color = "#e74c3c";
-          if (role === "manager" && !isSessionMaster()) { error.textContent = "只有主账号可以新建小组"; return; }
-          if (role === "manager" && !groupName) { error.textContent = "请先填写小组名称"; return; }
-          if (!realName) { error.textContent = role === "manager" ? "请输入组长真实姓名" : "请输入组员真实姓名"; return; }
-          if (!accountName) { error.textContent = "请输入登录账户名"; return; }
-          if (pin.length < 4 || pin.length > 6 || !/^\\d+$/.test(pin)) { error.textContent = "PIN 必须为 4-6 位数字"; return; }
-          if (role === "member" && !parentId) parentId = getSessionAccountId();
-          createSubBtn.disabled = true; createSubBtn.textContent = "创建中...";
-          fetch("/api/dialer/auth/accounts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() },
-            body: JSON.stringify({ account_name: accountName, real_name: realName, pin: pin, label: accountName, role: role, group_name: role === "manager" ? groupName : "", parent_account_id: role === "manager" ? getSessionAccountId() : parentId })
-          })
-          .then(function(r) { return r.json().catch(function() { throw new Error("服务器返回了无法识别的数据（HTTP " + r.status + "）"); }); })
-          .then(function(res) {
-            if (!res || !res.success) throw new Error((res && res.error) || "创建失败");
-            document.getElementById("dbSubAccountRealNameInput").value = "";
-            document.getElementById("dbSubAccountNameInput").value = "";
-            document.getElementById("dbSubAccountPinInput").value = "";
-            if (createGroupNameInput) createGroupNameInput.value = "";
-            error.style.color = "#07c160";
-            error.textContent = role === "manager" ? "小组创建成功，组长账号已建立" : "组员账号创建成功";
-            loadSubAccounts();
-            loadAccountStats();
-          })
-          .catch(function(e) { error.style.color = "#e74c3c"; error.textContent = e.message || "创建失败"; })
-          .finally(function() { createSubBtn.disabled = false; syncCreateAccountRoleUI(); });
-        });
+        var parentId = assignLeaderCheck && assignLeaderCheck.checked && createParentSelect ? createParentSelect.value : "";
+        error.style.color = "#e74c3c";
+        if (role === "manager" && !isSessionMaster()) { error.textContent = "只有主账号可以新建小组"; return; }
+        if (role === "manager" && !groupName) { error.textContent = "请先填写小组名称"; return; }
+        if (!realName) { error.textContent = role === "manager" ? "请输入组长真实姓名" : "请输入组员真实姓名"; return; }
+        if (!accountName) { error.textContent = "请输入登录账户名"; return; }
+        if (pin.length < 4 || pin.length > 6 || !/^\\d+$/.test(pin)) { error.textContent = "PIN 必须为 4-6 位数字"; return; }
+        if (role === "member" && assignLeaderCheck && assignLeaderCheck.checked && !parentId) { error.textContent = "请选择要归属的小组长"; return; }
+        if (role === "member" && !parentId) parentId = getSessionAccountId();
+        button.disabled = true;
+        var originalText = button.textContent;
+        button.textContent = "创建中...";
+        fetch("/api/dialer/auth/accounts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() },
+          body: JSON.stringify({ account_name: accountName, real_name: realName, pin: pin, label: accountName, role: role, group_name: role === "manager" ? groupName : "", parent_account_id: role === "manager" ? getSessionAccountId() : parentId })
+        })
+        .then(function(r) { return r.json().catch(function() { throw new Error("服务器返回了无法识别的数据（HTTP " + r.status + "）"); }); })
+        .then(function(res) {
+          if (!res || !res.success) throw new Error((res && res.error) || "创建失败");
+          document.getElementById("dbSubAccountRealNameInput").value = "";
+          document.getElementById("dbSubAccountNameInput").value = "";
+          document.getElementById("dbSubAccountPinInput").value = "";
+          if (createGroupNameInput) createGroupNameInput.value = "";
+          error.style.color = "#07c160";
+          error.textContent = role === "manager" ? "小组创建成功，组长账号已建立" : "组员账号创建成功";
+          loadSubAccounts();
+          loadAccountStats();
+        })
+        .catch(function(e) { error.style.color = "#e74c3c"; error.textContent = e.message || "创建失败"; })
+        .finally(function() { button.disabled = false; button.textContent = originalText; });
       }
+      if (createGroupBtn) createGroupBtn.addEventListener("click", function() { submitSubAccount("manager", createGroupBtn); });
+      if (createMemberBtn) createMemberBtn.addEventListener("click", function() { submitSubAccount("member", createMemberBtn); });
 
       // Change PIN
       var changePinBtn = document.getElementById("dbChangePinBtn");
@@ -12433,16 +12419,15 @@ function updateAutoDialBtn() {
 
     function loadSubAccounts() {
       var list=document.getElementById('dbSubAccountList'); if(!list)return;
-      var token=getSessionToken(), roleSel=document.getElementById('dbSubAccountRoleInput'), parentSel=document.getElementById('dbSubAccountParentInput');
+      var token=getSessionToken(), parentSel=document.getElementById('dbSubAccountParentInput');
       fetch('/api/dialer/auth/accounts',{headers:{'Authorization':'Bearer '+token}}).then(function(r){return r.json();}).then(function(res){
         if(res.error)throw new Error(res.error);
         var accounts=res.accounts||[], callerRole=res.caller_role||getSessionRole();
-        if(roleSel)roleSel.style.display=callerRole==='master'?'':'none';
         if(parentSel){
-          parentSel.style.display=callerRole==='master'?'':'none';
+          parentSel.style.display='none';
           parentSel.innerHTML='<option value="'+(res.caller_account_id||'')+'">主账号默认组</option>'+accounts.filter(function(a){return a.role==='manager'&&a.active!==false;}).map(function(m){return '<option value="'+m.account_id+'">'+escHtml(m.group_name||m.account_name||m.label||m.account_id)+'</option>';}).join('');
         }
-        var createRow=document.getElementById('dbCreateRoleRow');if(createRow)createRow.style.display=callerRole==='member'?'none':'flex';
+        var assignRow=document.getElementById('dbAssignLeaderRow');if(assignRow)assignRow.style.display=callerRole==='master'?'flex':'none';
         var shown=accounts.filter(function(a){return a.account_id!==(res.caller_account_id||getSessionAccountId());});
         if(!shown.length){list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);text-align:center;padding:8px;">暂无下级账号</div>';return;}
         function render(a){
