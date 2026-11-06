@@ -2067,8 +2067,13 @@
       .dbm-nav-btn { height: 46px; font-size: 0.74rem; }
       .reminder-card, .cooldown-card { padding: 19px 15px 16px; gap: 11px; }
     }
-    /* Android and iOS share the same persistent copy-state feedback.
-       Do not suppress copied-card / copied-company styling on Android. */
+    /* 安卓端客户卡片取消复制状态的绿色描边与绿色外发光 */
+    body.android .xls-dial-card.copied-card,
+    body.android .xls-dial-card.copied-company,
+    body.android .xls-dial-card.copied-phone {
+      border-color: var(--card-border) !important;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
+    }
 
     /* Mobile usability pass: keep the compact visual language while making
        primary touch targets comfortably tappable on iOS Safari / Android WebView. */
