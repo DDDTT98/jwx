@@ -2230,16 +2230,18 @@
       height: 22px !important;
       min-width: 22px;
       border-radius: 7px !important;
-      background: #07c160 !important;
+      background: rgba(7,193,96,.13) !important;
       box-shadow: none !important;
       flex: 0 0 22px;
     }
     .corner-seq span {
-      color: #fff !important;
+      color: #078c49 !important;
       font-size: 11px !important;
       font-weight: 750 !important;
       font-variant-numeric: tabular-nums;
     }
+    body.dark-mode .corner-seq { background: rgba(7,193,96,.20) !important; }
+    body.dark-mode .corner-seq span { color: #65d995 !important; }
     .client-card-top { width: 100%; }
     .client-card-primary {
       min-width: 0;
@@ -2310,19 +2312,26 @@
       min-height: 34px !important;
       height: 34px !important;
       padding: 0 13px !important;
-      border: 1px solid #07c160 !important;
+      border: 1px solid transparent !important;
       border-radius: 9px !important;
-      background: #07c160 !important;
-      color: #fff !important;
-      box-shadow: 0 2px 5px rgba(7,193,96,.18) !important;
+      background: rgba(7,193,96,.13) !important;
+      color: #078c49 !important;
+      box-shadow: none !important;
       font-size: 12px !important;
       font-weight: 700 !important;
       transition: transform .15s ease, background-color .15s ease, box-shadow .15s ease;
     }
     .xls-card-dial-btn:not(.privacy-dial-icon):active {
       transform: scale(.97);
-      background: #06ad56 !important;
-      box-shadow: 0 1px 3px rgba(7,193,96,.2) !important;
+      background: rgba(7,193,96,.20) !important;
+      box-shadow: none !important;
+    }
+    body.dark-mode .xls-card-dial-btn:not(.privacy-dial-icon) {
+      background: rgba(7,193,96,.20) !important;
+      color: #65d995 !important;
+    }
+    body.dark-mode .xls-card-dial-btn:not(.privacy-dial-icon):active {
+      background: rgba(7,193,96,.28) !important;
     }
     .xls-card-dial-btn.privacy-dial-icon {
       width: 36px !important;
