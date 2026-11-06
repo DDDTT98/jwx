@@ -9595,9 +9595,10 @@ function updateAutoDialBtn() {
     // 仍可能把触摸滚动传递给背景页面；记录原始样式和滚动位置，关闭时精确恢复。
     var _dbmBodyLockState = null;
     function lockDBMobileBackground() {
-      if (_dbmBodyLockState || !document.body) return;
+      if (_dbmBodyLockState || !document.body || !document.documentElement) return;
       var body = document.body;
-      var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+      var root = document.documentElement;
+      var scrollY = window.pageYOffset || root.scrollTop || body.scrollTop || 0;
       _dbmBodyLockState = {
         scrollY: scrollY,
         position: body.style.position,
@@ -9605,27 +9606,51 @@ function updateAutoDialBtn() {
         left: body.style.left,
         right: body.style.right,
         width: body.style.width,
-        overflow: body.style.overflow
+        overflow: body.style.overflow,
+        bodyOverscroll: body.style.overscrollBehavior,
+        rootOverflow: root.style.overflow,
+        rootOverscroll: root.style.overscrollBehavior
       };
+      // iOS Safari/WKWebView needs both a fixed body and a locked scrolling root.
+      // Keep the current viewport position while the independent full-screen list scrolls.
+      root.style.overflow = 'hidden';
+      root.style.overscrollBehavior = 'none';
       body.style.position = 'fixed';
       body.style.top = '-' + scrollY + 'px';
       body.style.left = '0';
       body.style.right = '0';
       body.style.width = '100%';
       body.style.overflow = 'hidden';
+      body.style.overscrollBehavior = 'none';
     }
     function unlockDBMobileBackground() {
       var state = _dbmBodyLockState;
-      if (!state || !document.body) return;
+      if (!state || !document.body || !document.documentElement) return;
       var body = document.body;
+      var root = document.documentElement;
+      // Clear the lock before scheduling scroll restoration so repeated close events are safe.
+      _dbmBodyLockState = null;
       body.style.position = state.position;
       body.style.top = state.top;
       body.style.left = state.left;
       body.style.right = state.right;
       body.style.width = state.width;
       body.style.overflow = state.overflow;
-      _dbmBodyLockState = null;
-      window.scrollTo(0, state.scrollY);
+      body.style.overscrollBehavior = state.bodyOverscroll;
+      root.style.overflow = state.rootOverflow;
+      root.style.overscrollBehavior = state.rootOverscroll;
+      // Restore after layout has returned to document flow; immediate scrollTo can be ignored
+      // by iOS when the fixed-body lock is removed in the same frame.
+      var restoreScroll = function() {
+        window.scrollTo(0, state.scrollY);
+        root.scrollTop = state.scrollY;
+        body.scrollTop = state.scrollY;
+      };
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(restoreScroll);
+      } else {
+        setTimeout(restoreScroll, 0);
+      }
     }
 
     // 打开手机版（数据复用 DB.allData / crmFilterData / 批量操作按钮）
@@ -9658,10 +9683,9 @@ function updateAutoDialBtn() {
       // 管理面板移回桌面隐藏容器
       dbmCloseMgr();
       var ov = document.getElementById('dbMobileOverlay');
-      if (ov && ov.classList.contains('active')) {
-        ov.classList.remove('active');
-        unlockDBMobileBackground();
-      }
+      if (ov) ov.classList.remove('active');
+      // Always release a pending body lock, even if another UI path already hid the overlay.
+      unlockDBMobileBackground();
       // 通过 #dbm 深链接进入时，关闭后清理地址栏，避免刷新页面再次自动打开。
       if (window.location.hash === '#dbm' && window.history && window.history.replaceState) {
         window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
