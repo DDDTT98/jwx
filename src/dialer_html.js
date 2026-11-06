@@ -9690,14 +9690,14 @@ function updateAutoDialBtn() {
       var reassignSel = document.getElementById('crmReassignSel');
       var reassignGroup = document.getElementById('crmReassignGroup');
       if (!reassignSel || !reassignGroup) return;
-      if (!isSessionMaster()) { reassignGroup.style.display = 'none'; return; }
+      if (!canManageTeam()) { reassignGroup.style.display = 'none'; return; }
       fetch('/api/dialer/accounts')
         .then(function(r) { return r.json(); })
         .then(function(res) {
           if (!res || !res.accounts) { reassignGroup.style.display = 'none'; return; }
           reassignSel.innerHTML = '';
           res.accounts.forEach(function(s) {
-            if (!s.active || s.is_master) return;
+            if (!s.active || s.is_master || (isSessionManager() && s.role !== 'member')) return;
             var name = s.account_name || s.label || s.account_id.slice(0, 10);
             var label = document.createElement('label');
             label.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);';
