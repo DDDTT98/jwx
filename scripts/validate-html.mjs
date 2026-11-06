@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import vm from 'node:vm';
 import { DIALER_HTML } from '../src/dialer_html.js';
 import { DIET_HTML } from '../src/diet_html.js';
