@@ -9864,7 +9864,8 @@ function updateAutoDialBtn() {
     function dbmFetch() {
       var listEl = document.getElementById('dbmList');
       if (listEl) listEl.innerHTML = '<div class="dbm-empty">加载中...</div>';
-      var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
+      var mobileViewAccountId = _viewAccountId || getOrCreateAccountId();
+      var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(mobileViewAccountId);
       var poolUrl = url + '&category=' + encodeURIComponent('公海客户');
       var mergedData = [];
       Promise.all([fetch(url).then(function(r) { return r.json(); }), fetch(poolUrl).then(function(r) { return r.json(); })])
