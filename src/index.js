@@ -3816,6 +3816,8 @@ export default {
       env = workerEnv;
     }
     try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
+    // The every-minute trigger is only for queued CRM jobs; keep the daily/weekly report on its original cron.
+    if (event && event.cron && event.cron !== '0 13 * * *') return;
     try {
       var today=beijingDateKey(new Date());
       await sendPerformanceReport(env,today,today,'BHP 每日业绩日报');
