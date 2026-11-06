@@ -9749,7 +9749,7 @@ function updateAutoDialBtn() {
         if (!_dbmPanelOrig[entry.panelId]) {
           var placeholder = document.createComment('dbm-origin-' + entry.panelId);
           panel.parentNode.insertBefore(placeholder, panel);
-          _dbmPanelOrig[entry.panelId] = placeholder;
+          _dbmPanelOrig[entry.panelId] = { placeholder: placeholder, display: panel.style.display };
         }
         panel.parentNode.removeChild(panel);
         wrap.appendChild(panel);
@@ -9768,9 +9768,11 @@ function updateAutoDialBtn() {
     function dbmRestorePanelPosition(panel) {
       if (!panel) return;
       var panelId = panel.id || '';
-      var placeholder = _dbmPanelOrig[panelId];
+      var origin = _dbmPanelOrig[panelId];
+      var placeholder = origin && origin.placeholder;
       if (placeholder && placeholder.parentNode) {
         placeholder.parentNode.replaceChild(panel, placeholder);
+        panel.style.display = origin.display;
         delete _dbmPanelOrig[panelId];
         return;
       }
