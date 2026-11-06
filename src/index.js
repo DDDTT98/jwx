@@ -700,7 +700,7 @@ export default {
         if(!caller) throw new Error('账户不存在');
         var role=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
         var visible=accList.filter(function(a){return role==='master'||(role==='manager'&&(a.account_id===caller.account_id||a.parent_account_id===caller.account_id));});
-        return new Response(JSON.stringify({success:true,accounts:visible.map(function(a){return {account_id:a.account_id,account_name:a.account_name,label:a.label,is_master:a.is_master!==false,role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),active:a.active!==false};})}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        return new Response(JSON.stringify({success:true,accounts:visible.map(function(a){return {account_id:a.account_id,account_name:a.account_name,real_name:a.real_name||'',label:a.label,is_master:a.is_master!==false,role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),active:a.active!==false};})}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e){return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});}
     }
 
@@ -755,6 +755,7 @@ export default {
           stats.push({
             account_id: a.account_id,
             account_name: a.account_name || a.label || a.account_id.slice(0, 12),
+            real_name: a.real_name || '',
             label: a.label || '',
             is_master: a.is_master !== false,
             active: a.active,
