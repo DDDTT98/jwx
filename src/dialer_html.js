@@ -3296,15 +3296,11 @@
     </div>
 
     <!-- Batch category mini-panel -->
-    <div id="dbBatchCatPanel" style="display:none;padding:6px 16px;border-bottom:1px solid #cbd5e1;background:#f8fafc;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;font-weight:700;color:#555;">批量设置分类：</span>
-      <select id="dbBatchCatSel" style="height:28px;border:1px solid #ccc;border-radius:3px;font-size:12px;padding:0 6px;">
-        <option value="">选择批次</option>
-      </select>
-      <span style="font-size:12px;color:#888;">→</span>
-      <select id="dbCatTargetSel" style="height:28px;border:1px solid #ccc;border-radius:3px;font-size:12px;padding:0 6px;"></select>
-      <button id="dbBatchCatApply" style="height:28px;padding:0 14px;background:#ff5722;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">应用</button>
-      <button id="dbBatchCatCancel" style="height:28px;padding:0 10px;background:#eee;color:#666;border:none;border-radius:4px;font-size:12px;cursor:pointer;">取消</button>
+    <div id="dbBatchCatPanel" style="display:none;padding:10px 16px;border-bottom:1px solid #cbd5e1;background:#f8fafc;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:700;color:#555;">给勾选客户添加类型：</span>
+      <input id="dbBatchCatName" type="text" maxlength="40" placeholder="输入自定义类型名称" style="height:30px;min-width:180px;max-width:100%;box-sizing:border-box;border:1px solid #ccc;border-radius:5px;font-size:12px;padding:0 8px;">
+      <button id="dbBatchCatApply" style="height:30px;padding:0 14px;background:#ff5722;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;">添加到类型列</button>
+      <button id="dbBatchCatCancel" style="height:30px;padding:0 10px;background:#eee;color:#666;border:none;border-radius:4px;font-size:12px;cursor:pointer;">取消</button>
       <span id="dbBatchCatStatus" style="font-size:11px;color:#07c160;display:none;"></span>
     </div>
 
@@ -11036,62 +11032,70 @@ function updateAutoDialBtn() {
       if(window.location.hash==='#db'){setTimeout(openDBDashboard,300);}
       window.addEventListener('hashchange',function(){if(window.location.hash==='#db'){openDBDashboard();}});
 
-      // Batch category wiring
+      // Batch category wiring: append a custom type to selected customers
       var bcpBtn = document.getElementById('dbBatchCatBtn');
       var bcpPanel = document.getElementById('dbBatchCatPanel');
-      var bcpSel = document.getElementById('dbBatchCatSel');
-      var bcpTarget = document.getElementById('dbCatTargetSel');
+      var bcpName = document.getElementById('dbBatchCatName');
       var bcpApply = document.getElementById('dbBatchCatApply');
       var bcpCancel = document.getElementById('dbBatchCatCancel');
       var bcpStatus = document.getElementById('dbBatchCatStatus');
 
       if (bcpBtn) bcpBtn.addEventListener('click', function() {
-        if (bcpPanel.style.display === 'none' || !bcpPanel.style.display) {
-          bcpPanel.style.display = 'flex';
-          var catOpts = '<option value="">选择分类</option>';
-          CATS.forEach(function(c2) { catOpts += '<option value="' + esc(c2) + '">' + esc(c2) + '</option>'; });
-          if (bcpTarget) bcpTarget.innerHTML = catOpts;
-          if (bcpSel) {
-            var bf2 = document.getElementById('dbBatchFilter');
-            var opts = '<option value="">选择批次</option>';
-            if (bf2) {
-              var bfOpts = bf2.querySelectorAll('option');
-              bfOpts.forEach(function(o) { if (o.value) opts += '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>'; });
- }
- bcpSel.innerHTML = opts;
- }
- if (bcpStatus) bcpStatus.style.display = 'none';
- } else {
- bcpPanel.style.display = 'none';
- }
- });
+        var opening = bcpPanel.style.display === 'none' || !bcpPanel.style.display;
+        bcpPanel.style.display = opening ? 'flex' : 'none';
+        if (opening && bcpName) bcpName.focus();
+        if (bcpStatus) bcpStatus.style.display = 'none';
+      });
+      if (bcpCancel) bcpCancel.addEventListener('click', function() {
+        bcpPanel.style.display = 'none';
+      });
+      if (bcpApply) bcpApply.addEventListener('click', function() {
+        var typeName = bcpName ? bcpName.value.trim() : '';
+        var mobiles = Object.keys(DB.selectedIds || {}).filter(function(m) { return DB.selectedIds[m]; });
+        if (!mobiles.length) { alert('请先勾选需要添加类型的客户'); return; }
+        if (!typeName) { alert('请输入自定义类型名称'); if (bcpName) bcpName.focus(); return; }
+        if (!confirm('确认给已勾选的 ' + mobiles.length + ' 位客户添加类型「' + typeName + '」吗？')) return;
 
- if (bcpCancel) bcpCancel.addEventListener('click', function() { bcpPanel.style.display = 'none'; });
-
- if (bcpApply) bcpApply.addEventListener('click', function() {
- var batch = bcpSel ? bcpSel.value : '';
- var cat = bcpTarget ? bcpTarget.value : '';
- if (!batch || !cat) { alert('请选择批次和目标分类'); return; }
- if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '更新中...'; bcpStatus.style.color = '#f57c00'; }
- fetch('/api/dialer/customers/batch-category', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ batch_label: batch, category: cat, account_id: getOrCreateAccountId() })
- })
- .then(function(r) { return r.json(); })
- .then(function(d) {
- if (d.success) {
- if (bcpStatus) { bcpStatus.textContent = '已更新 ' + d.updated + ' 条'; bcpStatus.style.color = '#07c160'; }
- bcpPanel.style.display = 'none';
- dbFetch();
- } else {
- if (bcpStatus) { bcpStatus.textContent = '失败: ' + (d.error || '未知'); bcpStatus.style.color = '#e74c3c'; }
- }
- })
- .catch(function(err) {
- if (bcpStatus) { bcpStatus.textContent = '网络错误'; bcpStatus.style.color = '#e74c3c'; }
- });
- });
+        var selected = {};
+        (DB.allData || []).forEach(function(customer) {
+          if (customer && DB.selectedIds[customer.mobile]) selected[customer.mobile] = customer;
+        });
+        var targets = mobiles.filter(function(m) { return !!selected[m]; });
+        if (!targets.length) { alert('当前勾选客户数据已失效，请重新勾选'); return; }
+        bcpApply.disabled = true;
+        if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '正在更新 0/' + targets.length; bcpStatus.style.color = '#f57c00'; }
+        var done = 0, failed = 0;
+        targets.reduce(function(queue, mobile) {
+          return queue.then(function() {
+            var customer = selected[mobile];
+            var oldCategory = String(customer.category || '').trim();
+            var parts = oldCategory ? oldCategory.split(/[、,，]/).map(function(x) { return x.trim(); }) : [];
+            if (parts.indexOf(typeName) >= 0) { done++; return; }
+            var nextCategory = oldCategory ? oldCategory + '、' + typeName : typeName;
+            return fetch('/api/dialer/customers', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mobile: mobile, fields: { category: nextCategory } })
+            }).then(function(resp) { return resp.json(); }).then(function(result) {
+              if (result && result.success) {
+                customer.category = nextCategory;
+                done++;
+              } else { failed++; }
+            }).catch(function() { failed++; }).then(function() {
+              if (bcpStatus) bcpStatus.textContent = '正在更新 ' + done + '/' + targets.length + (failed ? '，失败 ' + failed : '');
+            });
+          });
+        }, Promise.resolve()).then(function() {
+          bcpApply.disabled = false;
+          if (bcpStatus) {
+            bcpStatus.textContent = '完成：成功 ' + done + ' 条，失败 ' + failed + ' 条';
+            bcpStatus.style.color = failed ? '#e74c3c' : '#07c160';
+          }
+          if (bcpName) bcpName.value = '';
+          DB.selectedIds = {};
+          dbFetch();
+        });
+      });
 
  // 企业微信通知配置（仅主账号）
  var dbWecomPanel = document.getElementById('dbWecomConfig');
