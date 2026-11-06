@@ -2280,6 +2280,38 @@
       background: rgba(48,209,88,.09) !important;
     }
 
+
+    /* Customer-card green accents: translucent dial button and sequence marker. */
+    .xls-dial-card .xls-card-dial-btn:not(.privacy-dial-icon) {
+      background: rgba(7,193,96,.16) !important;
+      color: #087b43 !important;
+      border: 0 !important;
+      box-shadow: 0 1px 4px rgba(7,193,96,.08) !important;
+    }
+    .xls-dial-card .xls-card-dial-btn:not(.privacy-dial-icon):hover,
+    .xls-dial-card .xls-card-dial-btn:not(.privacy-dial-icon):active {
+      background: rgba(7,193,96,.23) !important;
+      color: #066b3a !important;
+      box-shadow: 0 1px 5px rgba(7,193,96,.12) !important;
+    }
+    .xls-dial-card .corner-seq {
+      background: rgba(7,193,96,.18) !important;
+      box-shadow: none !important;
+    }
+    .xls-dial-card .corner-seq span {
+      color: #087b43 !important;
+    }
+    body.dark-mode .xls-dial-card .xls-card-dial-btn:not(.privacy-dial-icon) {
+      background: rgba(48,209,88,.20) !important;
+      color: #75e6a0 !important;
+    }
+    body.dark-mode .xls-dial-card .corner-seq {
+      background: rgba(48,209,88,.20) !important;
+    }
+    body.dark-mode .xls-dial-card .corner-seq span {
+      color: #75e6a0 !important;
+    }
+
   </style>
 </head>
 <body>
