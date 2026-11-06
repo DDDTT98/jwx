@@ -7358,9 +7358,8 @@
             var cardEl = b.closest('.xls-dial-card');
             var cardIdx = cardEl ? parseInt(cardEl.id.replace('xdc_', '')) : -1;
             var clientComp = importedClients[cardIdx];
-            if (clientComp) recordTimeline(clientComp.phone || clientComp.mobile, 'copy_company');
-
             var isCopyNote = b.dataset.copyNote === '1';
+            if (clientComp) recordTimeline(clientComp.phone || clientComp.mobile, isCopyNote ? 'copy_note' : 'copy_company');
             if (isCopyNote) {
               if (client) {
                 client.copied = true;
