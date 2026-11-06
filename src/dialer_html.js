@@ -7375,10 +7375,10 @@
             copyTextToClipboard(copyText);
 
             var cardEl = b.closest('.xls-dial-card');
-            var cardIdx = cardEl ? parseInt(cardEl.id.replace('xdc_', '')) : -1;
-            var clientComp = importedClients[cardIdx];
+            // 使用按钮自身 data-idx 对应的客户对象，避免卡片 DOM 索引与数据索引不一致
+            // 导致时间线、复制状态和自动流转记录落到不同客户。
             var isCopyNote = b.dataset.copyNote === '1';
-            if (clientComp) recordTimeline(clientComp.phone || clientComp.mobile, isCopyNote ? 'copy_note' : 'copy_company');
+            if (client) recordTimeline(client.phone || client.mobile, isCopyNote ? 'copy_note' : 'copy_company');
             if (isCopyNote) {
               if (client) {
                 client.copied = true;
@@ -7392,11 +7392,11 @@
               jumpToWechat();
               return;
             }
-            if (clientComp) {
-              clientComp.copied = true;
-              clientComp.company_copied = true;
+            if (client) {
+              client.copied = true;
+              client.company_copied = true;
               saveState();
-              scheduleReminder(clientComp);
+              scheduleReminder(client);
             }
             if (cardEl) cardEl.classList.add('copied-company');
             b.textContent = '已复制';
