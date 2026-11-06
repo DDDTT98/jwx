@@ -3808,12 +3808,12 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
   async scheduled(event, env, ctx) {
-    try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
     if (env.SUPABASE_URL && env.SUPABASE_KEY) {
       const workerEnv = Object.create(env);
       workerEnv.DATA_KV = createSupabaseKV(env);
       env = workerEnv;
     }
+    try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
     try {
       var today=beijingDateKey(new Date());
       await sendPerformanceReport(env,today,today,'BHP 每日业绩日报');
