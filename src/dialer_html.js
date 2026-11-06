@@ -10118,7 +10118,6 @@ function updateAutoDialBtn() {
         var avatarHtml = '<span class="crm-avatar" style="background:' + avatarColors[colorIdx] + ';">' + esc(firstChar) + '</span>';
         var parsed = parseCustomerNote(c);
         var realNote = parsed.note;
-        var whitelistProductHtml = c.whitelist_name ? '<span style="display:inline-flex;align-items:center;margin-bottom:3px;padding:2px 6px;border-radius:4px;background:rgba(7,193,96,0.10);color:#079447;font-size:11px;font-weight:700;">白名单产品：' + esc(c.whitelist_name) + '</span>' : '';
         var callBtn = '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>';
         var noteDisplay = '';
         var whitelistProductHtml = c.whitelist_name ? '<span style="display:inline-flex;align-items:center;margin-bottom:3px;padding:2px 6px;border-radius:4px;background:rgba(7,193,96,0.10);color:#079447;font-size:11px;font-weight:700;">白名单产品：' + esc(c.whitelist_name) + '</span>' : '';
