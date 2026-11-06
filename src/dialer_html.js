@@ -3135,12 +3135,22 @@
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
-      <span id="crmReassignGroup" style="display:none; align-items:center; gap:5px; flex-wrap:wrap;">
-        <span id="crmReassignTitle" style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给小组和组员</span>
-        <div id="crmReassignSel" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap; max-width:340px; font-size:0.68rem;"></div>
-        <span style="font-size:0.68rem;font-weight:700;color:var(--text-soft);">每人数量</span>
-        <button class="crm-tool-btn" id="crmReassignBtn" style="background:#e67e22; color:#fff; border-color:#e67e22;">分配</button>
-      </span>
+      <button class="crm-tool-btn orange" id="crmReassignToggle" type="button" style="display:none;">分配数据</button>
+      <div id="crmReassignGroup" style="display:none; flex:1 1 100%; flex-direction:column; align-items:stretch; gap:8px; padding:10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <span id="crmReassignTitle" style="font-size:0.75rem;font-weight:700;color:var(--text-soft);">分配给所有小组和组员</span>
+          <select id="crmReassignMode" style="height:30px;padding:0 8px;border:1px solid var(--card-border);border-radius:6px;background:var(--bg-app);color:var(--text-main);font-size:.72rem;">
+            <option value="equal">平均分配</option>
+            <option value="manual">手动分配数量</option>
+          </select>
+        </div>
+        <div id="crmReassignSel" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:0.68rem;"></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span id="crmReassignHint" style="font-size:.68rem;color:var(--text-soft);">勾选接收成员，系统将当前批次剩余客户平均分配</span>
+          <button class="crm-tool-btn" id="crmReassignBtn" type="button" style="background:#e67e22;color:#fff;border-color:#e67e22;">确认分配</button>
+          <button class="crm-tool-btn" id="crmReassignClose" type="button">收起</button>
+        </div>
+      </div>
     </div>
 
     <!-- Account Management Panel -->
