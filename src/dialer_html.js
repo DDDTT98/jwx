@@ -3474,6 +3474,11 @@
       [desktopBackup, desktopContent, mobileBackup, mobileContent].forEach(function(tab) {
         if (tab) tab.style.display = master ? '' : 'none';
       });
+      // 批量删除仅主账号可见：桌面工具栏与手机版底部操作栏同步控制
+      var desktopBatchDelete = document.getElementById('crmBatchDeleteBtn');
+      var mobileBatchDelete = document.getElementById('dbmBatchDeleteBtn');
+      if (desktopBatchDelete) desktopBatchDelete.style.display = master ? '' : 'none';
+      if (mobileBatchDelete) mobileBatchDelete.style.display = master ? '' : 'none';
       // 若子账号当前停留在受限栏目，自动切回首页/账户管理，避免隐藏后仍停留在空白面板
       if (!master) {
         var activeDesktop = document.querySelector('.crm-tab.active');
@@ -10079,6 +10084,7 @@ function updateAutoDialBtn() {
     // 批量操作：复用桌面版按钮的 onclick（同一套 DB.selectedIds 逻辑）
     // 桌面逻辑结束会 dbFetch() 刷新桌面表格，这里延迟同步刷新手机版列表
     function dbmTriggerAction(desktopBtnId) {
+      if (desktopBtnId === 'crmBatchDeleteBtn' && !isSessionMaster()) return;
       var desktopBtn = document.getElementById(desktopBtnId);
       if (desktopBtn && desktopBtn.onclick) {
         desktopBtn.onclick();
@@ -10934,6 +10940,7 @@ function updateAutoDialBtn() {
       var batchDeleteBtn = document.getElementById('crmBatchDeleteBtn');
       if (batchDeleteBtn) {
         batchDeleteBtn.onclick = function() {
+          if (!isSessionMaster()) { alert('子账号无权批量删除客户'); return; }
           var mobiles = Object.keys(DB.selectedIds);
           if (mobiles.length === 0) { alert('请先勾选需要删除的客户'); return; }
 
