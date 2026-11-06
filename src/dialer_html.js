@@ -3351,6 +3351,11 @@
     <span class="dbm-selectall-label"><input type="checkbox" id="dbmSelectAll"> 全选 <span id="dbmSelectedCount" style="color:#4a6cf7;font-weight:800;">0</span></span>
   </div>
   <div class="dbm-list" id="dbmList"></div>
+  <div id="dbmPager" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 10px;font-size:12px;color:var(--text-soft);">
+    <button type="button" id="dbmPrev" class="dbm-icon-btn" style="width:auto;padding:0 10px;">‹ 上一页</button>
+    <span>第 <input id="dbmPageInput" type="number" min="1" value="1" style="width:48px;text-align:center;border:1px solid var(--card-border);border-radius:6px;padding:4px;background:var(--card-bg);color:var(--text-main);"> / <b id="dbmPageTotal">1</b> 页</span>
+    <button type="button" id="dbmNext" class="dbm-icon-btn" style="width:auto;padding:0 10px;">下一页 ›</button>
+  </div>
   <div class="dbm-actionbar" id="dbmActionBar">
     <span class="dbm-actionbar-count" id="dbmActionBarCount">已选 0</span>
     <button class="dbm-action-btn green" id="dbmAddToDialBtn">添加到列表</button>
@@ -9148,9 +9153,14 @@ function updateAutoDialBtn() {
       // 拉取大量数据到本地缓存，再客户端分页（保证冷却期排序跨全部数据生效）
       // 排除冷却期客户以减少 Supabase 数据传输量
       var cooldownMobiles = Object.keys(getAddHistory());
-      var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
+      // 服务端分页：每次只取当前页，避免一次拉取数千条触发 Worker 子请求限制。
+      DB.pageSize = Math.min(300, Math.max(1, parseInt(DB.pageSize, 10) || 50));
+      var requestAccountId = _viewAccountId || getOrCreateAccountId();
+      var url = '/api/dialer/customers?page=' + DB.page + '&pageSize=' + DB.pageSize + '&account_id=' + encodeURIComponent(requestAccountId);
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
+      var batchFilter = (document.getElementById('dbBatchFilter') || {}).value || '';
+      if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
       if (cooldownMobiles.length > 0) url += '&exclude=' + encodeURIComponent(cooldownMobiles.join(','));
 
@@ -9166,13 +9176,12 @@ function updateAutoDialBtn() {
             return;
           }
           var rawData = res.data || [];
-          DB.allData = rawData; // 存入全部缓存
+          DB.allData = rawData; // 仅缓存当前页，翻页时由服务端加载下一批
+          DB.total = Number.isFinite(Number(res.total)) ? Number(res.total) : rawData.length;
 
-          // 客户端过滤+排序（冷却期客户排到最后）
+          // 当前页继续应用本地快捷筛选/冷却期排序；总数始终使用数据库返回的真实总数。
           var filtered = crmFilterData(rawData);
-          DB.total = filtered.length;
-
-          dbTable(filtered);
+          dbTable(filtered, true);
           dbPager();
           crmUpdateBadgeCounts(rawData);
           dbFilters(rawData);
@@ -9211,7 +9220,7 @@ function updateAutoDialBtn() {
     }
 
     // 表格行渲染（窄屏自动切换为卡片式手机视图）
-    function dbTable(data) {
+    function dbTable(data, alreadyPaged) {
       var tb = document.getElementById('dbTbody');
       var em = document.getElementById('dbEmpty');
       if (!tb) return;
@@ -9855,40 +9864,54 @@ function updateAutoDialBtn() {
 
     // ==================== 手机版数据库看板（独立界面） ====================
     // 手机版独立加载数据（不依赖桌面看板密码流程；session 已由登录/解锁保证）
+    var DBM_PAGE_SIZE = 50;
+    var DBM_TOTAL = 0;
     function dbmFetch() {
       var listEl = document.getElementById('dbmList');
       if (listEl) listEl.innerHTML = '<div class="dbm-empty">加载中...</div>';
       var mobileViewAccountId = _viewAccountId || getOrCreateAccountId();
-      var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(mobileViewAccountId);
-      var poolUrl = url + '&category=' + encodeURIComponent('公海客户');
-      var mergedData = [];
-      Promise.all([fetch(url).then(function(r) { return r.json(); }), fetch(poolUrl).then(function(r) { return r.json(); })])
-        .then(function(results) {
-          var res = results[0] || {};
-          var poolRes = results[1] || {};
-          if (!res.error && Array.isArray(res.data) && Array.isArray(poolRes.data)) {
-            var seenMobiles = {};
-            res.data.concat(poolRes.data).forEach(function(c) {
-              var key = String(c.mobile || c.phone || '');
-              if (!key || seenMobiles[key]) return;
-              seenMobiles[key] = true;
-              mergedData.push(c);
-            });
-            res.data = mergedData;
-          }
-
+      var categoryFilter = (document.getElementById('dbmCatFilter') || {}).value || '';
+      var searchValue = (document.getElementById('dbmSearchInput') || {}).value || '';
+      var batchValue = (document.getElementById('dbmBatchFilter') || {}).value || '';
+      var url = '/api/dialer/customers?page=' + (DBM_PAGE || 1) + '&pageSize=' + DBM_PAGE_SIZE + '&account_id=' + encodeURIComponent(mobileViewAccountId);
+      if (categoryFilter) url += '&category=' + encodeURIComponent(categoryFilter);
+      if (searchValue) url += '&search=' + encodeURIComponent(searchValue);
+      if (batchValue) url += '&batch_label=' + encodeURIComponent(batchValue);
+      fetch(url).then(function(r) { return r.json(); })
+        .then(function(res) {
           if (res.error) {
             if (listEl) listEl.innerHTML = '<div class="dbm-empty">加载失败: ' + esc(res.error) + '</div>';
             return;
           }
           DB.allData = res.data || [];
+          DBM_TOTAL = Number.isFinite(Number(res.total)) ? Number(res.total) : DB.allData.length;
           dbmPopulateFilters();
           dbmRender();
+          dbmUpdatePager();
         })
         .catch(function(err) {
           if (listEl) listEl.innerHTML = '<div class="dbm-empty">加载失败: ' + esc(err.message) + '</div>';
         });
     }
+    var DBM_PAGE = 1;
+    function dbmUpdatePager() {
+      var totalPages = Math.max(1, Math.ceil(DBM_TOTAL / DBM_PAGE_SIZE));
+      var input = document.getElementById('dbmPageInput');
+      var total = document.getElementById('dbmPageTotal');
+      var prev = document.getElementById('dbmPrev');
+      var next = document.getElementById('dbmNext');
+      if (input) { input.value = DBM_PAGE; input.max = totalPages; }
+      if (total) total.textContent = totalPages;
+      if (prev) prev.disabled = DBM_PAGE <= 1;
+      if (next) next.disabled = DBM_PAGE >= totalPages;
+    }
+    window.dbmChangePage = function(delta) {
+      var totalPages = Math.max(1, Math.ceil(DBM_TOTAL / DBM_PAGE_SIZE));
+      DBM_PAGE = Math.max(1, Math.min(totalPages, DBM_PAGE + delta));
+      dbmFetch();
+      var list = document.getElementById('dbmList');
+      if (list) list.scrollTop = 0;
+    };
 
     // 手机版全屏期间锁定底层页面：iOS Safari/WKWebView 仅靠 fixed 遮罩
     // 仍可能把触摸滚动传递给背景页面；记录原始样式和滚动位置，关闭时精确恢复。
@@ -10012,9 +10035,38 @@ function updateAutoDialBtn() {
       if (batch) filtered = filtered.filter(function(c) { return (c.batch_label || '') === batch; });
       filtered = crmFilterData(filtered);
       var countEl = document.getElementById('dbmCount');
-      if (countEl) countEl.textContent = filtered.length ? '（' + filtered.length + ' 条）' : '';
+      if (countEl) countEl.textContent = '（共 ' + DBM_TOTAL + ' 条）';
       return filtered;
     }
+
+    // 手机端筛选/分页变更后重新请求服务端当前页，公海客户由服务端按主账户归属过滤。
+    (function wireDBMobilePaging() {
+      var prev = document.getElementById('dbmPrev');
+      var next = document.getElementById('dbmNext');
+      var pageInput = document.getElementById('dbmPageInput');
+      var cat = document.getElementById('dbmCatFilter');
+      var batch = document.getElementById('dbmBatchFilter');
+      var search = document.getElementById('dbmSearchInput');
+      var refresh = document.getElementById('dbmRefreshBtn');
+      if (prev) prev.addEventListener('click', function() { window.dbmChangePage(-1); });
+      if (next) next.addEventListener('click', function() { window.dbmChangePage(1); });
+      if (pageInput) pageInput.addEventListener('change', function() {
+        var max = Math.max(1, Math.ceil(DBM_TOTAL / DBM_PAGE_SIZE));
+        DBM_PAGE = Math.max(1, Math.min(max, parseInt(pageInput.value, 10) || 1));
+        dbmFetch();
+      });
+      function resetAndFetch() { DBM_PAGE = 1; dbmFetch(); }
+      if (cat) cat.addEventListener('change', resetAndFetch);
+      if (batch) batch.addEventListener('change', resetAndFetch);
+      if (search) {
+        var timer = null;
+        search.addEventListener('input', function() {
+          clearTimeout(timer);
+          timer = setTimeout(resetAndFetch, 250);
+        });
+      }
+      if (refresh) refresh.addEventListener('click', resetAndFetch);
+    })();
 
     // 填充分类/批次下拉
     function dbmPopulateFilters() {
@@ -10027,6 +10079,7 @@ function updateAutoDialBtn() {
         var cur = catSel.value;
         var opts = '<option value="">全部分类</option>';
         Object.keys(cats).forEach(function(k) { opts += '<option value="' + esc(k) + '"' + (cur === k ? ' selected' : '') + '>' + esc(k) + '</option>'; });
+        if (!cats['公海客户']) opts += '<option value="公海客户"' + (cur === '公海客户' ? ' selected' : '') + '>公海客户</option>';
         catSel.innerHTML = opts;
       }
       if (batchSel) {
@@ -10044,9 +10097,7 @@ function updateAutoDialBtn() {
       var list = document.getElementById('dbmList');
       if (!list) return;
       var filtered = dbmFilterData();
-      // 客户数据库列表与主列表一致：新号模式每轮只显示前 10 条，普通模式显示前 50 条
-      var roundLimit = isNewMode() ? 10 : 50;
-      if (filtered.length > roundLimit) filtered = filtered.slice(0, roundLimit);
+      // 服务端已按 50 条/页返回，当前页完整显示，不再截断到前 10/50 条。
       if (!filtered || filtered.length === 0) {
         list.innerHTML = '<div class="dbm-empty">暂无客户数据</div>';
         return;
@@ -10641,9 +10692,9 @@ function updateAutoDialBtn() {
         fuzzyInput.addEventListener('input',function(){clearTimeout(DB.fuzzySearchTimer);DB.fuzzySearchTimer=setTimeout(function(){DB.page=1;dbRenderCached();},250);});
         fuzzyInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();DB.page=1;dbRenderCached();}});
       }
-      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){if(ps.value==='5000' && !(document.getElementById('dbBatchFilter')||{}).value){alert('请先选择一个导入批次，再使用“本批全部/页”');ps.value='300';}localStorage.setItem('crm_page_size', ps.value);DB.pageSize=parseInt(ps.value,10)||300;DB.page=1;dbRenderCached();});
-      var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbRenderCached();}});
-      var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbRenderCached();}});
+      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){if(ps.value==='5000'){ps.value='300';}localStorage.setItem('crm_page_size', ps.value);DB.pageSize=Math.min(300,parseInt(ps.value,10)||50);DB.page=1;dbFetch();});
+      var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbFetch();}});
+      var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbFetch();}});
       
       var pageInput = document.getElementById('dbPageInput');
       if (pageInput) {
