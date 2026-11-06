@@ -341,10 +341,12 @@ async function processCrmBackgroundJobs(env) {
   var listed = await env.DATA_KV.list({ prefix: 'dialer:bgjob:', limit: 100 });
   var keys = listed && listed.keys ? listed.keys : [];
   var hdr = { apikey: env.SUPABASE_KEY, Authorization: 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
-  for (var ji = 0; ji < keys.length; ji++) {
+  var processedJobs = 0;
+  for (var ji = 0; ji < keys.length && processedJobs < 10; ji++) {
     var key = keys[ji].name;
     var job = await env.DATA_KV.get(key, 'json');
     if (!job || job.status !== 'queued' && job.status !== 'running') continue;
+    processedJobs++;
     try {
       job.status = 'running';
       job.updated_at = new Date().toISOString();
