@@ -3099,9 +3099,12 @@
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
-      <span id="crmReassignGroup" style="display:none; align-items:center; gap:4px;">
-        <span style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给</span>
-        <select id="crmReassignSel" style="height:28px; padding:0 6px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;"></select>
+      <span id="crmReassignGroup" style="display:none; align-items:center; gap:5px; flex-wrap:wrap;">
+        <span style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给子账号</span>
+        <select id="crmReassignSel" multiple size="1" title="可多选子账号（按住 Ctrl/⌘）" style="height:30px; min-width:130px; max-width:190px; padding:0 5px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:5px; font-weight:700; background:var(--card-bg); color:var(--text-main);"></select>
+        <select id="crmReassignMode" title="分配方式" style="height:30px; padding:0 5px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:5px; font-weight:700; background:var(--card-bg); color:var(--text-main);">
+          <option value="equal">平均分配</option><option value="proportional">按现有客户量比例</option>
+        </select>
         <button class="crm-tool-btn" id="crmReassignBtn" style="background:#e67e22; color:#fff; border-color:#e67e22;">分配</button>
       </span>
     </div>
@@ -9670,32 +9673,26 @@ function updateAutoDialBtn() {
         });
     }
 
-    // 分配目标下拉：所有已登录账号可用（排除自己，主账号标[主]），非主账号也能分配数据给其他账号
+    // 仅主账号可批量分配；目标仅列出启用的子账号
     function populateReassignSel() {
       var reassignSel = document.getElementById('crmReassignSel');
       var reassignGroup = document.getElementById('crmReassignGroup');
       if (!reassignSel || !reassignGroup) return;
-      var myId = getSessionAccountId();
+      if (!isSessionMaster()) { reassignGroup.style.display = 'none'; return; }
       fetch('/api/dialer/accounts')
         .then(function(r) { return r.json(); })
         .then(function(res) {
-          if (!res || !res.accounts || res.accounts.length === 0) {
-            reassignGroup.style.display = 'none';
-            return;
-          }
-          reassignSel.innerHTML = '<option value="">选择账号</option>';
+          if (!res || !res.accounts) { reassignGroup.style.display = 'none'; return; }
+          reassignSel.innerHTML = '';
           res.accounts.forEach(function(s) {
-            if (!s.active || s.account_id === myId) return;
+            if (!s.active || s.is_master) return;
             var name = s.account_name || s.label || s.account_id.slice(0, 10);
-            if (s.is_master) name += ' [主]';
-            reassignSel.innerHTML += '<option value="' + s.account_id + '">' + name + '</option>';
+            var opt = document.createElement('option');
+            opt.value = s.account_id; opt.textContent = name; reassignSel.appendChild(opt);
           });
-          // 任意视图都显示分配（主账号切换子账号视图后仍可分配当前视图数据）
-          reassignGroup.style.display = 'flex';
+          reassignGroup.style.display = reassignSel.options.length ? 'flex' : 'none';
         })
-        .catch(function() {
-          reassignGroup.style.display = 'none';
-        });
+        .catch(function() { reassignGroup.style.display = 'none'; });
     }
 
     function _openDBDashboardInner() {
@@ -11224,42 +11221,32 @@ function updateAutoDialBtn() {
         });
       }
 
-      // Reassign selected customers to another account (all accounts)
+      // 主账号批量分配选中客户到多个子账号
       var reassignBtn = document.getElementById('crmReassignBtn');
       if (reassignBtn) {
         reassignBtn.addEventListener('click', function() {
+          if (!isSessionMaster()) { alert('仅主账号可批量分配'); return; }
           var selectedMobiles = Object.keys(DB.selectedIds);
-          if (selectedMobiles.length === 0) { alert('请先勾选要分配的客户'); return; }
+          if (!selectedMobiles.length) { alert('请先勾选要分配的客户'); return; }
           var targetSel = document.getElementById('crmReassignSel');
-          var targetId = targetSel ? targetSel.value : '';
-          if (!targetId) { alert('请选择目标子账户'); return; }
-          var targetName = targetSel.options[targetSel.selectedIndex].text;
-          if (!confirm('将 ' + selectedMobiles.length + ' 条客户分配给「' + targetName + '」？')) return;
-
-          reassignBtn.disabled = true;
-          reassignBtn.textContent = '分配中...';
+          var targetIds = targetSel ? Array.prototype.map.call(targetSel.selectedOptions, function(o) { return o.value; }) : [];
+          if (!targetIds.length) { alert('请至少选择一个子账号'); return; }
+          var mode = (document.getElementById('crmReassignMode') || {}).value || 'equal';
+          var targetNames = Array.prototype.filter.call(targetSel.selectedOptions, function(o) { return targetIds.indexOf(o.value) >= 0; }).map(function(o) { return o.textContent; });
+          var modeName = mode === 'equal' ? '平均分配' : '按现有客户量比例分配';
+          if (!confirm('将勾选的 ' + selectedMobiles.length + ' 条客户，按「' + modeName + '」分配给：' + targetNames.join('、') + '？')) return;
+          reassignBtn.disabled = true; reassignBtn.textContent = '分配中...';
           fetch('/api/dialer/customers/reassign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobiles: selectedMobiles, target_account_id: targetId })
-          })
-          .then(function(r) { return r.json(); })
-          .then(function(res) {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
+            body: JSON.stringify({ mobiles: selectedMobiles, target_account_ids: targetIds, mode: mode })
+          }).then(function(r) { return r.json(); }).then(function(res) {
             if (res.success) {
-              var msg = '已分配 ' + res.updated + ' 条客户';
-              if (res.selected !== undefined && res.found !== undefined) {
-                msg = '勾选 ' + res.selected + ' 条，找到 ' + res.found + ' 条，成功分配 ' + res.updated + ' 条';
-              }
-              alert(msg);
-              DB.selectedIds = {};
-              dbFetch();
-              loadAccountStats();
-            } else {
-              alert('分配失败: ' + (res.error || '未知错误'));
-            }
-          })
-          .catch(function(err) { alert('网络错误: ' + err.message); })
-          .finally(function() { reassignBtn.disabled = false; reassignBtn.textContent = '分配'; });
+              var details = (res.allocations || []).map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
+              alert('分配完成：成功 ' + res.updated + ' 条' + (details ? '\n' + details : ''));
+              DB.selectedIds = {}; dbFetch(); loadAccountStats(); populateReassignSel();
+            } else alert('分配失败: ' + (res.error || '未知错误'));
+          }).catch(function(err) { alert('网络错误: ' + err.message); })
+            .finally(function() { reassignBtn.disabled = false; reassignBtn.textContent = '分配'; });
         });
       }
     }
