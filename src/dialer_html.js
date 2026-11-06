@@ -3302,6 +3302,7 @@
         <button id="copyPrefCloseBtn" title="关闭" style="background:none;border:none;font-size:0.95rem;cursor:pointer;color:var(--text-soft);padding:2px;line-height:1;">❌</button>
       </div>
       <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;margin:0 0 12px;">点击客户卡片「单位名称」时，按勾选的要素组合复制；先勾选的排前面</div>
+      <button id="copyPrefOpenDBBtn" type="button" style="display:none;width:100%;margin:0 0 14px;padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;background:var(--btn-bg);color:var(--text-main);font-size:0.78rem;font-weight:800;text-align:left;cursor:pointer;">▦ 数据库看板 <span style="float:right;color:var(--text-light);font-weight:600;">进入 ›</span></button>
       <div style="display:flex;flex-direction:column;gap:10px;font-size:0.78rem;font-weight:600;color:var(--text-main);">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="cpfName" style="accent-color:var(--accent-wechat);width:16px;height:16px;cursor:pointer;"><span id="cpfNumName" style="min-width:14px;font-size:0.68rem;color:var(--accent-wechat);font-weight:900;"></span>姓名<span style="font-size:0.6rem;color:var(--text-light);font-weight:700;background:var(--btn-bg);padding:1px 6px;border-radius:var(--radius-xs);">必选</span></label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="cpfPhone" style="accent-color:var(--accent-wechat);width:16px;height:16px;cursor:pointer;"><span id="cpfNumPhone" style="min-width:14px;font-size:0.68rem;color:var(--accent-wechat);font-weight:900;"></span>手机号</label>
@@ -11825,6 +11826,18 @@ function updateAutoDialBtn() {
         if (!checked && idx !== -1) p.order.splice(idx, 1);
         saveCopyPref(p);
         renderPrefPanel();
+      }
+
+      // 仅主账号在账户弹窗中显示数据库看板入口。
+      var openDBBtn = document.getElementById('copyPrefOpenDBBtn');
+      if (openDBBtn) {
+        openDBBtn.style.display = isSessionMaster() ? 'block' : 'none';
+        openDBBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.remove('active');
+          if (typeof window.openDBDashboard === 'function') window.openDBDashboard();
+        });
       }
 
       trigger.addEventListener('click', function(e) {
