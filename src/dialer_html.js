@@ -638,12 +638,13 @@
       min-height: 29px;
       padding: 0 11px;
       border-radius: 999px;
-      background: linear-gradient(135deg, #07c160, #06a94f);
-      color: #fff !important;
+      background: rgba(7,193,96,.12);
+      color: #079b50 !important;
+      border: 1px solid rgba(7,193,96,.28);
       font-size: 0.78rem;
       font-weight: 800;
       letter-spacing: .02em;
-      box-shadow: 0 2px 7px rgba(7,193,96,.22);
+      box-shadow: 0 1px 4px rgba(7,193,96,.08);
       justify-content: center;
     }
     .client-phone-btn.privacy-add-vx:active {
@@ -651,9 +652,28 @@
       box-shadow: 0 1px 3px rgba(7,193,96,.18);
     }
     .client-phone-btn.privacy-add-vx.copied {
-      background: rgba(229,57,53,.10) !important;
+      background: rgba(7,193,96,.12) !important;
+      color: #079b50 !important;
+      border: 1px solid rgba(7,193,96,.28);
+    }
+    .xls-card-dial-btn.privacy-dial-icon {
+      width: 30px;
+      min-width: 30px;
+      padding: 0 !important;
+      border-radius: 8px;
+      background: rgba(7,193,96,.12) !important;
+      color: #079b50 !important;
+      border: 1px solid rgba(7,193,96,.28);
+    }
+    .xls-card-dial-btn.privacy-dial-icon.dial-attempted {
+      background: rgba(229,57,53,.11) !important;
       color: #e53935 !important;
-      border: 1px solid rgba(229,57,53,.22);
+      border-color: rgba(229,57,53,.28);
+    }
+    .xls-card-dial-btn.privacy-dial-icon svg {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
     .client-card-tag-company.privacy-action-done {
       color: var(--accent-wechat) !important;
@@ -7175,7 +7195,7 @@
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
-                  '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn" data-idx="' + i + '" style="font-size:0.7rem;padding:2px 10px;height:24px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">拨打</a>' +
+                  '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn' + (!showClientInfo ? ' privacy-dial-icon' + (c.dial_attempted ? ' dial-attempted' : '') : '') + '" data-idx="' + i + '" title="' + (!showClientInfo ? (c.dial_attempted ? '已拨打' : '拨打电话') : '拨打') + '" style="font-size:0.7rem;padding:2px 10px;height:24px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">' + (!showClientInfo ? (c.dial_attempted ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>') : '拨打') + '</a>' +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -7416,6 +7436,14 @@
         container.querySelectorAll('.xls-card-dial-btn').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
             var idx = parseInt(this.dataset.idx);
+            var clientNow = importedClients[idx];
+            if (clientNow && !isClientInfoVisible()) {
+              clientNow.dial_attempted = true;
+              saveState();
+              this.classList.add('dial-attempted');
+              this.title = '已拨打';
+              this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>';
+            }
             // Delay opening the modal by 200ms to allow Safari to natively trigger the tel: anchor navigation first
             setTimeout(function() {
               var client = importedClients[idx];
