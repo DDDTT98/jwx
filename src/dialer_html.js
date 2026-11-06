@@ -8893,7 +8893,9 @@ function updateAutoDialBtn() {
         '<th data-sort="name" style="width: 140px; cursor: pointer;">客户名称 <span class="sort-arrow"></span></th>' +
         '<th data-sort="mobile" style="width: 160px; cursor: pointer;">联系号码 <span class="sort-arrow"></span></th>' +
         '<th data-sort="note" style="min-width: 120px; cursor: pointer;">备注 <span class="sort-arrow"></span></th>';
-      var customCols = DB.customColumns || [];
+      // 批量设置的“类型”是独立固定列，不混入通用自定义列，避免挤占/错位原有单位字段。
+      html += '<th data-sort="batch_type" style="min-width: 100px; cursor: pointer;">类型 <span class="sort-arrow"></span></th>';
+      var customCols = (DB.customColumns || []).filter(function(col) { return col !== '类型'; });
       customCols.forEach(function(col) {
         html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + '<span class="sort-arrow"></span></th>';
       });
@@ -9278,8 +9280,10 @@ function updateAutoDialBtn() {
           noteDisplay = realNote ? esc(realNote) : '-';
         }
 
+        // 独立类型列只读取专用键；原有自定义字段和 company_name（单位）保持原位。
+        var batchTypeTd = '<td style="white-space: normal; min-width: 100px; word-break: break-all;">' + esc(parsed.custom.__batch_type || '-') + '</td>';
         var customTds = '';
-        var customCols = DB.customColumns || [];
+        var customCols = (DB.customColumns || []).filter(function(col) { return col !== '类型'; });
         customCols.forEach(function(col) {
           var val = parsed.custom[col] || '-';
           customTds += '<td style="white-space: normal; min-width: 100px; word-break: break-all;">' + esc(val) + '</td>';
@@ -9304,6 +9308,7 @@ function updateAutoDialBtn() {
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
+          batchTypeTd +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
@@ -11056,11 +11061,7 @@ function updateAutoDialBtn() {
         if (!typeName) { alert('请输入自定义类型名称'); if (bcpName) bcpName.focus(); return; }
         if (!confirm('确认给已勾选的 ' + mobiles.length + ' 位客户设置类型「' + typeName + '」吗？')) return;
 
-        // 类型是独立的自定义列，不修改系统原有的“分类”字段。
-        if (DB.customColumns.indexOf('类型') === -1) {
-          DB.customColumns.push('类型');
-          localStorage.setItem('crm_custom_columns', JSON.stringify(DB.customColumns));
-        }
+        // 类型使用专用存储键和固定列，不写入通用自定义列，也不触碰单位/分类字段。
         renderCRMHeaders();
 
         var selected = {};
@@ -11077,7 +11078,7 @@ function updateAutoDialBtn() {
             var customer = selected[mobile];
             var parsed = parseCustomerNote(customer);
             var custom = Object.assign({}, parsed.custom || {});
-            custom['类型'] = typeName;
+            custom.__batch_type = typeName;
             var payload = { note: parsed.note || '', custom: custom };
             if (customer.fund) payload.fund = customer.fund;
             return fetch('/api/dialer/customers', {
