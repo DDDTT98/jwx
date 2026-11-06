@@ -9800,7 +9800,7 @@ function updateAutoDialBtn() {
                 var customers = res.data || [];
                 if (customers.length === 0) {
                   if (res.master_daily_remaining === 0) {
-                    alert('今日从主账号补充客户的额度已用完（每天最多 600 条），明天会自动恢复。');
+                    alert('今天加载满了，明天再来。');
                   } else if (res.total > 0) {
                     alert('当前范围内客户都已在待拨列表中。\\n请清空当前列表或等待其他设备释放后重试。');
                   } else {
@@ -9840,8 +9840,8 @@ function updateAutoDialBtn() {
                 localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
                 renderDialCards();
                 updateStats();
-                if (Number(res.master_loaded || 0) > 0) {
-                  showCopyLimitToast('剩余补充配额：' + Number(res.master_daily_remaining || 0) + ' 位（本次补充 ' + Number(res.master_loaded) + ' 位）', true);
+                if (Number(res.master_loaded || 0) > 0 && Number(res.master_daily_remaining) === 0) {
+                  alert('今天加载满了，明天再来。');
                 }
               })
               .catch(function(err) {
