@@ -9729,17 +9729,11 @@ function updateAutoDialBtn() {
       if (!entry) return;
       var panel = document.getElementById(entry.panelId);
       if (!panel) return;
-      // 先关闭旧的手机面板包装（把当前面板移回桌面）
+      // 切换管理面板前，按占位符恢复旧面板的原始 DOM 位置。
       var oldWrap = document.getElementById('dbmPanelWrap');
       if (oldWrap) {
-        var oldPanel = oldWrap.firstChild;
-        var ov = document.getElementById('dbOverlay');
-        if (oldPanel && ov) {
-          var dbPanel = ov.querySelector('.db-panel');
-          var pager = ov.querySelector('.crm-pager');
-          if (dbPanel && pager && pager.parentNode === dbPanel) dbPanel.insertBefore(oldPanel, pager);
-          else if (dbPanel) dbPanel.appendChild(oldPanel);
-        }
+        var oldPanel = oldWrap.firstElementChild || oldWrap.firstChild;
+        if (oldPanel && oldPanel.nodeType === 1) dbmRestorePanelPosition(oldPanel);
         oldWrap.remove();
       }
       // 目标面板如果已在手机容器里则直接使用，否则从桌面移入
@@ -9751,6 +9745,12 @@ function updateAutoDialBtn() {
         body.appendChild(wrap);
       }
       if (panel.parentNode !== wrap) {
+        // 在原位置留下占位符，退出手机版后精确恢复，不猜测分页栏位置。
+        if (!_dbmPanelOrig[entry.panelId]) {
+          var placeholder = document.createComment('dbm-origin-' + entry.panelId);
+          panel.parentNode.insertBefore(placeholder, panel);
+          _dbmPanelOrig[entry.panelId] = placeholder;
+        }
         panel.parentNode.removeChild(panel);
         wrap.appendChild(panel);
       }
@@ -9763,32 +9763,28 @@ function updateAutoDialBtn() {
       if (subs) subs.style.display = isSessionMaster() ? 'block' : 'none';
     }
 
-    // 退出管理页：把面板移回桌面原位置（dbOverlay 内），恢复列表视图
-    var _dbmPanelOrig = {}; // panelId -> 原始父节点引用（dbOverlay 内的占位）
+    // 手机版管理面板使用占位符记录桌面原位置，关闭/切换时必须精确复原。
+    var _dbmPanelOrig = {}; // panelId -> 原始位置的注释节点
+    function dbmRestorePanelPosition(panel) {
+      if (!panel) return;
+      var panelId = panel.id || '';
+      var placeholder = _dbmPanelOrig[panelId];
+      if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.replaceChild(panel, placeholder);
+        delete _dbmPanelOrig[panelId];
+        return;
+      }
+      // 兼容占位符丢失的旧状态：回退到桌面面板容器。
+      var ov = document.getElementById('dbOverlay');
+      var dbPanel = ov && ov.querySelector('.db-panel');
+      if (dbPanel) dbPanel.appendChild(panel);
+    }
     function dbmCloseMgr() {
       var mgr = document.getElementById('dbmMgr');
       var wrap = document.getElementById('dbmPanelWrap');
       if (wrap) {
-        var panel = wrap.firstChild;
-        if (panel) {
-          // 移回桌面 dbOverlay 内的原始位置（dbOverlay 的 db-panel 末尾）
-          var ov = document.getElementById('dbOverlay');
-          var holder = document.getElementById('db-panel-holder');
-          if (ov && ov.querySelector('.crm-tabs')) {
-            // 插入到 dbOverlay 里 pager 之后（面板原本的位置在 db-panel 内表格后）
-            var dbPanel = ov.querySelector('.db-panel');
-            var pager = ov.querySelector('.crm-pager');
-            if (dbPanel && pager && pager.parentNode === dbPanel) {
-              dbPanel.insertBefore(panel, pager);
-            } else if (dbPanel) {
-              dbPanel.appendChild(panel);
-            } else if (holder) {
-              holder.appendChild(panel);
-            }
-          } else if (holder) {
-            holder.appendChild(panel);
-          }
-        }
+        var panel = wrap.firstElementChild || wrap.firstChild;
+        if (panel && panel.nodeType === 1) dbmRestorePanelPosition(panel);
         wrap.remove();
       }
       if (mgr) mgr.style.display = 'none';
