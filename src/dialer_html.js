@@ -11040,6 +11040,7 @@ function updateAutoDialBtn() {
       // Polling is only for displaying progress; the scheduled Worker owns execution.
       function watchCrmBackgroundJob(jobId, statusEl, onDone) {
         var stopped = false;
+        try { localStorage.setItem('crm_last_bg_job', jobId); } catch (_) {}
         function poll() {
           if (stopped) return;
           fetch('/api/dialer/background-jobs/' + encodeURIComponent(jobId), {
@@ -11050,6 +11051,7 @@ function updateAutoDialBtn() {
             if(statusEl){statusEl.style.display='inline';statusEl.textContent='后台处理中 '+done+'/'+total+'（成功 '+(j.succeeded||0)+'，失败 '+(j.failed||0)+'）';statusEl.style.color='#f57c00';}
             if(j.status==='completed'||j.status==='completed_with_errors'||j.status==='failed'){
               stopped=true;
+              try { if(localStorage.getItem('crm_last_bg_job')===jobId) localStorage.removeItem('crm_last_bg_job'); } catch (_) {}
               if(statusEl){statusEl.textContent='后台任务'+(j.status==='completed'?'完成':j.status==='failed'?'失败':'完成（有失败）')+'：成功 '+(j.succeeded||0)+'，失败 '+(j.failed||0);statusEl.style.color=j.failed?'#e74c3c':'#07c160';}
               if(typeof onDone==='function') onDone(j);
               dbFetch(); loadAccountStats(); populateReassignSel();
@@ -11061,6 +11063,8 @@ function updateAutoDialBtn() {
         poll();
         return function(){stopped=true;};
       }
+      // Restore the most recent task monitor after the page is reopened; execution remains server-side.
+      try { var previousCrmJob = localStorage.getItem('crm_last_bg_job'); if (previousCrmJob) watchCrmBackgroundJob(previousCrmJob, document.getElementById('dbBatchCatStatus') || document.getElementById('crmReassignHint')); } catch (_) {}
       // Batch category wiring: append a custom type to selected customers
       var bcpBtn = document.getElementById('dbBatchCatBtn');
       var bcpPanel = document.getElementById('dbBatchCatPanel');
