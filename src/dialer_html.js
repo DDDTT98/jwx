@@ -7318,13 +7318,7 @@
               scheduleReminder(client);
             }
 
-            var card = document.getElementById('xdc_' + idx);
-            if (card) {
-              var phoneBtn = card.querySelector('.client-phone-btn');
-              if (phoneBtn) {
-                phoneBtn.classList.add('copied');
-              }
-            }
+            // 复制姓名只反馈姓名自身，不改变“添加VX/已添加”的状态与颜色。
 
             setTimeout(function() {
               b.textContent = name;
