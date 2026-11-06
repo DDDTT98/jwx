@@ -2253,7 +2253,7 @@ export default {
       }
     }
 
-    // 主账号批量分配客户到多个子账号：支持平均分配和按现有客户量比例分配
+    // 主账号/小组长按批次和成员手动填写数量分配客户
     if (path === '/api/dialer/customers/reassign' && request.method === 'POST') {
       try {
         var authHeader = request.headers.get('Authorization') || '';
@@ -2271,54 +2271,44 @@ export default {
         if (callerRole === 'master' && viewHeader) sourceAccountId = viewHeader;
 
         var body = await request.json();
-        var mobiles = Array.isArray(body.mobiles) ? Array.from(new Set(body.mobiles.map(String).filter(Boolean))) : [];
-        var targetIds = Array.isArray(body.target_account_ids) ? Array.from(new Set(body.target_account_ids.map(String).filter(Boolean))) : [];
-        var mode = body.mode === 'proportional' ? 'proportional' : 'equal';
-        if (!mobiles.length) throw new Error('请选择要分配的客户');
-        if (!targetIds.length) throw new Error('至少选择一个子账号');
+        var batchLabel = String(body.batch_label || '').trim();
+        var requested = Array.isArray(body.allocations) ? body.allocations : [];
+        if (!batchLabel) throw new Error('请先选择导入批次');
+        if (!requested.length) throw new Error('请填写成员分配数量');
+        var allocationMap = {}, totalRequested = 0;
+        requested.forEach(function(item) {
+          var id = String(item.account_id || '');
+          var count = Number(item.count);
+          if (!id || !Number.isSafeInteger(count) || count <= 0 || allocationMap[id] !== undefined) throw new Error('成员分配数量无效');
+          allocationMap[id] = count;
+          totalRequested += count;
+        });
+        if (!Number.isSafeInteger(totalRequested) || totalRequested <= 0 || totalRequested > 5000) throw new Error('本次分配总数必须在 1 至 5000 条之间');
+        var targetIds = Object.keys(allocationMap);
         var targets = allAccounts.filter(function(a) {
           if (targetIds.indexOf(a.account_id) < 0 || a.active === false || a.is_master !== false) return false;
           if (callerRole === 'manager') return a.role !== 'manager' && a.parent_account_id === callerAccount.account_id;
           return true;
         });
-        if (targets.length !== targetIds.length) throw new Error(callerRole === 'manager' ? '目标必须是本小组启用的普通子账号' : '目标账号无效或已停用');
+        if (targets.length !== targetIds.length) throw new Error(callerRole === 'manager' ? '目标必须是本小组启用的普通组员' : '目标账号无效或已停用');
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
 
         var hdr = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
-        var existing = [];
-        for (var i = 0; i < mobiles.length; i += 100) {
-          var chunk = mobiles.slice(i, i + 100);
-          var inFilter = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-          var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
-          var check = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&mobile=in.(' + inFilter + ')' + sourceFilter + '&limit=100', { headers: hdr });
-          if (!check.ok) throw new Error('读取待分配客户失败：' + check.status);
-          var rows = await check.json();
-          if (Array.isArray(rows)) rows.forEach(function(row) { if (row.mobile) existing.push(row.mobile); });
-        }
-        existing = Array.from(new Set(existing));
-        if (!existing.length) throw new Error('所选客户在数据库中不存在');
+        var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
+        var batchFilter = '&batch_label=eq.' + encodeURIComponent(batchLabel);
+        var readResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&order=created_at.asc,mobile.asc&limit=' + totalRequested + sourceFilter + batchFilter, { headers: hdr });
+        if (!readResp.ok) throw new Error('读取当前批次失败：' + (await readResp.text()).slice(0, 180));
+        var batchRows = await readResp.json();
+        if (!Array.isArray(batchRows) || batchRows.length < totalRequested) throw new Error('当前批次剩余客户不足：需要 ' + totalRequested + ' 条，实际仅有 ' + (Array.isArray(batchRows) ? batchRows.length : 0) + ' 条');
+        var mobiles = batchRows.map(function(row) { return row.mobile; }).filter(Boolean);
+        if (mobiles.length !== totalRequested) throw new Error('批次客户数据异常，请刷新后重试');
 
-        var weights = targets.map(function() { return 1; });
-        if (mode === 'proportional') {
-          weights = [];
-          for (var ti = 0; ti < targets.length; ti++) {
-            var countResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&account_id=eq.' + encodeURIComponent(targets[ti].account_id) + '&limit=1', {
-              headers: Object.assign({}, hdr, { 'Prefer': 'count=exact', 'Range': '0-0' })
-            });
-            if (!countResp.ok) throw new Error('读取子账号客户量失败：' + countResp.status);
-            var range = countResp.headers.get('content-range') || '';
-            var match = range.match(/\/(\d+)$/);
-            weights.push(match ? Math.max(1, parseInt(match[1], 10)) : 1);
-          }
-        }
-        var totalWeight = weights.reduce(function(a,b) { return a+b; }, 0);
-        var allocations = [], cursor = 0, remaining = existing.length, remainingWeight = totalWeight;
-        targets.forEach(function(account, idx) {
-          var take = idx === targets.length - 1 ? remaining : Math.floor(remaining * (mode === 'equal' ? 1 / (targets.length - idx) : weights[idx] / remainingWeight));
-          allocations.push({ account: account, mobiles: existing.slice(cursor, cursor + take) });
-          cursor += take; remaining -= take; remainingWeight -= weights[idx];
+        var allocations = [], cursor = 0;
+        targets.forEach(function(account) {
+          var count = allocationMap[account.account_id];
+          allocations.push({ account: account, mobiles: mobiles.slice(cursor, cursor + count) });
+          cursor += count;
         });
-
         var updatedTotal = 0, allocationSummary = [];
         for (var ai = 0; ai < allocations.length; ai++) {
           var allocation = allocations[ai];
@@ -2326,17 +2316,18 @@ export default {
             var patchChunk = allocation.mobiles.slice(bi, bi + 200);
             var patchFilter = patchChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
             var sourcePatchFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
-            var patchResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')' + sourcePatchFilter, {
+            var patchResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')' + sourcePatchFilter + batchFilter, {
               method: 'PATCH',
-              headers: Object.assign({}, hdr, { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
+              headers: Object.assign({}, hdr, { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }),
               body: JSON.stringify({ account_id: allocation.account.account_id, pulled_at: null })
             });
-            if (!patchResp.ok) throw new Error('分配给 ' + (allocation.account.account_name || allocation.account.label || '子账号') + ' 失败：' + (await patchResp.text()).slice(0, 180));
-            updatedTotal += patchChunk.length;
+            if (!patchResp.ok) throw new Error('分配给 ' + (allocation.account.real_name || allocation.account.account_name || '组员') + ' 失败：' + (await patchResp.text()).slice(0, 180));
+            var changed = await patchResp.json();
+            updatedTotal += Array.isArray(changed) ? changed.length : 0;
           }
-          allocationSummary.push({ account_name: allocation.account.account_name || allocation.account.label || allocation.account.account_id, count: allocation.mobiles.length });
+          allocationSummary.push({ account_name: allocation.account.real_name || allocation.account.account_name || allocation.account.label || allocation.account.account_id, count: allocation.mobiles.length });
         }
-        return new Response(JSON.stringify({ success: true, updated: updatedTotal, selected: mobiles.length, found: existing.length, allocations: allocationSummary }), {
+        return new Response(JSON.stringify({ success: true, updated: updatedTotal, batch_label: batchLabel, allocations: allocationSummary }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
