@@ -4056,6 +4056,11 @@
           break;
         }
       }
+      // CRM 表格共用同一份最近操作状态，添加/拨打后立即更新当前行。
+      if (typeof DB !== 'undefined' && DB && Array.isArray(DB.allData)) {
+        var dbClient = DB.allData.find(function(item) { return String(item.mobile || item.phone || '') === String(mobile); });
+        if (dbClient) dbClient.last_operation = payload.entry;
+      }
       // 时间线接口受中央登录门禁保护：显式携带会话与当前视图账户，不能依赖全局 fetch 包装器补充认证。
       var timelineHeaders = {
         'Content-Type': 'application/json',
@@ -10941,6 +10946,7 @@ function updateAutoDialBtn() {
           });
 
           if (addedCount > 0) {
+            addedMobiles.forEach(function(m) { recordTimeline(m, 'add'); });
             localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
             renderDialCards();
             var msg = '成功添加 ' + addedCount + ' 个客户到待拨打列表';
