@@ -11306,7 +11306,7 @@ function updateAutoDialBtn() {
           if (!allocations.length || totalCount <= 0) { alert('请填写至少一位成员的分配数量'); return; }
           var targetIds = allocations.map(function(a) { return a.account_id; });
           var summary = allocations.map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
-          if (!confirm('从当前批次「' + batchLabel + '」自动分配 ' + totalCount + ' 条客户：\n' + summary + '\n确认执行？')) return;
+          if (!confirm('从当前批次「' + batchLabel + '」自动分配 ' + totalCount + ' 条客户：\\n' + summary + '\\n确认执行？')) return;
           reassignBtn.disabled = true; reassignBtn.textContent = '分配中...';
           fetch('/api/dialer/customers/reassign', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken(), 'X-View-Account-Id': _viewAccountId || '' },
