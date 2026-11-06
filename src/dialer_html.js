@@ -3302,15 +3302,6 @@
         <button id="copyPrefCloseBtn" title="关闭" style="background:none;border:none;font-size:0.95rem;cursor:pointer;color:var(--text-soft);padding:2px;line-height:1;">❌</button>
       </div>
       <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;margin:0 0 12px;">点击客户卡片「单位名称」时，按勾选的要素组合复制；先勾选的排前面</div>
-      <div id="copyPrefChildPinPanel" style="display:none;margin:0 0 14px;padding:12px;border:1px solid var(--card-border);border-radius:12px;background:var(--btn-bg);">
-        <div style="font-size:0.76rem;font-weight:800;color:var(--text-main);margin-bottom:8px;">修改登录 PIN</div>
-        <div style="display:flex;gap:7px;">
-          <input type="password" id="copyPrefOldPin" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="当前 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:36px;padding:0 9px;border:1px solid var(--card-border);border-radius:8px;background:var(--card-bg);color:var(--text-main);font-size:0.75rem;text-align:center;">
-          <input type="password" id="copyPrefNewPin" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="新 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:36px;padding:0 9px;border:1px solid var(--card-border);border-radius:8px;background:var(--card-bg);color:var(--text-main);font-size:0.75rem;text-align:center;">
-          <button type="button" id="copyPrefChangePinBtn" style="height:36px;padding:0 12px;border:0;border-radius:8px;background:var(--accent-wechat);color:#fff;font-size:0.72rem;font-weight:800;">修改</button>
-        </div>
-        <div id="copyPrefPinMessage" style="min-height:16px;margin-top:5px;font-size:0.64rem;color:#e74c3c;"></div>
-      </div>
       <button id="copyPrefOpenDBBtn" type="button" style="display:none;width:100%;margin:0 0 14px;padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;background:var(--btn-bg);color:var(--text-main);font-size:0.78rem;font-weight:800;text-align:left;cursor:pointer;">▦ 数据库看板 <span style="float:right;color:var(--text-light);font-weight:600;">进入 ›</span></button>
       <div style="display:flex;flex-direction:column;gap:10px;font-size:0.78rem;font-weight:600;color:var(--text-main);">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="cpfName" style="accent-color:var(--accent-wechat);width:16px;height:16px;cursor:pointer;"><span id="cpfNumName" style="min-width:14px;font-size:0.68rem;color:var(--accent-wechat);font-weight:900;"></span>姓名<span style="font-size:0.6rem;color:var(--text-light);font-weight:700;background:var(--btn-bg);padding:1px 6px;border-radius:var(--radius-xs);">必选</span></label>
@@ -3320,6 +3311,15 @@
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="cpfDate" style="accent-color:var(--accent-wechat);width:16px;height:16px;cursor:pointer;"><span id="cpfNumDate" style="min-width:14px;font-size:0.68rem;color:var(--accent-wechat);font-weight:900;"></span>日期（年月日）</label>
       </div>
       <div style="font-size:0.62rem;color:var(--text-light);font-weight:600;margin-top:12px;line-height:1.5;">示例：张三 13800138000 某某公司 公积金24170 ［26-08-14］（勾选即时生效）</div>
+      <div id="copyPrefChildPinPanel" style="display:none;margin:12px 0 0;padding:8px 10px;border:1px solid var(--card-border);border-radius:9px;background:var(--btn-bg);">
+        <div style="font-size:0.68rem;font-weight:800;color:var(--text-main);margin-bottom:6px;">修改登录 PIN</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="password" id="copyPrefOldPin" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="当前 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:30px;padding:0 7px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);font-size:0.68rem;text-align:center;">
+          <input type="password" id="copyPrefNewPin" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="新 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:30px;padding:0 7px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);font-size:0.68rem;text-align:center;">
+          <button type="button" id="copyPrefChangePinBtn" style="height:30px;padding:0 10px;border:0;border-radius:6px;background:var(--accent-wechat);color:#fff;font-size:0.68rem;font-weight:800;white-space:nowrap;">修改</button>
+        </div>
+        <div id="copyPrefPinMessage" style="min-height:13px;margin-top:3px;font-size:0.6rem;color:#e74c3c;"></div>
+      </div>
     </div>
   </div>
 
