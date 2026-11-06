@@ -3054,17 +3054,22 @@
       </div>
     </div>
 
-    <!-- Account Stats Bar (master only) -->
-    <div id="dbAccountStats" style="display:none; padding:6px 16px; border-bottom:0.5px solid var(--card-border); background:var(--btn-bg); align-items:center; gap:10px; flex-wrap:wrap; font-size:0.7rem; font-weight:700; color:var(--text-soft);">
-      <span style="color:var(--text-main);">各账户上传统计：</span>
-      <span id="dbAccountStatsList"></span>
-      <span style="margin-left:auto; display:flex; align-items:center; gap:6px;">
-        <button id="dbMigrateBtn" style="display:none; height:26px; padding:0 10px; font-size:0.65rem; border:none; box-shadow:var(--shadow-card); background:rgba(230,126,34,0.12); color:#e67e22; border-radius:3px; font-weight:700; cursor:pointer;">归属主账户</button>
-        <span>查看：</span>
-        <select id="dbViewAccountSel" style="height:26px; padding:0 6px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;">
-          <option value="">我的数据</option>
-        </select>
-      </span>
+    <!-- Account Stats Bar (master only, collapsed by default) -->
+    <div id="dbAccountStats" style="display:none; flex-direction:column; gap:0; border-bottom:0.5px solid var(--card-border); background:var(--btn-bg); font-size:0.7rem; font-weight:700; color:var(--text-soft);">
+      <button id="dbAccountStatsToggle" type="button" aria-expanded="false" style="width:100%; min-height:38px; padding:7px 16px; display:flex; align-items:center; justify-content:space-between; gap:8px; border:0; background:transparent; color:var(--text-main); font-size:0.72rem; font-weight:800; text-align:left; cursor:pointer;">
+        <span>各账户上传统计 <span id="dbAccountStatsSummary" style="font-size:0.65rem;font-weight:600;color:var(--text-soft);">（点击下拉查看）</span></span>
+        <span id="dbAccountStatsArrow" aria-hidden="true" style="font-size:0.85rem;transition:transform .18s;">▼</span>
+      </button>
+      <div id="dbAccountStatsContent" style="display:none; padding:6px 16px 10px; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span id="dbAccountStatsList" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"></span>
+        <span style="margin-left:auto; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <button id="dbMigrateBtn" style="display:none; height:26px; padding:0 10px; font-size:0.65rem; border:none; box-shadow:var(--shadow-card); background:rgba(230,126,34,0.12); color:#e67e22; border-radius:3px; font-weight:700; cursor:pointer;">归属主账户</button>
+          <span>查看：</span>
+          <select id="dbViewAccountSel" style="height:26px; padding:0 6px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;">
+            <option value="">我的数据</option>
+          </select>
+        </span>
+      </div>
     </div>
 
     <!-- CRM Shortcut Filters -->
@@ -9658,6 +9663,20 @@ function updateAutoDialBtn() {
       if (!bar) return;
       if (!canManageTeam()) { bar.style.display = 'none'; return; }
       bar.style.display = 'flex';
+      var statsToggle = document.getElementById('dbAccountStatsToggle');
+      var statsContent = document.getElementById('dbAccountStatsContent');
+      var statsArrow = document.getElementById('dbAccountStatsArrow');
+      if (statsToggle && !statsToggle._wired) {
+        statsToggle._wired = true;
+        statsToggle.addEventListener('click', function() {
+          var opening = !statsContent || statsContent.style.display === 'none';
+          if (statsContent) statsContent.style.display = opening ? 'flex' : 'none';
+          statsToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+          if (statsArrow) statsArrow.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+          var summary = document.getElementById('dbAccountStatsSummary');
+          if (summary) summary.textContent = opening ? '（点击收起）' : '（点击下拉查看）';
+        });
+      }
       var list = document.getElementById('dbAccountStatsList');
       var sel = document.getElementById('dbViewAccountSel');
       if (!list) return;
