@@ -8879,7 +8879,7 @@ function updateAutoDialBtn() {
      if (productInput) productInput.focus();
      return;
    }
-   if (!/\\.(xlsx|xls|csv)$/i.test(file.name)) {
+   if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
      setWhitelistStatus('仅支持 .xlsx、.xls 或 .csv 文件。', true);
      return;
    }
@@ -8910,7 +8910,7 @@ function updateAutoDialBtn() {
        for (var ri = 0; ri < Math.min(sheetRows.length, 20); ri++) {
          var cells = sheetRows[ri] || [];
          for (var ci = 0; ci < cells.length; ci++) {
-           var header = String(cells[ci] || '').trim().toLowerCase().replace(/[\\s_*：:（）()【】\\[\\]-]/g, '');
+           var header = String(cells[ci] || '').trim().toLowerCase().replace(/[\s_*：:（）()【】\[\]-]/g, '');
            if (companyHeader.test(header) || /^(单位|企业|公司)$/.test(header)) companyCol = ci;
            if (aliasHeader.test(header)) aliasCol = ci;
          }
