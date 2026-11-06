@@ -11262,7 +11262,7 @@ function updateAutoDialBtn() {
           }).then(function(r) { return r.json(); }).then(function(res) {
             if (res.success) {
               var details = (res.allocations || []).map(function(a) { return a.account_name + '：' + a.count + '条'; }).join('；');
-              alert('分配完成：成功 ' + res.updated + ' 条' + (details ? '\n' + details : ''));
+              alert('分配完成：成功 ' + res.updated + ' 条' + (details ? '\\n' + details : ''));
               DB.selectedIds = {}; dbFetch(); loadAccountStats(); populateReassignSel();
             } else alert('分配失败: ' + (res.error || '未知错误'));
           }).catch(function(err) { alert('网络错误: ' + err.message); })
