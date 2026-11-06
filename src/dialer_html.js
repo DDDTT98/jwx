@@ -9776,7 +9776,11 @@ function updateAutoDialBtn() {
         delete _dbmPanelOrig[panelId];
         return;
       }
-      // 兼容占位符丢失的旧状态：回退到桌面面板容器。
+      // 兼容占位符丢失的旧状态：恢复原显示状态后回退到桌面面板容器。
+      if (origin) {
+        panel.style.display = origin.display;
+        delete _dbmPanelOrig[panelId];
+      }
       var ov = document.getElementById('dbOverlay');
       var dbPanel = ov && ov.querySelector('.db-panel');
       if (dbPanel) dbPanel.appendChild(panel);
