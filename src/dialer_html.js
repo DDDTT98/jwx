@@ -3102,13 +3102,14 @@
     <!-- Action Toolbar -->
     <div class="crm-toolbar">
       <button class="crm-tool-btn green" id="crmAddCustBtn">添加客户</button>
-      <button class="crm-tool-btn orange" id="crmAddToDialBtn">添加到待拨打</button>
+      <button class="crm-tool-btn orange" id="crmAddToDialBtn">添加到列表</button>
       <button class="crm-tool-btn" id="crmMovePublicBtn">转入公海</button>
       <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">批量删除</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
       <button class="crm-tool-btn orange" id="crmReassignToggle" type="button" style="display:none;">分配数据</button>
+      <select id="dbImportBatchView" aria-label="按导入批次查看" title="按导入批次筛选客户" style="height:30px;max-width:190px;padding:0 9px;border:1px solid var(--card-border);border-radius:8px;background:var(--bg-app);color:var(--text-main);font-size:.76rem;font-weight:700;"><option value="">导入批次：全部</option></select>
       <div id="crmReassignGroup" style="display:none; flex:1 1 100%; flex-direction:column; align-items:stretch; gap:8px; padding:10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
           <span id="crmReassignTitle" style="font-size:0.75rem;font-weight:700;color:var(--text-soft);">分配给所有小组和组员</span>
@@ -3358,7 +3359,7 @@
   <div class="dbm-list" id="dbmList"></div>
   <div class="dbm-actionbar" id="dbmActionBar">
     <span class="dbm-actionbar-count" id="dbmActionBarCount">已选 0</span>
-    <button class="dbm-action-btn green" id="dbmAddToDialBtn">添加到待拨打</button>
+    <button class="dbm-action-btn green" id="dbmAddToDialBtn">添加到列表</button>
     <button class="dbm-action-btn" id="dbmMovePublicBtn">转公海</button>
     <button class="dbm-action-btn red" id="dbmBatchDeleteBtn">批量删除</button>
   </div>
@@ -9052,6 +9053,11 @@ function updateAutoDialBtn() {
         }
       }
 
+      // 1.5 导入批次下拉筛选
+      var batchView = document.getElementById('dbImportBatchView');
+      var selectedBatch = batchView ? batchView.value : '';
+      if (selectedBatch) filtered = filtered.filter(function(c) { return String(c.batch_label || '') === selectedBatch; });
+
       // 2. 多维度搜索表单筛选 (AND 关系)
       // 单一模糊关联搜索：单位、客户、号码、备注/自定义字段、导入批次任一命中即可。
       var fuzzyF = document.getElementById('dbFuzzySearch') ? document.getElementById('dbFuzzySearch').value.trim().toLowerCase() : '';
@@ -9426,7 +9432,8 @@ function updateAutoDialBtn() {
       var companyInput = document.getElementById('dbCatFilter');
       var companyList = document.getElementById('dbCompanyNameOptions');
       var batchS = document.getElementById('dbBatchFilter');
-      if (!companyInput && !batchS) return;
+      var batchView = document.getElementById('dbImportBatchView');
+      if (!companyInput && !batchS && !batchView) return;
 
       // 从当前账户已加载的在库客户中提取去重单位名称，供 datalist 自动补全。
       var companies = {};
@@ -9458,7 +9465,28 @@ function updateAutoDialBtn() {
         });
         batchS.innerHTML = bh;
       }
+      if (batchView) {
+        var selected = batchView.value;
+        var options = '<option value="">导入批次：全部</option>';
+        Object.keys(bs).sort(function(a,b) { return a.localeCompare(b, 'zh-CN', {numeric:true}); }).forEach(function(k) {
+          if (isAutoBatchLabel(k)) return;
+          options += '<option value="' + esc(k) + '"' + (k === selected ? ' selected' : '') + '>' + esc(k) + '</option>';
+        });
+        batchView.innerHTML = options;
+      }
     }
+
+    // 导入批次下拉：切换后仅查看对应批次，选择“全部”恢复完整列表。
+    (function wireImportBatchView() {
+      var batchView = document.getElementById('dbImportBatchView');
+      if (batchView && !batchView._wired) {
+        batchView._wired = true;
+        batchView.addEventListener('change', function() {
+          DB.page = 1;
+          dbRenderCached();
+        });
+      }
+    })();
 
     function dbSort(col){
       if (DB.sortBy === col) {
