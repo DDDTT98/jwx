@@ -985,6 +985,14 @@ export function createSupabaseClient(env) {
     var currentRows = await currentResp.json();
     var previous = currentRows && currentRows[0] ? currentRows[0].last_operation : null;
     var merged = Object.assign({}, entry);
+    // 保留首次上传账户作为“前操作员”，后续拨打/跟进不能覆盖来源账户。
+    if (previous) {
+      if (previous.previous_operator_account_id) merged.previous_operator_account_id = previous.previous_operator_account_id;
+      if (previous.previous_operator_account_name) merged.previous_operator_account_name = previous.previous_operator_account_name;
+      // 兼容旧记录：首次操作记录中的 operator 字段可作为来源账户。
+      if (!merged.previous_operator_account_id && previous.type === 'add' && previous.operator_account_id) merged.previous_operator_account_id = previous.operator_account_id;
+      if (!merged.previous_operator_account_name && previous.type === 'add' && previous.operator_account_name) merged.previous_operator_account_name = previous.operator_account_name;
+    }
     if (entry.type === 'call_success' || entry.type === 'call_failed') {
       merged.call_result = entry.type;
     } else if (entry.type !== 'dial' && previous && ['call_success', 'call_failed'].indexOf(previous.call_result || previous.type) !== -1) {
