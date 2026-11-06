@@ -2067,27 +2067,24 @@
       <div style="padding:22px 2px;line-height:1.85;color:var(--text-main);">
         <div style="font-size:1rem;font-weight:800;margin-bottom:8px;">开启与关闭有什么区别？</div>
         <div style="padding:15px;border-radius:14px;background:var(--card-bg, rgba(128,128,128,.08));margin-bottom:16px;">
-          <div style="font-weight:800;margin-bottom:6px;">关闭隐私显示（默认）</div>
+          <div style="font-weight:800;margin-bottom:6px;">开启隐私操作</div>
           <ul style="padding-left:21px;margin:0;">
-            <li>客户姓名以「☆」代替，点击星号可单独复制真实姓名。</li>
-            <li>单位名称位置显示更醒目的「复制备注」，点击即可复制客户备注。</li>
-            <li>公积金字段不显示，其他客户备注资料以「☆」代替。</li>
-            <li>隐藏的资料不能通过点击星号复制或打开详情。</li>
+            <li>客户姓名及其他客户资料以「☆」隐藏。</li>
+            <li>单位名称位置显示「复制备注」，点击可复制客户备注。</li>
+            <li>隐藏资料不可通过点击查看或复制。</li>
+            <li>手机号位置显示「添加VX」，点击可复制号码并打开微信。</li>
           </ul>
         </div>
         <div style="padding:15px;border-radius:14px;background:var(--card-bg, rgba(128,128,128,.08));margin-bottom:16px;">
-          <div style="font-weight:800;margin-bottom:6px;">开启隐私显示</div>
-          <div>正常显示客户姓名、单位名称、公积金及备注等客户资料，便于查看和跟进。</div>
+          <div style="font-weight:800;margin-bottom:6px;">关闭隐私操作</div>
+          <div>正常显示客户姓名、单位、公积金及备注等客户资料，方便查看和跟进。</div>
         </div>
-        <div style="font-size:1rem;font-weight:800;margin-bottom:6px;">设置说明</div>
+        <div style="font-size:1rem;font-weight:800;margin-bottom:6px;">自动切换规则</div>
         <ul style="padding-left:21px;margin:0;">
-          <li>自动时段：周一至周六 09:00-12:00、14:00-18:00、19:00-20:00 自动关闭隐私显示，其余时间自动开启。</li>
-          <li>可在当前时段手动切换，手动设置仅在当前时段有效；进入下一个时段后恢复自动规则。</li>
-          <li>设置按当前账号保存在当前设备，不影响其他账号或设备。</li>
-          <li>切换显示状态只改变页面展示，不会删除或修改客户原始资料。</li>
-          <li>手机号位置显示「添加VX」，点击可复制号码并打开微信。</li>
+          <li>周一至周六 09:00-12:00、14:00-18:00、19:00-20:00，自动开启隐私操作。</li>
+          <li>其他时间自动关闭隐私操作。</li>
+          <li>当前时段可手动切换，下一个时段自动恢复自动规则。</li>
         </ul>
-        <div style="margin-top:18px;font-size:.82rem;color:var(--text-light);">提示：隐藏显示是界面层的隐私辅助，不等同于数据权限或防截图保护。</div>
       </div>
       <div style="margin-top:auto;padding:16px 0 22px;">
         <button type="button" id="privacyOperationInfoCloseBottom" style="width:100%;padding:13px;border:0;border-radius:12px;background:var(--accent-wechat);color:#fff;font-size:1rem;font-weight:800;">我知道了</button>
