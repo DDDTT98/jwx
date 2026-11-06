@@ -2017,7 +2017,7 @@
         <div style="padding:15px;border-radius:14px;background:var(--card-bg, rgba(128,128,128,.08));margin-bottom:16px;">
           <div style="font-weight:800;margin-bottom:6px;">关闭隐私显示（默认）</div>
           <ul style="padding-left:21px;margin:0;">
-            <li>客户姓名以「☆」代替。</li>
+            <li>客户姓名以「☆」代替，点击星号可单独复制真实姓名。</li>
             <li>单位名称位置显示更醒目的「复制备注」，点击即可复制客户备注。</li>
             <li>公积金字段不显示，其他客户备注资料以「☆」代替。</li>
             <li>隐藏的资料不能通过点击星号复制或打开详情。</li>
@@ -2032,7 +2032,7 @@
           <li>开关默认关闭。</li>
           <li>设置按当前账号保存在当前设备，不影响其他账号或设备。</li>
           <li>切换显示状态只改变页面展示，不会删除或修改客户原始资料。</li>
-          <li>手机号仍按原有规则脱敏显示。</li>
+          <li>手机号位置显示「添加VX」，点击可复制号码并打开微信。</li>
         </ul>
         <div style="margin-top:18px;font-size:.82rem;color:var(--text-light);">提示：隐藏显示是界面层的隐私辅助，不等同于数据权限或防截图保护。</div>
       </div>
@@ -7096,9 +7096,9 @@
             '<div class="client-card-top">' +
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
-                '<span class="client-card-name-btn" data-name="' + (showClientInfo ? esc(c.name) : '☆') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
+                '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(maskPhone(phoneVal)) + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : '添加VX') + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
@@ -7201,12 +7201,13 @@
         container.querySelectorAll('.client-card-name-btn').forEach(function(b) {
           b.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (!isClientInfoVisible()) return;
             var name = b.dataset.name;
             var idx = parseInt(b.dataset.idx);
 
             var client = importedClients[idx];
-            var copyText = buildCopyText(client) || (' ' + name + ' ');
+            // 隐私模式下星号仍可单独复制真实姓名，不带其他客户资料
+            var copyText = isClientInfoVisible() ? (buildCopyText(client) || name) : name;
+            if (!copyText) return;
             copyTextToClipboard(copyText);
 
             if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
