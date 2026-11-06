@@ -637,44 +637,52 @@
     /* 隐私模式快捷操作统一为无边框、透明底样式，与“复制备注”保持一致 */
     .client-phone-btn.privacy-add-vx {
       min-height: 34px;
-      padding: 0 4px;
-      border-radius: 0;
+      padding: 0 7px;
+      border-radius: 8px;
       background: transparent !important;
       color: #079b50 !important;
       border: 0 !important;
       font-size: 0.82rem;
       font-weight: 800;
       letter-spacing: .02em;
-      box-shadow: none !important;
+      box-shadow: 0 0 0 1px rgba(7,193,96,.10), 0 0 9px rgba(7,193,96,.18) !important;
+      text-shadow: 0 0 7px rgba(7,193,96,.20);
       justify-content: center;
+      transition: box-shadow .2s ease, transform .2s ease, color .2s ease;
     }
     .client-phone-btn.privacy-add-vx:active {
       transform: scale(.96);
       background: transparent !important;
-      box-shadow: none !important;
+      box-shadow: 0 0 0 1px rgba(7,193,96,.18), 0 0 13px rgba(7,193,96,.30) !important;
     }
     .client-phone-btn.privacy-add-vx.copied {
       background: transparent !important;
       color: #e53935 !important;
       border: 0 !important;
-      box-shadow: none !important;
+      box-shadow: 0 0 0 1px rgba(229,57,53,.10), 0 0 9px rgba(229,57,53,.18) !important;
+      text-shadow: 0 0 7px rgba(229,57,53,.18);
       font-weight: 800;
     }
     .xls-card-dial-btn.privacy-dial-icon {
       width: 30px;
       min-width: 30px;
       padding: 0 !important;
-      border-radius: 0;
+      border-radius: 8px;
       background: transparent !important;
       color: #079b50 !important;
       border: 0 !important;
-      box-shadow: none !important;
+      box-shadow: 0 0 0 1px rgba(7,193,96,.10), 0 0 9px rgba(7,193,96,.20) !important;
+      transition: box-shadow .2s ease, transform .2s ease, color .2s ease;
+    }
+    .xls-card-dial-btn.privacy-dial-icon:active {
+      transform: scale(.94);
+      box-shadow: 0 0 0 1px rgba(7,193,96,.20), 0 0 14px rgba(7,193,96,.34) !important;
     }
     .xls-card-dial-btn.privacy-dial-icon.dial-attempted {
       background: transparent !important;
       color: #e53935 !important;
       border: 0 !important;
-      box-shadow: none !important;
+      box-shadow: 0 0 0 1px rgba(229,57,53,.10), 0 0 9px rgba(229,57,53,.20) !important;
     }
     .xls-card-dial-btn.privacy-dial-icon svg {
       width: 16px;
