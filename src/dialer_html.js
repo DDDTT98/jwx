@@ -8877,7 +8877,7 @@ function updateAutoDialBtn() {
       if (ts) { var dt = new Date(ts); if (!isNaN(dt.getTime())) dateText = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0') + ' ' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); }
       var type = op && op.type ? op.type : 'add';
       var method = (type === 'dial' || type === 'call_success' || type === 'call_failed') ? '拨打' : '添加';
-      var accountName = op && (op.operator_account_name || op.account_name) ? (op.operator_account_name || op.account_name) : (c && c.owner_account_name ? c.owner_account_name : '主账户');
+      var accountName = op && (op.previous_operator_account_name || op.operator_account_name || op.account_name) ? (op.previous_operator_account_name || op.operator_account_name || op.account_name) : (c && c.owner_account_name ? c.owner_account_name : '主账户');
       return { time: dateText, method: method, account: accountName };
     }
 
@@ -8898,7 +8898,7 @@ function updateAutoDialBtn() {
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
         '<th style="min-width:145px;cursor:default;">操作时间</th>' +
         '<th style="width:85px;cursor:default;">操作方式</th>' +
-        '<th style="min-width:110px;cursor:default;">操作账户名称</th>' +
+        '<th style="min-width:110px;cursor:default;">前操作员</th>' +
         '<th style="width: 100px; cursor: default;">操作</th>';
       headerRow.innerHTML = html;
       dbWireSortHeaders();
@@ -10099,7 +10099,7 @@ function updateAutoDialBtn() {
          '<th style="width: 100px; cursor: default;">分类</th>' +
          '<th style="min-width:145px;cursor:default;">操作时间</th>' +
          '<th style="width:85px;cursor:default;">操作方式</th>' +
-         '<th style="min-width:110px;cursor:default;">操作账户名称</th>' +
+         '<th style="min-width:110px;cursor:default;">前操作员</th>' +
          '<th style="width: 100px; cursor: default;">操作</th>' +
         '</tr>';
 
