@@ -83,6 +83,7 @@
     }
     .container {
       flex: 1;
+      min-height: 0;
       width: 100%;
       max-width: none;
       margin: 0;
@@ -94,7 +95,9 @@
     .container > * { margin-top: 0; margin-bottom: 0; }
     .cards-content {
       flex: 1;
+      min-height: 0;
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 0;
       margin-top: -2px;
       position: relative;
@@ -448,7 +451,9 @@
     /* Cards Container — Table on desktop, cards on mobile */
     .cards-content {
       flex: 1;
+      min-height: 0;
       overflow: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 0;
     }
     /* CRM Table */
