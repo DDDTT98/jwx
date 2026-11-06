@@ -3094,7 +3094,6 @@
       </div>
       <div class="crm-search-actions">
         <button class="crm-btn-search" id="crmSearchBtn">搜索</button>
-        <button class="crm-btn-reset" id="crmResetBtn">重置</button>
         <input type="text" id="dbSearch" style="display:none;" placeholder="隐式兼容搜索">
       </div>
     </div>
@@ -10831,47 +10830,6 @@ function updateAutoDialBtn() {
           dbFetch();
         };
       }
-      var resetBtn = document.getElementById('crmResetBtn');
-      if (resetBtn) {
-        resetBtn.onclick = function() {
-          var nameInp = document.getElementById('dbNameSearch');
-          var phoneInp = document.getElementById('dbPhoneSearch');
-          var noteInp = document.getElementById('dbNoteSearch');
-          var fuzzyInp = document.getElementById('dbFuzzySearch');
-          var catSel = document.getElementById('dbCatFilter');
-          var batchSel = document.getElementById('dbBatchFilter');
-
-          if (nameInp) nameInp.value = '';
-          if (phoneInp) phoneInp.value = '';
-          if (noteInp) noteInp.value = '';
-          if (fuzzyInp) fuzzyInp.value = '';
-          if (catSel) catSel.value = '';
-          if (batchSel) batchSel.value = '';
-          var dbSearchEl = document.getElementById('dbSearch');
-          if (dbSearchEl) dbSearchEl.value = '';
-
-          DB.page = 1;
-          dbFetch();
-        };
-      }
-
-      var searchInputs = [
-        document.getElementById('dbNameSearch'),
-        document.getElementById('dbPhoneSearch'),
-        document.getElementById('dbNoteSearch')
-      ];
-      searchInputs.forEach(function(inp) {
-        if (inp) {
-          inp.onkeydown = function(e) {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              DB.page = 1;
-              dbFetch();
-            }
-          };
-        }
-      });
-
       // Toolbar action: 添加客户
       var addCustBtn = document.getElementById('crmAddCustBtn');
       if (addCustBtn) {
