@@ -573,12 +573,13 @@ export function createSupabaseClient(env) {
     if (acctId) {
       try {
         var existingMobiles = {};
+        var existingCategories = {};
         // Query in chunks (Supabase in filter max ~100 items)
         var allMobiles = Object.keys(uniqueMap);
         for (var mi = 0; mi < allMobiles.length; mi += 100) {
           var mobileChunk = allMobiles.slice(mi, mi + 100);
           var inFilter = 'mobile=in.(' + mobileChunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
-          var checkUrl = baseUrl + '/rest/v1/customers?select=mobile,account_id&' + inFilter;
+          var checkUrl = baseUrl + '/rest/v1/customers?select=mobile,account_id,category&' + inFilter;
           var checkResp = await fetch(checkUrl, { headers: headers() });
           if (!checkResp.ok) {
             var checkError = await checkResp.text();
@@ -589,6 +590,7 @@ export function createSupabaseClient(env) {
             if (Array.isArray(checkData)) {
               for (var ci = 0; ci < checkData.length; ci++) {
                 existingMobiles[checkData[ci].mobile] = checkData[ci].account_id;
+                existingCategories[checkData[ci].mobile] = checkData[ci].category || '';
               }
             }
           }
@@ -603,8 +605,8 @@ export function createSupabaseClient(env) {
             // 数据库此前不存在：计入新增并通知主账号
             safeRows.push(uniqueRows[ri]);
             newCustomers.push(uniqueRows[ri]);
-          } else if (existingOwner === null) {
-            // 已在公海，禁止任何账户重新添加
+          } else if (existingOwner === null || existingCategories[rowMobile] === '公海客户') {
+            // 已在公海，禁止任何账户重新添加（公海归属主账户后仍按分类识别）
             skippedForeignCount++;
             console.warn('[supabase] Skipping mobile ' + rowMobile.slice(0, 3) + '**** — in public pool (blocked)');
           } else if (existingOwner !== acctId) {
