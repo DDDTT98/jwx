@@ -2374,6 +2374,97 @@
       box-shadow: none !important;
       text-shadow: none !important;
     }
+    /* ===== 深色模式：数据库看板统一低亮度配色 ===== */
+    body.dark-mode #dbOverlay .db-panel,
+    body.dark-mode .dbm-overlay {
+      background: #171b22 !important; color: #d4dae3; border-color: #303743 !important;
+    }
+    body.dark-mode #dbOverlay .crm-tabs,
+    body.dark-mode #dbOverlay .crm-toolbar,
+    body.dark-mode #dbOverlay .crm-badge-bar,
+    body.dark-mode #dbOverlay .crm-pager,
+    body.dark-mode .dbm-topbar,
+    body.dark-mode .dbm-searchbar,
+    body.dark-mode .dbm-filterbar,
+    body.dark-mode .dbm-actionbar,
+    body.dark-mode .dbm-bottomnav,
+    body.dark-mode .dbm-mgr-tabs {
+      background: #202630 !important; border-color: #303946 !important;
+    }
+    body.dark-mode #dbOverlay .crm-search-card,
+    body.dark-mode #dbOverlay .crm-search-grid,
+    body.dark-mode .dbm-overlay #dbmMgrBody .dbm-mgr-inner > div {
+      background: #242b35 !important; border-color: #343e4b !important; color: #d4dae3;
+    }
+    body.dark-mode #dbOverlay .crm-table,
+    body.dark-mode .dbm-list { background: #1b212a !important; }
+    body.dark-mode #dbOverlay .crm-table thead th,
+    body.dark-mode .dbm-list .crm-table thead th {
+      background: #252d38 !important; color: #aeb8c6 !important; border-color: #343e4b !important;
+    }
+    body.dark-mode #dbOverlay .crm-table td,
+    body.dark-mode .dbm-list .crm-table td {
+      background: transparent !important; color: #c5ced9 !important; border-color: #2c3541 !important;
+    }
+    body.dark-mode #dbOverlay .crm-table tbody tr:nth-child(even) td,
+    body.dark-mode .dbm-list .crm-table tbody tr:nth-child(even) td { background: rgba(255,255,255,.018) !important; }
+    body.dark-mode #dbOverlay .crm-table tbody tr:hover td,
+    body.dark-mode .dbm-list .crm-table tbody tr:hover td { background: rgba(133,157,190,.075) !important; }
+    body.dark-mode #dbOverlay .crm-tab,
+    body.dark-mode .dbm-nav-btn { color: #9aa6b5 !important; }
+    body.dark-mode #dbOverlay .crm-tab.active,
+    body.dark-mode .dbm-nav-btn.active { color: #a8b9d0 !important; }
+    body.dark-mode #dbOverlay .crm-tab.active::after { background: #879bb8 !important; }
+    body.dark-mode #dbOverlay .crm-tool-btn,
+    body.dark-mode .dbm-icon-btn,
+    body.dark-mode .dbm-mgr-tab,
+    body.dark-mode .dbm-overlay input,
+    body.dark-mode .dbm-overlay select,
+    body.dark-mode .dbm-overlay textarea,
+    body.dark-mode #dbOverlay .crm-select-page {
+      background-color: #2a323e !important; border-color: #3a4553 !important; color: #c7d0dc !important;
+    }
+    body.dark-mode #dbOverlay .crm-tool-btn.primary,
+    body.dark-mode .dbm-action-btn {
+      background: #35404e !important; color: #d0d8e2 !important; border: 1px solid #465363 !important; box-shadow: none !important;
+    }
+    body.dark-mode #dbOverlay .crm-tool-btn.green,
+    body.dark-mode .dbm-action-btn.green { background: #293a34 !important; color: #a4c5b2 !important; border-color: #3b5148 !important; }
+    body.dark-mode #dbOverlay .crm-tool-btn.blue,
+    body.dark-mode .dbm-action-btn.blue,
+    body.dark-mode .dbm-mgr-tab.active { background: #2c3748 !important; color: #aebfd6 !important; border-color: #414f63 !important; }
+    body.dark-mode #dbOverlay .crm-tool-btn.orange,
+    body.dark-mode .dbm-action-btn.orange { background: #40372c !important; color: #cbb391 !important; border-color: #5a4a38 !important; }
+    body.dark-mode #dbOverlay .crm-tool-btn.red,
+    body.dark-mode .dbm-action-btn.red { background: #402f34 !important; color: #c99da3 !important; border-color: #594047 !important; }
+    body.dark-mode .dbm-actionbar-count { color: #aebfd6 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag,
+    body.dark-mode .dbm-list .cust-cat-tag {
+      background: #303946 !important; color: #c1cad6 !important; border: 1px solid #414c5b !important; box-shadow: none !important;
+    }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-潜在客户,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-潜在客户 { background:#293746 !important; color:#a9bfd5 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-意向客户,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-意向客户 { background:#40372d !important; color:#cbb594 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-已成交,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-已成交 { background:#293a34 !important; color:#a6c6b3 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-无效号码,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-无效号码 { background:#402f34 !important; color:#c99fa5 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-待跟进,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-待跟进 { background:#383344 !important; color:#bcb0d0 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-老客户,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-老客户 { background:#293a3e !important; color:#a8c3c8 !important; }
+    body.dark-mode #dbOverlay .cust-cat-tag.cat-同行,
+    body.dark-mode .dbm-list .cust-cat-tag.cat-同行 { background:#3c382e !important; color:#c6b98f !important; }
+    body.dark-mode #dbOverlay .crm-badge-new,
+    body.dark-mode .dbm-list .crm-badge-new { background:#2b3948 !important; color:#a9bfd5 !important; }
+    body.dark-mode #dbOverlay .crm-badge-old,
+    body.dark-mode .dbm-list .crm-badge-old { background:#303640 !important; color:#aeb7c3 !important; }
+    body.dark-mode #dbOverlay .crm-avatar,
+    body.dark-mode .dbm-list .crm-avatar { filter:saturate(.48) brightness(.78); }
+    body.dark-mode #dbOverlay .crm-pager-left,
+    body.dark-mode #dbOverlay .db-empty,
+    body.dark-mode .dbm-empty { color:#929eae !important; }
   </style>
 </head>
 <body>
