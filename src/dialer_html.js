@@ -3006,8 +3006,6 @@
     <!-- CRM Top Tabs -->
     <div class="crm-tabs">
       <div class="crm-tab active" data-tab="all">首页</div>
-      <div class="crm-tab" data-tab="意向客户">意向客户 <span class="crm-tab-close">关闭</span></div>
-      <div class="crm-tab" data-tab="线索池">线索池 <span class="crm-tab-close">关闭</span></div>
       <div class="crm-tab" data-tab="公海客户">公海客户 <span class="crm-tab-close">关闭</span></div>
       <div class="crm-tab" data-tab="accountMgr">账户管理</div>
       <div class="crm-tab" data-tab="backupMgr">数据备份</div>
