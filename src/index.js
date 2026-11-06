@@ -576,7 +576,7 @@ export default {
         var visible=aa.filter(function(a){return role==='master' || (role==='manager' && (a.account_id===caller.account_id || a.parent_account_id===caller.account_id)) || (role==='member' && a.account_id===caller.account_id);});
         var root=aa.find(function(a){return a.is_master!==false;});
         return new Response(JSON.stringify({accounts:visible.map(function(a){return {
-          account_id:a.account_id,account_name:a.account_name||'',real_name:a.real_name||'',label:a.label||'',is_master:a.is_master!==false,
+          account_id:a.account_id,account_name:a.account_name||'',real_name:a.real_name||'',label:a.label||'',group_name:a.group_name||'',is_master:a.is_master!==false,
           role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),
           parent_account_id:a.parent_account_id||(a.is_master===false?(root||{}).account_id||'':''),
           active:a.active!==false,created_at:a.created_at
@@ -591,10 +591,13 @@ export default {
         if(!caller||caller.active===false)throw new Error('账户不可用');
         var cr=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
         if(cr==='member')throw new Error('普通子账号无权创建账户');
-        var body=await request.json(),name=String(body.account_name||'').trim(),realName=String(body.real_name||'').trim(),pin=String(body.pin||'').trim(),label=String(body.label||name).trim();
+        var body=await request.json(),name=String(body.account_name||'').trim(),realName=String(body.real_name||'').trim(),pin=String(body.pin||'').trim(),label=String(body.label||name).trim(),groupName=String(body.group_name||'').trim();
         var requestedRole=String(body.role||'member');
         if(requestedRole!=='member'&&requestedRole!=='manager')throw new Error('账号类型无效');
-        if(requestedRole==='manager'&&cr!=='master')throw new Error('只有主账号可以创建小组长账号');
+        if(requestedRole==='manager'&&cr!=='master')throw new Error('只有主账号可以新建小组');
+        if(requestedRole==='manager'&&!groupName)throw new Error('请填写小组名称');
+        if(groupName.length>30)throw new Error('小组名称不能超过30个字');
+        if(requestedRole==='manager'&&aa.some(function(a){return a.role==='manager'&&String(a.group_name||a.account_name||'').toLowerCase()===groupName.toLowerCase();}))throw new Error('小组名称已存在');
         var role=requestedRole;
         if(!name)throw new Error('请输入账户名');
         if(name.length>20)throw new Error('账户名不能超过20个字');
@@ -605,9 +608,9 @@ export default {
         var parent=role==='manager'?caller.account_id:(cr==='manager'?caller.account_id:String(body.parent_account_id||caller.account_id));
         if(parent!==caller.account_id&&!aa.some(function(a){return a.account_id===parent&&a.is_master===false&&a.role==='manager'&&a.active!==false;}))throw new Error('指定的小组长不存在或已停用');
         var id='sub_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
-        aa.push({account_id:id,account_name:name,real_name:realName,pin_hash:dialerHashPin(pin),label:label,is_master:false,role:role,parent_account_id:parent,active:true,created_at:new Date().toISOString()});
+        aa.push({account_id:id,account_name:name,real_name:realName,pin_hash:dialerHashPin(pin),label:label,group_name:role==='manager'?groupName:'',is_master:false,role:role,parent_account_id:parent,active:true,created_at:new Date().toISOString()});
         await dialerSaveAccounts(env,aa);
-        return new Response(JSON.stringify({success:true,account_id:id,label:label,role:role,parent_account_id:parent}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        return new Response(JSON.stringify({success:true,account_id:id,label:label,group_name:role==='manager'?groupName:'',role:role,parent_account_id:parent}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
     if (path === '/api/dialer/auth/accounts' && request.method === 'PATCH') {
@@ -625,7 +628,7 @@ export default {
         if(body.real_name!==undefined){var rn=String(body.real_name||'').trim();if(!rn)throw new Error('姓名不能为空');if(rn.length>20)throw new Error('姓名不能超过20个字');target.real_name=rn;}
         if(cr==='master'&&body.parent_account_id!==undefined&&target.role!=='manager'){
           var p=String(body.parent_account_id||caller.account_id);
-          if(p!==caller.account_id&&!aa.some(function(a){return a.account_id===p&&a.role==='manager'&&a.active!==false;}))throw new Error('目标小组长无效');
+          if(p!==caller.account_id&&!aa.some(function(a){return a.account_id===p&&a.is_master===false&&a.role==='manager'&&a.active!==false;}))throw new Error('目标小组不存在或组长已停用');
           target.parent_account_id=p;
         }
         await dialerSaveAccounts(env,aa);
@@ -704,7 +707,7 @@ export default {
         if(!caller) throw new Error('账户不存在');
         var role=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
         var visible=accList.filter(function(a){return role==='master'||(role==='manager'&&(a.account_id===caller.account_id||a.parent_account_id===caller.account_id));});
-        return new Response(JSON.stringify({success:true,accounts:visible.map(function(a){return {account_id:a.account_id,account_name:a.account_name,real_name:a.real_name||'',label:a.label,is_master:a.is_master!==false,role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),active:a.active!==false};})}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+        return new Response(JSON.stringify({success:true,accounts:visible.map(function(a){return {account_id:a.account_id,account_name:a.account_name,real_name:a.real_name||'',label:a.label,group_name:a.group_name||'',is_master:a.is_master!==false,role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),active:a.active!==false};})}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e){return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});}
     }
 
