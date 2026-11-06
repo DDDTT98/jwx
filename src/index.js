@@ -2351,7 +2351,56 @@ export default {
       }
     }
 
-    // 主账号/小组长按批次和成员手动填写数量分配客户
+
+    // Submit batch-type changes as a durable server-side job.
+    if (path === '/api/dialer/background-jobs/type' && request.method === 'POST') {
+      try {
+        var auth = request.headers.get('Authorization') || '';
+        var token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+        var sess = await dialerValidateSession(env, token);
+        if (!sess) throw new Error('未登录');
+        var accountsForType = await dialerGetAccounts(env);
+        var callerForType = accountsForType.find(function(a){ return a.account_id === sess.account_id; });
+        if (!callerForType) throw new Error('账户不存在');
+        var roleForType = callerForType.is_master !== false ? 'master' : (callerForType.role === 'manager' ? 'manager' : 'member');
+        var typeBody = await request.json();
+        var typeName = String(typeBody.type_name || '').trim();
+        var typeMobiles = Array.isArray(typeBody.mobiles) ? Array.from(new Set(typeBody.mobiles.map(function(m){return String(m||'').trim();}).filter(Boolean))) : [];
+        if (!typeName || typeName.length > 40) throw new Error('类型名称不能为空且不能超过 40 个字符');
+        if (!typeMobiles.length || typeMobiles.length > 5000) throw new Error('请选择 1 至 5000 位客户');
+        var typeView = request.headers.get('X-View-Account-Id') || '';
+        var typeSource = roleForType === 'master' && typeView ? typeView : (roleForType === 'manager' ? (typeView || callerForType.account_id) : callerForType.account_id);
+        if (roleForType === 'manager' && typeSource !== callerForType.account_id && !accountsForType.some(function(a){return a.account_id===typeSource && a.parent_account_id===callerForType.account_id && a.is_master===false;})) throw new Error('只能修改本小组客户');
+        if (roleForType === 'member' && typeSource !== callerForType.account_id) throw new Error('无权修改其他账户客户');
+        var typeJob = await createCrmBackgroundJob(env, { kind:'batch_type', type_name:typeName, mobiles:typeMobiles, total:typeMobiles.length, cursor:0, source_account_id:typeSource, created_by:sess.account_id });
+        return new Response(JSON.stringify({success:true, job_id:typeJob.id, total:typeJob.total, status:typeJob.status}), {headers:{'Content-Type':'application/json; charset=UTF-8','Access-Control-Allow-Origin':'*'}});
+      } catch(e) {
+        return new Response(JSON.stringify({success:false,error:e.message}), {status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json; charset=UTF-8','Access-Control-Allow-Origin':'*'}});
+      }
+    }
+
+    // Read persistent CRM background-job progress after page reload/reopen.
+    if (path.indexOf('/api/dialer/background-jobs/') === 0 && request.method === 'GET') {
+      try {
+        var jobAuth = request.headers.get('Authorization') || '';
+        var jobToken = jobAuth.startsWith('Bearer ') ? jobAuth.slice(7) : '';
+        var jobSession = await dialerValidateSession(env, jobToken);
+        if (!jobSession) throw new Error('未登录');
+        var jobId = path.slice('/api/dialer/background-jobs/'.length);
+        if (!/^crm_[a-z0-9_]+$/i.test(jobId)) throw new Error('任务编号无效');
+        var jobRecord = await env.DATA_KV.get('dialer:bgjob:' + jobId, 'json');
+        if (!jobRecord) throw new Error('任务不存在或已过期');
+        var jobAccounts = await dialerGetAccounts(env);
+        var jobCaller = jobAccounts.find(function(a){return a.account_id===jobSession.account_id;});
+        var jobIsMaster = jobCaller && jobCaller.is_master !== false;
+        if (jobRecord.created_by !== jobSession.account_id && !jobIsMaster) throw new Error('无权查看此任务');
+        return new Response(JSON.stringify({success:true,job:jobRecord}), {headers:{'Content-Type':'application/json; charset=UTF-8','Access-Control-Allow-Origin':'*'}});
+      } catch(e) {
+        return new Response(JSON.stringify({success:false,error:e.message}), {status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json; charset=UTF-8','Access-Control-Allow-Origin':'*'}});
+      }
+    }
+
+    // Submit team allocation as a durable background job; customer ownership changes in scheduled chunks.
     if (path === '/api/dialer/customers/reassign' && request.method === 'POST') {
       try {
         var authHeader = request.headers.get('Authorization') || '';
@@ -2367,7 +2416,6 @@ export default {
         var sourceAccountId = _dialerAccountId;
         if (callerRole === 'manager' && viewHeader && viewHeader !== callerAccount.account_id && !allAccounts.some(function(a){return a.account_id===viewHeader && a.parent_account_id===callerAccount.account_id;})) throw new Error('只能分配本小组客户');
         if (callerRole === 'master' && viewHeader) sourceAccountId = viewHeader;
-
         var body = await request.json();
         var batchLabel = String(body.batch_label || '').trim();
         var mode = body.mode === 'equal' ? 'equal' : 'manual';
@@ -2376,11 +2424,9 @@ export default {
         if (!requested.length) throw new Error('请至少选择一位接收成员');
         var allocationMap = {}, totalRequested = 0;
         requested.forEach(function(item) {
-          var id = String(item.account_id || '');
-          var count = Number(item.count);
+          var id = String(item.account_id || ''), count = Number(item.count);
           if (!id || !Number.isSafeInteger(count) || count <= 0 || allocationMap[id] !== undefined) throw new Error('成员分配数量无效');
-          allocationMap[id] = count;
-          totalRequested += count;
+          allocationMap[id] = count; totalRequested += count;
         });
         var targetIds = Object.keys(allocationMap);
         var targets = allAccounts.filter(function(a) {
@@ -2390,63 +2436,32 @@ export default {
         });
         if (targets.length !== targetIds.length) throw new Error(callerRole === 'manager' ? '目标必须是本小组启用的普通组员' : '目标账号无效或已停用');
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
-
-        var hdr = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
-        var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
-        var batchFilter = '&batch_label=eq.' + encodeURIComponent(batchLabel);
         if (mode === 'manual' && (!Number.isSafeInteger(totalRequested) || totalRequested <= 0 || totalRequested > 5000)) throw new Error('本次分配总数必须在 1 至 5000 条之间');
+        var hdr = { apikey: env.SUPABASE_KEY, Authorization: 'Bearer ' + env.SUPABASE_KEY };
+        var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
         var readLimit = mode === 'equal' ? 5001 : totalRequested;
-        var readResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&order=created_at.asc,mobile.asc&limit=' + readLimit + sourceFilter + batchFilter, { headers: hdr });
-        if (!readResp.ok) throw new Error('读取当前批次失败：' + (await readResp.text()).slice(0, 180));
+        var readResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&order=created_at.asc,mobile.asc&limit=' + readLimit + sourceFilter + '&batch_label=eq.' + encodeURIComponent(batchLabel), {headers:hdr});
+        if (!readResp.ok) throw new Error('读取当前批次失败：' + (await readResp.text()).slice(0,180));
         var batchRows = await readResp.json();
         if (!Array.isArray(batchRows) || !batchRows.length) throw new Error('当前批次没有可分配的剩余客户');
         if (mode === 'equal') {
           totalRequested = batchRows.length;
           if (totalRequested > 5000) throw new Error('当前批次超过 5000 条，请使用手动分配');
-          var eachCount = Math.floor(totalRequested / targets.length);
-          var remainder = totalRequested % targets.length;
-          targets.forEach(function(account, index) { allocationMap[account.account_id] = eachCount + (index < remainder ? 1 : 0); });
-        } else if (batchRows.length < totalRequested) {
-          throw new Error('当前批次剩余客户不足：需要 ' + totalRequested + ' 条，实际仅有 ' + batchRows.length + ' 条');
-        }
-        var mobiles = batchRows.slice(0, totalRequested).map(function(row) { return row.mobile; }).filter(Boolean);
+          var eachCount = Math.floor(totalRequested / targets.length), remainder = totalRequested % targets.length;
+          targets.forEach(function(a, n){allocationMap[a.account_id]=eachCount+(n<remainder?1:0);});
+        } else if (batchRows.length < totalRequested) throw new Error('当前批次剩余客户不足：需要 '+totalRequested+' 条，实际仅有 '+batchRows.length+' 条');
+        var mobiles = batchRows.slice(0,totalRequested).map(function(r){return r.mobile;}).filter(Boolean);
         if (mobiles.length !== totalRequested) throw new Error('批次客户数据异常，请刷新后重试');
-
-        var allocations = [], cursor = 0;
-        targets.forEach(function(account) {
-          var count = allocationMap[account.account_id] || 0;
-          if (count > 0) {
-            allocations.push({ account: account, mobiles: mobiles.slice(cursor, cursor + count) });
-            cursor += count;
-          }
+        var groups=[], cursor=0, summary=[];
+        targets.forEach(function(account){
+          var count=allocationMap[account.account_id]||0;
+          if(count>0){groups.push({account_id:account.account_id,mobiles:mobiles.slice(cursor,cursor+count)});summary.push({account_name:account.real_name||account.account_name||account.label||account.account_id,count:count});cursor+=count;}
         });
-        if (cursor !== totalRequested) throw new Error('分配数量计算异常，请刷新后重试');
-        var updatedTotal = 0, allocationSummary = [];
-        for (var ai = 0; ai < allocations.length; ai++) {
-          var allocation = allocations[ai];
-          for (var bi = 0; bi < allocation.mobiles.length; bi += 200) {
-            var patchChunk = allocation.mobiles.slice(bi, bi + 200);
-            var patchFilter = patchChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-            var sourcePatchFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
-            var patchResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')' + sourcePatchFilter + batchFilter, {
-              method: 'PATCH',
-              headers: Object.assign({}, hdr, { 'Content-Type': 'application/json', 'Prefer': 'return=representation' }),
-              body: JSON.stringify({ account_id: allocation.account.account_id, pulled_at: null })
-            });
-            if (!patchResp.ok) throw new Error('分配给 ' + (allocation.account.real_name || allocation.account.account_name || '组员') + ' 失败：' + (await patchResp.text()).slice(0, 180));
-            var changed = await patchResp.json();
-            updatedTotal += Array.isArray(changed) ? changed.length : 0;
-          }
-          allocationSummary.push({ account_name: allocation.account.real_name || allocation.account.account_name || allocation.account.label || allocation.account.account_id, count: allocation.mobiles.length });
-        }
-        return new Response(JSON.stringify({ success: true, updated: updatedTotal, batch_label: batchLabel, allocations: allocationSummary }), {
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: e.message }), {
-          status: e.message === '未登录' ? 401 : 400,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
-        });
+        if(cursor!==totalRequested) throw new Error('分配数量计算异常，请刷新后重试');
+        var job = await createCrmBackgroundJob(env,{kind:'reassign',batch_label:batchLabel,source_account_id:(callerRole==='manager'||viewHeader)?sourceAccountId:'',allocations:groups,total:totalRequested,processed:0,succeeded:0,failed:0,group_cursor:0,group_offset:0,created_by:session.account_id,allocation_summary:summary});
+        return new Response(JSON.stringify({success:true,job_id:job.id,total:job.total,status:job.status,allocations:summary}),{headers:{'Content-Type':'application/json; charset=UTF-8','Access-Control-Allow-Origin':'*'}});
+      } catch(e) {
+        return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json; charset=UTF-8','Access-Control-Allow-Origin':'*'}});
       }
     }
 
@@ -3793,6 +3808,7 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
   async scheduled(event, env, ctx) {
+    try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
     if (env.SUPABASE_URL && env.SUPABASE_KEY) {
       const workerEnv = Object.create(env);
       workerEnv.DATA_KV = createSupabaseKV(env);
