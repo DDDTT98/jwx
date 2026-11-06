@@ -12444,7 +12444,7 @@ function updateAutoDialBtn() {
       var aid = getSessionAccountId();
       if (token && aid) {
         // Have session — verify, then show lock screen
-        fetch('/api/dialer/auth/accounts')
+        fetch('/api/dialer/auth/accounts',{headers:{'Authorization':'Bearer '+token}})
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.accounts) {
