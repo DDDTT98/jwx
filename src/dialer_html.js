@@ -1993,6 +1993,43 @@
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
+  <!-- 隐私操作功能介绍：全屏弹窗 -->
+  <div id="privacyOperationInfoOverlay" style="display:none;position:fixed;inset:0;z-index:100000;background:var(--bg-main, #fff);padding:env(safe-area-inset-top) 18px env(safe-area-inset-bottom);overflow-y:auto;box-sizing:border-box;">
+    <div style="max-width:680px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid var(--border-color, #e5e7eb);">
+        <strong style="font-size:1.15rem;color:var(--text-main);">隐私操作 · 功能介绍</strong>
+        <button type="button" id="privacyOperationInfoClose" style="border:0;border-radius:10px;padding:9px 15px;background:var(--btn-bg);color:var(--text-main);font-weight:700;">关闭</button>
+      </div>
+      <div style="padding:22px 2px;line-height:1.85;color:var(--text-main);">
+        <div style="font-size:1rem;font-weight:800;margin-bottom:8px;">开启与关闭有什么区别？</div>
+        <div style="padding:15px;border-radius:14px;background:var(--card-bg, rgba(128,128,128,.08));margin-bottom:16px;">
+          <div style="font-weight:800;margin-bottom:6px;">关闭隐私显示（默认）</div>
+          <ul style="padding-left:21px;margin:0;">
+            <li>客户姓名以「☆」代替。</li>
+            <li>单位名称位置显示更醒目的「复制备注」，点击即可复制客户备注。</li>
+            <li>公积金字段不显示，其他客户备注资料以「☆」代替。</li>
+            <li>隐藏的资料不能通过点击星号复制或打开详情。</li>
+          </ul>
+        </div>
+        <div style="padding:15px;border-radius:14px;background:var(--card-bg, rgba(128,128,128,.08));margin-bottom:16px;">
+          <div style="font-weight:800;margin-bottom:6px;">开启隐私显示</div>
+          <div>正常显示客户姓名、单位名称、公积金及备注等客户资料，便于查看和跟进。</div>
+        </div>
+        <div style="font-size:1rem;font-weight:800;margin-bottom:6px;">设置说明</div>
+        <ul style="padding-left:21px;margin:0;">
+          <li>开关默认关闭。</li>
+          <li>设置按当前账号保存在当前设备，不影响其他账号或设备。</li>
+          <li>切换显示状态只改变页面展示，不会删除或修改客户原始资料。</li>
+          <li>手机号仍按原有规则脱敏显示。</li>
+        </ul>
+        <div style="margin-top:18px;font-size:.82rem;color:var(--text-light);">提示：隐藏显示是界面层的隐私辅助，不等同于数据权限或防截图保护。</div>
+      </div>
+      <div style="margin-top:auto;padding:16px 0 22px;">
+        <button type="button" id="privacyOperationInfoCloseBottom" style="width:100%;padding:13px;border:0;border-radius:12px;background:var(--accent-wechat);color:#fff;font-size:1rem;font-weight:800;">我知道了</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Progress Drawer -->
   <div class="progress-drawer-overlay" id="progressDrawerOverlay">
     <div class="progress-drawer" id="progressDrawer">
@@ -2039,7 +2076,7 @@
       <!-- 客户资料显示开关 -->
       <div class="drawer-group-card" style="gap:8px;">
         <label for="showClientInfoToggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;">
-          <span style="font-size:0.82rem;font-weight:600;color:var(--text-soft);">显示备注客户信息</span>
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:0.82rem;font-weight:700;color:var(--text-soft);">隐私操作 <button type="button" id="privacyOperationInfo" aria-label="隐私操作功能介绍" title="功能介绍" style="width:20px;height:20px;padding:0;border:1px solid var(--text-light);border-radius:50%;background:transparent;color:var(--text-soft);font-size:13px;font-weight:900;line-height:18px;cursor:pointer;">!</button></span>
           <span style="display:flex;align-items:center;gap:8px;">
             <span id="showClientInfoState" style="font-size:0.7rem;color:var(--text-light);">已关闭</span>
             <input type="checkbox" id="showClientInfoToggle" style="width:18px;height:18px;accent-color:var(--accent-wechat);">
@@ -11649,6 +11686,20 @@ function updateAutoDialBtn() {
       });
       overlay.addEventListener('click', function(e) {
         if (e.target === overlay) overlay.classList.remove('active');
+      });
+      var privacyInfoOverlay = document.getElementById('privacyOperationInfoOverlay');
+      var privacyInfoBtn = document.getElementById('privacyOperationInfo');
+      function closePrivacyInfo() { if (privacyInfoOverlay) privacyInfoOverlay.style.display = 'none'; }
+      if (privacyInfoBtn) privacyInfoBtn.addEventListener('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        if (privacyInfoOverlay) privacyInfoOverlay.style.display = 'block';
+      });
+      ['privacyOperationInfoClose', 'privacyOperationInfoCloseBottom'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('click', closePrivacyInfo);
+      });
+      if (privacyInfoOverlay) privacyInfoOverlay.addEventListener('click', function(e) {
+        if (e.target === privacyInfoOverlay) closePrivacyInfo();
       });
       var infoToggle = document.getElementById('showClientInfoToggle');
       syncClientInfoToggle();
