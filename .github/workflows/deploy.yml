@@ -19,6 +19,22 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Validate embedded browser JavaScript
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('src/dialer_html.js', 'utf8');
+          const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)];
+          const inline = scripts.filter(m => !/\\bsrc\\s*=/.test(m[0]));
+          if (!inline.length) throw new Error('No inline browser script found');
+          inline.forEach((m, i) => {
+            const out = `/tmp/bhp-inline-${i}.js`;
+            fs.writeFileSync(out, m[1]);
+            require('child_process').execFileSync(process.execPath, ['--check', out], { stdio: 'inherit' });
+          });
+          console.log('Embedded browser JavaScript syntax OK');
+          NODE
+
       - name: Install Wrangler
         run: npm install -g wrangler
 
