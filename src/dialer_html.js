@@ -3088,29 +3088,8 @@
     <div class="crm-search-card">
       <div class="crm-search-grid">
         <div class="crm-search-item crm-search-item-full">
-          <span class="crm-search-label" style="width:72px;">模糊关联搜索</span>
-          <input type="text" class="crm-input" id="dbFuzzySearch" placeholder="输入姓、电话号码或单位名称，模糊匹配相似结果...">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">单位名称</span>
-          <input type="text" class="crm-input" id="dbCatFilter" list="dbCompanyNameOptions" autocomplete="off" placeholder="选择在库单位，或输入单位名称模糊匹配">
-          <datalist id="dbCompanyNameOptions"></datalist>
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">客户名称</span>
-          <input type="text" class="crm-input" id="dbNameSearch" placeholder="请填写客户名称">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">联系号码</span>
-          <input type="text" class="crm-input" id="dbPhoneSearch" placeholder="请填写联系号码">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">备注信息</span>
-          <input type="text" class="crm-input" id="dbNoteSearch" placeholder="请填写备注">
-        </div>
-        <div class="crm-search-item">
-          <span class="crm-search-label">导入批次</span>
-          <select class="crm-select" id="dbBatchFilter"><option value="">全部批次</option></select>
+          <span class="crm-search-label" style="width:88px;">模糊关联搜索</span>
+          <input type="text" class="crm-input" id="dbFuzzySearch" placeholder="输入单位名称、客户名称、联系号码、备注或导入批次，自动模糊匹配...">
         </div>
       </div>
       <div class="crm-search-actions">
@@ -9074,34 +9053,20 @@ function updateAutoDialBtn() {
       }
 
       // 2. 多维度搜索表单筛选 (AND 关系)
-      var nameF = document.getElementById('dbNameSearch') ? document.getElementById('dbNameSearch').value.trim().toLowerCase() : '';
-      var phoneF = document.getElementById('dbPhoneSearch') ? document.getElementById('dbPhoneSearch').value.trim().toLowerCase() : '';
-      var noteF = document.getElementById('dbNoteSearch') ? document.getElementById('dbNoteSearch').value.trim().toLowerCase() : '';
-      var companyF = document.getElementById('dbCatFilter') ? document.getElementById('dbCatFilter').value.trim().toLowerCase() : '';
-
-      if (companyF) {
+      // 单一模糊关联搜索：单位、客户、号码、备注/自定义字段、导入批次任一命中即可。
+      var fuzzyF = document.getElementById('dbFuzzySearch') ? document.getElementById('dbFuzzySearch').value.trim().toLowerCase() : '';
+      if (fuzzyF) {
         filtered = filtered.filter(function(c) {
-          return String(c.company_name || '').toLowerCase().indexOf(companyF) !== -1;
-        });
-      }
-      if (nameF) {
-        filtered = filtered.filter(function(c) { return (c.name || '').toLowerCase().includes(nameF); });
-      }
-      if (phoneF) {
-        filtered = filtered.filter(function(c) { return (c.mobile || '').toLowerCase().includes(phoneF); });
-      }
-      if (noteF) {
-        filtered = filtered.filter(function(c) {
-          var noteVal = (c.note || '').toLowerCase();
-          var fundVal = (c.fund || '').toLowerCase();
-          var customVal = '';
           var parsed = parseCustomerNote(c);
+          var customVal = '';
           for (var key in parsed.custom) {
-            if (parsed.custom.hasOwnProperty(key)) {
-              customVal += ' ' + String(parsed.custom[key]).toLowerCase();
-            }
+            if (Object.prototype.hasOwnProperty.call(parsed.custom, key)) customVal += ' ' + String(parsed.custom[key] || '');
           }
-          return noteVal.includes(noteF) || fundVal.includes(noteF) || customVal.includes(noteF);
+          var searchable = [
+            c.company_name, c.name, c.mobile, c.batch_label,
+            c.note, parsed.note, c.fund, customVal
+          ].join(' ').toLowerCase();
+          return searchable.indexOf(fuzzyF) !== -1;
         });
       }
 
@@ -9156,9 +9121,8 @@ function updateAutoDialBtn() {
       var q = searchInput ? searchInput.value.trim() : '';
 
       var activeTab = DB.activeTab || 'all';
-      var batchFilter = document.getElementById('dbBatchFilter') ? document.getElementById('dbBatchFilter').value : '';
 
-      // 标签筛选已改为单位名称筛选；快捷分类标签仍沿用 activeTab。
+      // 搜索字段统一在本地缓存中模糊匹配；快捷分类标签仍沿用 activeTab。
       var category = '';
       if (activeTab && activeTab !== 'all') category = activeTab;
 
@@ -9168,7 +9132,6 @@ function updateAutoDialBtn() {
       var url = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
       if (q) url += '&search=' + encodeURIComponent(q);
       if (category) url += '&category=' + encodeURIComponent(category);
-      if (batchFilter) url += '&batch_label=' + encodeURIComponent(batchFilter);
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
       if (cooldownMobiles.length > 0) url += '&exclude=' + encodeURIComponent(cooldownMobiles.join(','));
 
@@ -10613,12 +10576,10 @@ function updateAutoDialBtn() {
           }, 350);
         });
       }
-      var cf=document.getElementById('dbCatFilter'); if(cf){
-        cf.addEventListener('input',function(){clearTimeout(DB.companyFilterTimer);DB.companyFilterTimer=setTimeout(function(){DB.page=1;dbRenderCached();},250);});
-        cf.addEventListener('change',function(){DB.page=1;dbRenderCached();});
-        cf.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();DB.page=1;dbRenderCached();}});
+      var fuzzyInput=document.getElementById('dbFuzzySearch'); if(fuzzyInput){
+        fuzzyInput.addEventListener('input',function(){clearTimeout(DB.fuzzySearchTimer);DB.fuzzySearchTimer=setTimeout(function(){DB.page=1;dbRenderCached();},250);});
+        fuzzyInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();DB.page=1;dbRenderCached();}});
       }
-      var bf=document.getElementById('dbBatchFilter'); if(bf)bf.addEventListener('change',function(){DB.page=1;dbFetch();});
       var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){if(ps.value==='5000' && !(document.getElementById('dbBatchFilter')||{}).value){alert('请先选择一个导入批次，再使用“本批全部/页”');ps.value='300';}localStorage.setItem('crm_page_size', ps.value);DB.pageSize=parseInt(ps.value,10)||300;DB.page=1;dbRenderCached();});
       var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbRenderCached();}});
       var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbRenderCached();}});
