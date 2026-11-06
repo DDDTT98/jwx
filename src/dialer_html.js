@@ -11446,7 +11446,19 @@ function updateAutoDialBtn() {
       var resetBtn = document.getElementById("dbResetAccountsBtn");
       if (resetBtn) resetBtn.style.display = isSessionMaster() ? "block" : "none";
 
-      // Create sub-account
+      // Create sub-account / group leader account
+      var createRoleSelect = document.getElementById("dbSubAccountRoleInput");
+      var createParentSelect = document.getElementById("dbSubAccountParentInput");
+      function syncCreateAccountRoleUI() {
+        var creatingManager = createRoleSelect && createRoleSelect.value === "manager";
+        if (createParentSelect) {
+          createParentSelect.disabled = !!creatingManager;
+          createParentSelect.style.opacity = creatingManager ? ".5" : "1";
+          createParentSelect.title = creatingManager ? "小组长直接归属于主账号" : "选择该组员所属的小组";
+        }
+      }
+      if (createRoleSelect) createRoleSelect.addEventListener("change", syncCreateAccountRoleUI);
+      syncCreateAccountRoleUI();
       var createSubBtn = document.getElementById("dbCreateSubAccountBtn");
       if (createSubBtn) {
         createSubBtn.addEventListener("click", function() {
@@ -11454,17 +11466,33 @@ function updateAutoDialBtn() {
           var accountName = document.getElementById("dbSubAccountNameInput").value.trim();
           var pin = document.getElementById("dbSubAccountPinInput").value.trim();
           var error = document.getElementById("dbSubAccountError");
+          var role = (createRoleSelect || {}).value || "member";
+          var parentId = (createParentSelect || {}).value || "";
+          error.style.color = "#e74c3c";
           if (!realName) { error.textContent = "请输入真实姓名"; return; }
           if (!accountName) { error.textContent = "请输入账户名"; return; }
-          if (pin.length < 4) { error.textContent = "PIN 至少 4 位"; return; }
+          if (pin.length < 4 || pin.length > 6 || !/^\\d+$/.test(pin)) { error.textContent = "PIN 必须为 4-6 位数字"; return; }
+          if (role === "manager" && !isSessionMaster()) { error.textContent = "只有主账号可以创建小组长"; return; }
           createSubBtn.disabled = true; createSubBtn.textContent = "创建中...";
-          fetch("/api/dialer/auth/accounts", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() }, body: JSON.stringify({ account_name: accountName, real_name: realName, pin: pin, label: accountName, role: (document.getElementById("dbSubAccountRoleInput")||{}).value || "member", parent_account_id: (document.getElementById("dbSubAccountParentInput")||{}).value || "" }) })
-          .then(function(r) { return r.json(); })
-          .then(function(res) {
-            if (res.success) { document.getElementById("dbSubAccountRealNameInput").value = ""; document.getElementById("dbSubAccountNameInput").value = ""; document.getElementById("dbSubAccountPinInput").value = ""; error.textContent = ""; loadSubAccounts(); loadAccountStats(); }
-            else { error.textContent = res.error || "创建失败"; }
+          fetch("/api/dialer/auth/accounts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() },
+            body: JSON.stringify({ account_name: accountName, real_name: realName, pin: pin, label: accountName, role: role, parent_account_id: role === "manager" ? getSessionAccountId() : parentId })
           })
-          .catch(function() { error.textContent = "网络错误"; })
+          .then(function(r) {
+            return r.json().catch(function() { throw new Error("服务器返回了无法识别的数据（HTTP " + r.status + "）"); });
+          })
+          .then(function(res) {
+            if (!res || !res.success) throw new Error((res && res.error) || "创建失败");
+            document.getElementById("dbSubAccountRealNameInput").value = "";
+            document.getElementById("dbSubAccountNameInput").value = "";
+            document.getElementById("dbSubAccountPinInput").value = "";
+            error.style.color = "#07c160";
+            error.textContent = role === "manager" ? "小组长账号创建成功" : "组员账号创建成功";
+            loadSubAccounts();
+            loadAccountStats();
+          })
+          .catch(function(e) { error.style.color = "#e74c3c"; error.textContent = e.message || "创建失败"; })
           .finally(function() { createSubBtn.disabled = false; createSubBtn.textContent = "创建"; });
         });
       }
@@ -12417,7 +12445,7 @@ function updateAutoDialBtn() {
         list.querySelectorAll('.sub-edit-name-btn').forEach(function(btn){btn.addEventListener('click',function(){var next=prompt('登记真实姓名',btn.dataset.name||'');if(next===null)return;next=next.trim();if(!next){alert('姓名不能为空');return;}fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,real_name:next})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();}).catch(function(e){alert(e.message);});});});
         list.querySelectorAll('.sub-group-select').forEach(function(sel){
           sel.addEventListener('change',function(){
-            var nextParent=sel.value, previous=sel.querySelector('option[selected]');
+            var nextParent=sel.value;
             sel.disabled=true;
             fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,parent_account_id:nextParent})})
               .then(function(r){return r.json();})
