@@ -564,170 +564,89 @@ export default {
       }
     }
 
+    // Hierarchical accounts: master > manager > member.
     if (path === '/api/dialer/auth/accounts' && request.method === 'GET') {
       try {
-        var accounts = await dialerGetAccounts(env);
-        var safe = accounts.map(function(a) {
-          return { account_id: a.account_id, account_name: a.account_name || '', label: a.label || '', is_master: a.is_master !== false, active: a.active, created_at: a.created_at };
-        });
-        return new Response(JSON.stringify({ accounts: safe }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        var ah=request.headers.get('Authorization')||'', st=ah.startsWith('Bearer ')?ah.slice(7):'';
+        var ss=await dialerValidateSession(env,st); if(!ss) throw new Error('未登录');
+        var aa=await dialerGetAccounts(env), caller=aa.find(function(a){return a.account_id===ss.account_id;});
+        if(!caller || caller.active===false) throw new Error('账户不可用');
+        var role=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        var visible=aa.filter(function(a){return role==='master' || (role==='manager' && (a.account_id===caller.account_id || a.parent_account_id===caller.account_id)) || (role==='member' && a.account_id===caller.account_id);});
+        var root=aa.find(function(a){return a.is_master!==false;});
+        return new Response(JSON.stringify({accounts:visible.map(function(a){return {
+          account_id:a.account_id,account_name:a.account_name||'',label:a.label||'',is_master:a.is_master!==false,
+          role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),
+          parent_account_id:a.parent_account_id||(a.is_master===false?(root||{}).account_id||'':''),
+          active:a.active!==false,created_at:a.created_at
+        };}),caller_role:role,caller_account_id:caller.account_id}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
-
     if (path === '/api/dialer/auth/accounts' && request.method === 'POST') {
       try {
-        var authHeader = request.headers.get('Authorization') || '';
-        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-        var session = await dialerValidateSession(env, sessionToken);
-        if (!session) throw new Error('未登录');
-
-        var accounts = await dialerGetAccounts(env);
-        var master = null;
-        for (var ai2 = 0; ai2 < accounts.length; ai2++) {
-          if (accounts[ai2].account_id === session.account_id) { master = accounts[ai2]; break; }
-        }
-        if (!master || !master.is_master) throw new Error('仅主账户可创建子账户');
-
-        var body = await request.json();
-        var accountName = (body.account_name || '').trim();
-        var pin = (body.pin || '').trim();
-        var label = (body.label || accountName || '').trim();
-        if (!accountName) throw new Error('请输入账户名');
-        if (pin.length < 4) throw new Error('PIN 至少需要 4 位数字');
-        for (var sn = 0; sn < accounts.length; sn++) {
-          if (accounts[sn].account_name === accountName) throw new Error('账户名已存在');
-        }
-
-        var subId = 'sub_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-        var subAccount = {
-          account_id: subId, account_name: accountName, pin_hash: dialerHashPin(pin), label: label,
-          is_master: false, active: true, created_at: new Date().toISOString()
-        };
-        accounts.push(subAccount);
-        await dialerSaveAccounts(env, accounts);
-
-        return new Response(JSON.stringify({ success: true, account_id: subId, label: label }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: e.message }), {
-          status: e.message === '未登录' ? 401 : 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        var ah=request.headers.get('Authorization')||'',st=ah.startsWith('Bearer ')?ah.slice(7):'';
+        var ss=await dialerValidateSession(env,st);if(!ss)throw new Error('未登录');
+        var aa=await dialerGetAccounts(env),caller=aa.find(function(a){return a.account_id===ss.account_id;});
+        if(!caller||caller.active===false)throw new Error('账户不可用');
+        var cr=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        if(cr==='member')throw new Error('普通子账号无权创建账户');
+        var body=await request.json(),name=String(body.account_name||'').trim(),pin=String(body.pin||'').trim(),label=String(body.label||name).trim();
+        var role=(cr==='master'&&body.role==='manager')?'manager':'member';
+        if(!name)throw new Error('请输入账户名');
+        if(!/^\\d{4,6}$/.test(pin))throw new Error('PIN 必须为 4-6 位数字');
+        if(aa.some(function(a){return a.account_name===name;}))throw new Error('账户名已存在');
+        var parent=cr==='manager'?caller.account_id:(role==='member'?String(body.parent_account_id||caller.account_id):caller.account_id);
+        if(parent!==caller.account_id&&!aa.some(function(a){return a.account_id===parent&&a.role==='manager'&&a.active!==false;}))throw new Error('指定的小组长不存在或已停用');
+        var id='sub_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
+        aa.push({account_id:id,account_name:name,pin_hash:dialerHashPin(pin),label:label,is_master:false,role:role,parent_account_id:parent,active:true,created_at:new Date().toISOString()});
+        await dialerSaveAccounts(env,aa);
+        return new Response(JSON.stringify({success:true,account_id:id,label:label,role:role,parent_account_id:parent}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
-
     if (path === '/api/dialer/auth/accounts' && request.method === 'PATCH') {
       try {
-        var authHeader = request.headers.get('Authorization') || '';
-        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-        var session = await dialerValidateSession(env, sessionToken);
-        if (!session) throw new Error('未登录');
-
-        var accounts = await dialerGetAccounts(env);
-        var master = null;
-        for (var ai3 = 0; ai3 < accounts.length; ai3++) {
-          if (accounts[ai3].account_id === session.account_id) { master = accounts[ai3]; break; }
+        var ah=request.headers.get('Authorization')||'',st=ah.startsWith('Bearer ')?ah.slice(7):'';
+        var ss=await dialerValidateSession(env,st);if(!ss)throw new Error('未登录');
+        var aa=await dialerGetAccounts(env),caller=aa.find(function(a){return a.account_id===ss.account_id;});
+        if(!caller)throw new Error('账户不存在');
+        var cr=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        var body=await request.json(),target=aa.find(function(a){return a.account_id===String(body.target_account_id||'');});
+        if(!target||target.is_master!==false)throw new Error('目标账户不存在');
+        if(!(cr==='master'||(cr==='manager'&&target.role!=='manager'&&target.parent_account_id===caller.account_id)))throw new Error('无权管理该账户');
+        if(body.active!==undefined)target.active=!!body.active;
+        if(body.label!==undefined)target.label=String(body.label).trim();
+        if(cr==='master'&&body.parent_account_id!==undefined&&target.role!=='manager'){
+          var p=String(body.parent_account_id||caller.account_id);
+          if(p!==caller.account_id&&!aa.some(function(a){return a.account_id===p&&a.role==='manager'&&a.active!==false;}))throw new Error('目标小组长无效');
+          target.parent_account_id=p;
         }
-        if (!master || !master.is_master) throw new Error('仅主账户可管理子账户');
-
-        var body = await request.json();
-        var targetId = (body.target_account_id || '').trim();
-        if (!targetId) throw new Error('缺少目标账户 ID');
-        if (targetId === master.account_id) throw new Error('不能修改主账户');
-
-        var found = false;
-        for (var ai4 = 0; ai4 < accounts.length; ai4++) {
-          if (accounts[ai4].account_id === targetId) {
-            if (body.active !== undefined) accounts[ai4].active = !!body.active;
-            if (body.label !== undefined) accounts[ai4].label = String(body.label).trim();
-            found = true; break;
-          }
-        }
-        if (!found) throw new Error('子账户不存在');
-        await dialerSaveAccounts(env, accounts);
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: e.message }), {
-          status: e.message === '未登录' ? 401 : 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        await dialerSaveAccounts(env,aa);
+        return new Response(JSON.stringify({success:true}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
-
     if (path === '/api/dialer/auth/accounts' && request.method === 'DELETE') {
       try {
-        var authHeader = request.headers.get('Authorization') || '';
-        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-        var session = await dialerValidateSession(env, sessionToken);
-        if (!session) throw new Error('未登录');
-
-        var accounts = await dialerGetAccounts(env);
-        var master = null;
-        for (var ai5 = 0; ai5 < accounts.length; ai5++) {
-          if (accounts[ai5].account_id === session.account_id) { master = accounts[ai5]; break; }
+        var ah=request.headers.get('Authorization')||'',st=ah.startsWith('Bearer ')?ah.slice(7):'';
+        var ss=await dialerValidateSession(env,st);if(!ss)throw new Error('未登录');
+        var aa=await dialerGetAccounts(env),caller=aa.find(function(a){return a.account_id===ss.account_id;});
+        if(!caller)throw new Error('账户不存在');
+        var cr=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        var body=await request.json(),targetId=String(body.target_account_id||''),target=aa.find(function(a){return a.account_id===targetId;});
+        if(!target||target.is_master!==false)throw new Error('目标账户不存在');
+        if(!(cr==='master'||(cr==='manager'&&target.role!=='manager'&&target.parent_account_id===caller.account_id)))throw new Error('无权删除该账户');
+        if(target.role==='manager'&&aa.some(function(a){return a.role!=='manager'&&a.parent_account_id===targetId;}))throw new Error('该小组仍有成员，请先转移或删除组员');
+        var destination=target.parent_account_id||caller.account_id;
+        if(!aa.some(function(a){return a.account_id===destination;}))destination=caller.account_id;
+        var migrated=0;
+        if(env.SUPABASE_URL&&env.SUPABASE_KEY){
+          var hdr={'Content-Type':'application/json','apikey':env.SUPABASE_KEY,'Authorization':'Bearer '+env.SUPABASE_KEY,'Prefer':'return=representation'};
+          var resp=await fetch(env.SUPABASE_URL+'/rest/v1/customers?account_id=eq.'+encodeURIComponent(targetId),{method:'PATCH',headers:hdr,body:JSON.stringify({account_id:destination})});
+          if(!resp.ok)throw new Error('客户数据迁移失败，账户未删除');
+          var moved=await resp.json();migrated=Array.isArray(moved)?moved.length:0;
         }
-        if (!master || !master.is_master) throw new Error('仅主账户可删除子账户');
-
-        var body = await request.json();
-        var targetId = (body.target_account_id || '').trim();
-        if (!targetId) throw new Error('缺少目标账户 ID');
-        if (targetId === master.account_id) throw new Error('不能删除主账户');
-
-        var newList = [];
-        for (var ai6 = 0; ai6 < accounts.length; ai6++) {
-          if (accounts[ai6].account_id !== targetId) newList.push(accounts[ai6]);
-        }
-        if (newList.length === accounts.length) throw new Error('子账户不存在');
-
-        // Migrate data back to master
-        var supabaseUrl = env.SUPABASE_URL;
-        var supabaseKey = env.SUPABASE_KEY;
-        var migratedCount = 0;
-        if (supabaseUrl && supabaseKey) {
-          try {
-            var shdrs = {
-              'Content-Type': 'application/json',
-              'apikey': supabaseKey,
-              'Authorization': 'Bearer ' + supabaseKey,
-              'Prefer': 'return=minimal'
-            };
-            var pageSize = 500; var page = 0; var hasMore = true;
-            while (hasMore) {
-              var from = page * pageSize; var to = from + pageSize - 1;
-              var patchUrl = supabaseUrl + '/rest/v1/customers?account_id=eq.' + encodeURIComponent(targetId) + '&limit=' + pageSize + '&offset=' + from;
-              var patchResp = await fetch(patchUrl, { method: 'PATCH', headers: shdrs, body: JSON.stringify({ account_id: master.account_id }) });
-              if (patchResp.ok) {
-                var contentRange = patchResp.headers.get('content-range') || '';
-                var rangeMatch = contentRange.match(/\d+-\d+\/(\d+)/);
-                if (rangeMatch) { var total = parseInt(rangeMatch[1]); if (to >= total - 1) hasMore = false; }
-                else { hasMore = false; }
-                page++; migratedCount += pageSize;
-              } else { hasMore = false; }
-            }
-          } catch (migErr) { /* best effort */ }
-        }
-
-        await dialerSaveAccounts(env, newList);
-
-        return new Response(JSON.stringify({ success: true, migrated: migratedCount }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ success: false, error: e.message }), {
-          status: e.message === '未登录' ? 401 : 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
+        await dialerSaveAccounts(env,aa.filter(function(a){return a.account_id!==targetId;}));
+        return new Response(JSON.stringify({success:true,migrated:migrated,destination_account_id:destination}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
 
     if (path === '/api/dialer/auth/change-pin' && request.method === 'POST') {
@@ -1868,14 +1787,14 @@ export default {
         });
       }
       _dialerAccountId = _session.account_id;
-      var _viewId = request.headers.get('X-View-Account-Id') || '';
-      if (_viewId) {
-        var _accts = await dialerGetAccounts(env);
-        var _isMaster = false;
-        for (var _ai = 0; _ai < _accts.length; _ai++) {
-          if (_accts[_ai].account_id === _session.account_id && _accts[_ai].is_master !== false) { _isMaster = true; break; }
-        }
-        if (_isMaster) { _dialerAccountId = _viewId; }
+      var _viewId=request.headers.get('X-View-Account-Id')||'';
+      var _gateAccounts=await dialerGetAccounts(env),_gateCaller=_gateAccounts.find(function(a){return a.account_id===_session.account_id;});
+      var _gateRole=!_gateCaller||_gateCaller.is_master!==false?'master':(_gateCaller.role==='manager'?'manager':'member');
+      if(_viewId){
+        var _viewTarget=_gateAccounts.find(function(a){return a.account_id===_viewId;});
+        var _viewAllowed=_gateRole==='master'||(_gateRole==='manager'&&(_viewId===_session.account_id||(_viewTarget&&_viewTarget.parent_account_id===_session.account_id)));
+        if(_viewAllowed&&_viewTarget)_dialerAccountId=_viewId;
+        else return new Response(JSON.stringify({error:'无权查看该账户数据'}),{status:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       }
     }
 
