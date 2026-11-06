@@ -12483,18 +12483,46 @@ function updateAutoDialBtn() {
     }
 
     function showAuthScreen() {
-      document.querySelector('.app-shell').style.display = 'none';
+      var shell = document.querySelector('.app-shell');
+      if (shell) shell.style.display = 'none';
+
+      // Never leave the page blank while the auth-status request is pending.
+      // Supabase/KV outages or slow mobile networks must not block the login UI.
+      var settled = false;
+      var fallbackTimer = setTimeout(function() {
+        if (settled) return;
+        settled = true;
+        showLoginOverlay();
+        var err = document.getElementById('authLoginError');
+        if (err) err.textContent = '连接服务器超时，请检查网络后刷新页面重试';
+      }, 7000);
+
       fetch('/api/dialer/auth/status', { method: 'POST' })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
         .then(function(res) {
-          if (res.has_accounts) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(fallbackTimer);
+          if (res && res.has_accounts === true) {
             showLoginOverlay();
-          } else {
+          } else if (res && res.has_accounts === false) {
             showSetupOverlay();
+          } else {
+            showLoginOverlay();
+            var err = document.getElementById('authLoginError');
+            if (err) err.textContent = '服务器返回异常，请稍后刷新重试';
           }
         })
         .catch(function() {
+          if (settled) return;
+          settled = true;
+          clearTimeout(fallbackTimer);
           showLoginOverlay();
+          var err = document.getElementById('authLoginError');
+          if (err) err.textContent = '暂时无法连接服务器，请检查网络后重试';
         });
     }
 
