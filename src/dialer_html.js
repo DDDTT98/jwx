@@ -7568,12 +7568,12 @@
               saveState();
             }
 
-            navigator.clipboard.writeText(copyText).then(function() {
-              // Brief flash
-              var orig = btn.style.color;
-              btn.style.color = '#07c160';
-              setTimeout(function() { btn.style.color = orig; }, 600);
-            }).catch(function() {});
+            // 与移动卡片视图共用跨平台复制逻辑，失败时走同步复制/错误提示兜底。
+            copyTextToClipboard(copyText);
+            // Brief flash
+            var orig = btn.style.color;
+            btn.style.color = '#07c160';
+            setTimeout(function() { btn.style.color = orig; }, 600);
           });
         });
 
