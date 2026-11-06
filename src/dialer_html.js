@@ -3114,7 +3114,7 @@
     <div id="dbAccountMgrPanel" style="display:none; flex-direction:column; gap:12px; padding:16px; overflow-y:auto; flex:1;">
       <div id="dbAccountMgrSubs" style="display:none;">
         <div style="font-size:0.85rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">小组与子账号管理</div>
-        <input type="text" id="dbSubAccountGroupNameInput" maxlength="30" placeholder="小组名称，例如：深圳一组" style="display:none;width:100%;height:34px;margin-bottom:6px;padding:0 9px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);">
+        <input type="text" id="dbSubAccountGroupNameInput" maxlength="30" placeholder="小组名称（创建小组时填写）" style="display:block;width:100%;height:34px;margin-bottom:6px;padding:0 9px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);">
         <label id="dbAssignLeaderRow" style="display:none;align-items:center;gap:7px;margin:4px 0 7px;font-size:.72rem;font-weight:700;color:var(--text-soft);"><input type="checkbox" id="dbAssignLeaderCheck" style="width:16px;height:16px;"> 指定小组长</label>
         <select id="dbSubAccountParentInput" style="display:none;width:100%;height:34px;margin-bottom:6px;padding:0 8px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);"><option value="">主账号默认组</option></select>
         <div id="dbSubAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; margin-bottom:8px;"></div>
