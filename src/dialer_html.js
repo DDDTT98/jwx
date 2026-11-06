@@ -2074,6 +2074,88 @@
       border-color: var(--card-border) !important;
       box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
     }
+
+    /* Mobile usability pass: keep the compact visual language while making
+       primary touch targets comfortably tappable on iOS Safari / Android WebView. */
+    @media (max-width: 768px) {
+      .filter-tab,
+      .crm-tab,
+      .crm-tool-btn,
+      .crm-shortcut-btn {
+        min-height: 40px;
+        touch-action: manipulation;
+      }
+
+      .db-close {
+        width: auto;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0 12px;
+        touch-action: manipulation;
+      }
+
+      .dbm-icon-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        min-height: 44px;
+        touch-action: manipulation;
+      }
+
+      .card-copy-btn {
+        min-width: 44px;
+        min-height: 40px;
+        padding: 6px 9px;
+        touch-action: manipulation;
+      }
+
+      .client-card-actions button,
+      .client-card-actions a,
+      .xls-card-dial-btn {
+        min-height: 44px;
+        touch-action: manipulation;
+      }
+
+      .client-card-actions button,
+      .client-card-actions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .filter-tab:focus-visible,
+      .crm-tab:focus-visible,
+      .crm-tool-btn:focus-visible,
+      .crm-shortcut-btn:focus-visible,
+      .db-close:focus-visible,
+      .dbm-icon-btn:focus-visible,
+      .card-copy-btn:focus-visible,
+      .client-card-actions button:focus-visible,
+      .client-card-actions a:focus-visible,
+      .xls-card-dial-btn:focus-visible {
+        outline: 2px solid var(--accent, #4a6cf7);
+        outline-offset: 2px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .filter-tab {
+        min-height: 40px;
+        padding: 0 10px;
+      }
+
+      .xls-card-dial-btn {
+        height: auto;
+        min-height: 44px;
+        padding: 0 14px;
+        font-size: 0.76rem;
+      }
+
+      .client-card-actions {
+        gap: 8px;
+        padding-top: 8px;
+      }
+    }
   </style>
 </head>
 <body>
