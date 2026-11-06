@@ -10707,7 +10707,7 @@ function updateAutoDialBtn() {
           }
           if (val !== DB.page) {
             DB.page = val;
-            dbRenderCached();
+            dbFetch();
           } else {
             pageInput.value = DB.page;
           }
