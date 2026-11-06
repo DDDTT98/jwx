@@ -8867,6 +8867,17 @@ function updateAutoDialBtn() {
       });
     }
 
+    function getCustomerOperationCells(c) {
+      var op = c && c.last_operation && typeof c.last_operation === 'object' ? c.last_operation : null;
+      var ts = op && op.ts ? op.ts : (c && c.created_at ? c.created_at : '');
+      var dateText = '-';
+      if (ts) { var dt = new Date(ts); if (!isNaN(dt.getTime())) dateText = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0') + ' ' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0'); }
+      var type = op && op.type ? op.type : 'add';
+      var method = (type === 'dial' || type === 'call_success' || type === 'call_failed') ? '拨打' : (type === 'copy_phone' || type === 'add' || !op ? '添加' : '-');
+      var accountName = op && (op.operator_account_name || op.account_name) ? (op.operator_account_name || op.account_name) : (c && c.owner_account_name ? c.owner_account_name : '主账户');
+      return { time: dateText, method: method, account: accountName };
+    }
+
     function renderCRMHeaders() {
       var headerRow = document.getElementById('dbHeaderRow');
       if (!headerRow) return;
@@ -8882,6 +8893,9 @@ function updateAutoDialBtn() {
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
+        '<th style="min-width:145px;cursor:default;">操作时间</th>' +
+        '<th style="width:85px;cursor:default;">操作方式</th>' +
+        '<th style="min-width:110px;cursor:default;">操作账户名称</th>' +
         '<th style="width: 100px; cursor: default;">操作</th>';
       headerRow.innerHTML = html;
       dbWireSortHeaders();
@@ -9141,7 +9155,7 @@ function updateAutoDialBtn() {
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
       if (cooldownMobiles.length > 0) url += '&exclude=' + encodeURIComponent(cooldownMobiles.join(','));
 
-      var colCount = 8 + (DB.customColumns || []).length;
+      var colCount = 11 + (DB.customColumns || []).length;
       var tbody = document.getElementById('dbTbody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">数据加载中...</td></tr>';
 
@@ -9284,6 +9298,7 @@ function updateAutoDialBtn() {
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
+          (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
             '<a class="crm-action-link crm-btn-followup" data-mobile="' + esc(c.mobile) + '" data-note="' + esc(realNote || '') + '">新增跟进</a>' +
           '</td>' +
@@ -10033,8 +10048,11 @@ function updateAutoDialBtn() {
         headHtml += '<th style="min-width: 100px; cursor: default;">' + esc(col) + '</th>';
       });
       headHtml += '<th style="min-width: 200px; cursor: default;">单位</th>' +
-        '<th style="width: 100px; cursor: default;">分类</th>' +
-        '<th style="width: 100px; cursor: default;">操作</th>' +
+         '<th style="width: 100px; cursor: default;">分类</th>' +
+         '<th style="min-width:145px;cursor:default;">操作时间</th>' +
+         '<th style="width:85px;cursor:default;">操作方式</th>' +
+         '<th style="min-width:110px;cursor:default;">操作账户名称</th>' +
+         '<th style="width: 100px; cursor: default;">操作</th>' +
         '</tr>';
 
       var h = '<table class="crm-table"><thead>' + headHtml + '</thead><tbody>';
@@ -10086,6 +10104,7 @@ function updateAutoDialBtn() {
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
+          (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
             '<a class="crm-action-link crm-btn-followup" data-mobile="' + esc(c.mobile) + '" data-note="' + esc(realNote || '') + '">新增跟进</a>' +
           '</td>' +
