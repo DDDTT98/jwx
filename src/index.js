@@ -912,6 +912,34 @@ export default {
       }
     }
 
+    // GET /api/dialer/stats/master-pull-records — 主账号补充客户流水（主账号看全部，子账号看自己）
+    if (path === '/api/dialer/stats/master-pull-records' && request.method === 'GET') {
+      try {
+        var mpAuth = request.headers.get('Authorization') || '';
+        var mpToken = mpAuth.startsWith('Bearer ') ? mpAuth.slice(7) : '';
+        var mpSession = await dialerValidateSession(env, mpToken);
+        if (!mpSession) throw new Error('未登录');
+        var mpAccounts = await dialerGetAccounts(env);
+        var mpIsMaster = mpAccounts.some(function(a) { return a.account_id === mpSession.account_id && a.is_master !== false; });
+        var mpScope = new URL(request.url).searchParams.get('scope') || 'day';
+        var mpNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+        var mpYear = mpNow.getUTCFullYear(), mpMonth = mpNow.getUTCMonth(), mpDate = mpNow.getUTCDate();
+        var mpStartDate = new Date(Date.UTC(mpYear, mpMonth, mpDate));
+        if (mpScope === 'week') { var mpDow = mpStartDate.getUTCDay() || 7; mpStartDate.setUTCDate(mpStartDate.getUTCDate() - mpDow + 1); }
+        else if (mpScope === 'month') mpStartDate = new Date(Date.UTC(mpYear, mpMonth, 1));
+        var mpStartIso = new Date(mpStartDate.getTime() - 8 * 60 * 60 * 1000).toISOString();
+        var mpQuery = env.SUPABASE_URL + '/rest/v1/master_customer_pull_logs?select=*&created_at=gte.' + encodeURIComponent(mpStartIso) + '&order=created_at.desc&limit=500';
+        if (!mpIsMaster) mpQuery += '&target_account_id=eq.' + encodeURIComponent(mpSession.account_id);
+        var mpResp = await fetch(mpQuery, { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY } });
+        if (!mpResp.ok) throw new Error('读取主账号补充流水失败：' + mpResp.status + ' ' + (await mpResp.text()).slice(0, 200));
+        var mpRecords = await mpResp.json();
+        var mpTotal = mpRecords.reduce(function(sum, row) { return sum + (parseInt(row.loaded_count, 10) || 0); }, 0);
+        return new Response(JSON.stringify({ records: mpRecords, record_count: mpRecords.length, total_count: mpTotal, is_master: mpIsMaster }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: e.message === '未登录' ? 401 : 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' } });
+      }
+    }
+
     if (path === '/api/dialer/stats/migrate' && request.method === 'POST') {
       try {
         var authHeader = request.headers.get('Authorization') || '';
@@ -1977,6 +2005,7 @@ export default {
           // 从唯一主账号客户池转移补充。每日每个子账号最多转入 600 条。
           var masterLoadedCount = 0;
           var masterDailyRemaining = 600;
+          var masterPullReason = '';
           var accountRows = await dialerGetAccounts(env);
           var currentAccount = accountRows.find(function(a) { return a.account_id === accountId; });
           var masterAccount = accountRows.find(function(a) { return a && a.is_master !== false; });
@@ -1992,6 +2021,7 @@ export default {
             if (!Number.isFinite(childCustomerCount)) childCustomerCount = 0;
 
             if (childCustomerCount < 600 || data.length === 0) {
+              masterPullReason = childCustomerCount < 600 && data.length === 0 ? 'low_inventory_and_empty_dialer' : (childCustomerCount < 600 ? 'low_inventory' : 'empty_dialer');
               var masterDailyKey = 'dialer:master-pull:day:' + accountId + ':' + beijingDateKey(new Date());
               var masterDailyRaw = await env.DATA_KV.get(masterDailyKey);
               var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
@@ -2050,6 +2080,20 @@ export default {
                 }
               }
             }
+          }
+
+          // 每次实际从主账号转入客户后，写入 Supabase 独立流水表，供数据库看板查询
+          if (masterLoadedCount > 0 && env.SUPABASE_URL && env.SUPABASE_KEY) {
+            try {
+              var childAccountName = currentAccount.account_name || currentAccount.label || accountId;
+              var masterAccountName = masterAccount.account_name || masterAccount.label || masterAccount.account_id;
+              var auditResp = await fetch(env.SUPABASE_URL + '/rest/v1/master_customer_pull_logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ source_account_id: masterAccount.account_id, source_account_name: masterAccountName, target_account_id: accountId, target_account_name: childAccountName, loaded_count: masterLoadedCount, trigger_reason: masterPullReason || 'unknown', daily_remaining: masterDailyRemaining })
+              });
+              if (!auditResp.ok) console.error('[master-pull] audit log write failed:', auditResp.status, (await auditResp.text()).slice(0, 240));
+            } catch (auditErr) { console.error('[master-pull] audit log exception:', auditErr.message); }
           }
 
           // 换一批拉取日志：同步写入（无论拉没拉到数据都记录，按账号区分所有设备），
