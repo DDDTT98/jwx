@@ -1973,6 +1973,85 @@ export default {
           const result = await sb.getCustomersForDialer(limit, mergedExclude.length > 0 ? mergedExclude : null, accountId);
           const data = result.data || [];
 
+          // 子账号自动补充：本账号客户总量不足 600，或本账号当前已无可拉取客户时，
+          // 从唯一主账号客户池转移补充。每日每个子账号最多转入 600 条。
+          var masterLoadedCount = 0;
+          var masterDailyRemaining = 600;
+          var accountRows = await dialerGetAccounts(env);
+          var currentAccount = accountRows.find(function(a) { return a.account_id === accountId; });
+          var masterAccount = accountRows.find(function(a) { return a && a.is_master !== false; });
+          if (currentAccount && currentAccount.is_master === false && masterAccount && masterAccount.account_id !== accountId) {
+            var childCountResp = await fetch(
+              env.SUPABASE_URL + '/rest/v1/customers?select=mobile&account_id=eq.' + encodeURIComponent(accountId),
+              { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Range': '0-0', 'Prefer': 'count=exact' } }
+            );
+            if (!childCountResp.ok) throw new Error('读取子账号客户数量失败：' + childCountResp.status);
+            var childRange = childCountResp.headers.get('Content-Range') || '';
+            var childRangeParts = childRange.split('/');
+            var childCustomerCount = childRangeParts.length === 2 ? parseInt(childRangeParts[1], 10) : 0;
+            if (!Number.isFinite(childCustomerCount)) childCustomerCount = 0;
+
+            if (childCustomerCount < 600 || data.length === 0) {
+              var masterDailyKey = 'dialer:master-pull:day:' + accountId + ':' + beijingDateKey(new Date());
+              var masterDailyRaw = await env.DATA_KV.get(masterDailyKey);
+              var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
+              var masterDailyCount = Math.max(0, parseInt(masterDailyState.count, 10) || 0);
+              masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
+              var masterNeed = Math.min(Math.max(0, limit - data.length), masterDailyRemaining, 200);
+
+              if (masterNeed > 0) {
+                var masterExclude = mergedExclude.slice();
+                data.forEach(function(c) {
+                  var mobile = (c.mobile || '').trim();
+                  if (mobile && masterExclude.indexOf(mobile) === -1) masterExclude.push(mobile);
+                });
+                var masterResult = await sb.getCustomersForDialer(masterNeed, masterExclude.length ? masterExclude : null, masterAccount.account_id);
+                var masterCandidates = masterResult.data || [];
+                var movedRows = [];
+
+                for (var msi = 0; msi < masterCandidates.length; msi += 100) {
+                  var masterChunk = masterCandidates.slice(msi, msi + 100);
+                  var masterMobiles = masterChunk.map(function(c) { return (c.mobile || '').trim(); }).filter(Boolean);
+                  if (!masterMobiles.length) continue;
+                  var masterIn = masterMobiles.map(function(m) { return encodeURIComponent(m); }).join(',');
+                  var moveResp = await fetch(
+                    env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + masterIn + ')&account_id=eq.' + encodeURIComponent(masterAccount.account_id),
+                    {
+                      method: 'PATCH',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': env.SUPABASE_KEY,
+                        'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+                        'Prefer': 'return=representation'
+                      },
+                      body: JSON.stringify({ account_id: accountId, pulled_at: null })
+                    }
+                  );
+                  if (!moveResp.ok) {
+                    var moveErr = await moveResp.text();
+                    throw new Error('从主账号补充客户失败：' + moveResp.status + ' ' + moveErr.slice(0, 180));
+                  }
+                  var moved = await moveResp.json().catch(function() { return []; });
+                  if (Array.isArray(moved) && moved.length) {
+                    movedRows = movedRows.concat(moved);
+                    masterLoadedCount += moved.length;
+                    masterDailyCount += moved.length;
+                    await env.DATA_KV.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
+                    masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
+                  }
+                  if (masterDailyRemaining <= 0 || data.length + movedRows.length >= limit) break;
+                }
+                if (movedRows.length) {
+                  var movedMap = {};
+                  movedRows.forEach(function(c) { movedMap[c.mobile] = true; });
+                  masterCandidates.forEach(function(c) {
+                    if (movedMap[c.mobile]) data.push(c);
+                  });
+                }
+              }
+            }
+          }
+
           // 换一批拉取日志：同步写入（无论拉没拉到数据都记录，按账号区分所有设备），
           // 避免后台任务失败/被杀导致日志丢失（"只记录一个设备"的根因之一）
           try {
