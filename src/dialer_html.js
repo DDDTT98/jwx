@@ -3128,7 +3128,10 @@
         <div style="display:flex; gap:6px;">
           <input type="text" id="dbSubAccountNameInput" maxlength="20" placeholder="账户名" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
           <input type="password" id="dbSubAccountPinInput" maxlength="6" placeholder="PIN码" style="width:80px; height:32px; padding:0 6px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
-          <button id="dbCreateSubAccountBtn" class="btn-primary" style="padding:0 12px; height:32px; font-size:0.72rem;">创建</button>
+          <button id="dbCreateSubAccountBtn" class="btn-primary" style="padding:0 12px; height:32px; font-size:0.72rem;">创建小组和组长</button>
+        </div>
+        <div style="display:flex;gap:6px;margin:6px 0;">
+          <button id="dbCreateMemberAccountBtn" type="button" style="flex:1;height:34px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);font-size:.75rem;font-weight:800;">＋ 创建组员账号</button>
         </div>
         <div id="dbSubAccountError" style="font-size:0.62rem; color:#e74c3c; min-height:16px; margin-top:4px;"></div>
       </div>
@@ -11463,6 +11466,16 @@ function updateAutoDialBtn() {
         if (createSubBtn) createSubBtn.textContent = creatingGroup ? "创建小组和组长" : "创建组员";
       }
       if (createRoleSelect) createRoleSelect.addEventListener("change", syncCreateAccountRoleUI);
+      var createMemberBtn = document.getElementById("dbCreateMemberAccountBtn");
+      if (createMemberBtn) createMemberBtn.addEventListener("click", function() {
+        if (!createRoleSelect) return;
+        createRoleSelect.value = "member";
+        syncCreateAccountRoleUI();
+        var error = document.getElementById("dbSubAccountError");
+        if (error) error.textContent = "请填写组员信息后，点击上方“创建组员”完成创建";
+        var nameInput = document.getElementById("dbSubAccountRealNameInput");
+        if (nameInput) nameInput.focus();
+      });
       syncCreateAccountRoleUI();
       if (createSubBtn) {
         createSubBtn.addEventListener("click", function() {
