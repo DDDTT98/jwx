@@ -2222,6 +2222,34 @@ export default {
             }
           })());
 
+          // 为换一批客户补充白名单产品名称；同一单位命中多个产品时全部返回并去重。
+          var pullWhitelistRows = dialerWhitelistCache.data;
+          if (!dialerWhitelistCache.ts || Date.now() - dialerWhitelistCache.ts > 5 * 60 * 1000) {
+            pullWhitelistRows = await sb.getAllCompanies();
+            dialerWhitelistCache = { data: Array.isArray(pullWhitelistRows) ? pullWhitelistRows : [], ts: Date.now() };
+          }
+          var pullWhitelistMap = {};
+          (pullWhitelistRows || []).forEach(function(w) {
+            if (!w || w.status === '已失效' || w.status === '已删除') return;
+            var product = String(w.bank_name || '').trim();
+            if (!product) return;
+            [w.company_name, w.alias].forEach(function(key) {
+              key = String(key || '').trim().toLowerCase();
+              if (!key) return;
+              if (!pullWhitelistMap[key]) pullWhitelistMap[key] = [];
+              if (pullWhitelistMap[key].indexOf(product) === -1) pullWhitelistMap[key].push(product);
+            });
+          });
+          data.forEach(function(c) {
+            var products = [];
+            String(c.company_name || '').split(/[；;\\n、|]+/).forEach(function(name) {
+              (pullWhitelistMap[name.trim().toLowerCase()] || []).forEach(function(product) {
+                if (products.indexOf(product) === -1) products.push(product);
+              });
+            });
+            c.whitelist_name = products.join('、');
+          });
+
           return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
           });
