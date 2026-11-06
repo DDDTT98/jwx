@@ -2203,342 +2203,168 @@
       }
     }
 
-    /* BHP customer card redesign — WeChat green as the primary brand color.
-       Keep customer content neutral and readable; reserve bright green for identity,
-       company recognition, primary actions and meaningful success states. */
+    /* Customer card visual refresh: restrained slate typography, neutral chips,
+       and green reserved for the primary WeChat/call action. */
     .xls-dial-card {
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 12px 13px 11px;
-      border: 1px solid transparent !important;
-      border-radius: 14px !important;
-      background: #ffffff !important;
-      box-shadow: 0 2px 8px rgba(26, 54, 38, .055) !important;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
-      transition: box-shadow .16s ease, background-color .16s ease;
-    }
-    .xls-dial-card:hover {
-      border-color: transparent !important;
-      box-shadow: 0 3px 11px rgba(26, 54, 38, .075) !important;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #fff !important;
+      border: 1px solid #e7ebf0;
+      border-radius: 12px;
+      padding: 11px 13px;
+      gap: 7px;
+      box-shadow: 0 1px 4px rgba(31, 45, 61, .045);
     }
     body.dark-mode .xls-dial-card {
-      background: #202923 !important;
-      border-color: transparent !important;
-      box-shadow: 0 2px 9px rgba(0,0,0,.22) !important;
+      background: #24272d !important;
+      border-color: #373d46;
+      box-shadow: 0 1px 4px rgba(0,0,0,.16);
+    }
+    .xls-dial-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 2px 8px rgba(31,45,61,.07);
     }
     .corner-seq {
-      width: 22px !important;
-      height: 22px !important;
-      min-width: 22px;
-      border-radius: 7px !important;
-      background: rgba(7,193,96,.13) !important;
-      box-shadow: none !important;
-      flex: 0 0 22px;
+      background: #8793a3;
+      box-shadow: none;
     }
-    .corner-seq span {
-      color: #078c49 !important;
-      font-size: 11px !important;
-      font-weight: 750 !important;
-      font-variant-numeric: tabular-nums;
-    }
-    body.dark-mode .corner-seq { background: rgba(7,193,96,.20) !important; }
-    body.dark-mode .corner-seq span { color: #65d995 !important; }
-    .client-card-top { width: 100%; }
-    .client-card-primary {
-      min-width: 0;
-      gap: 9px !important;
-      align-items: center !important;
-    }
-    .client-card-name-btn {
-      flex: 0 1 auto !important;
-      width: auto !important;
-      min-width: 44px;
-      max-width: 34%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      padding: 2px 0 !important;
-      color: #26352c !important;
-      font-size: 15px !important;
-      line-height: 1.35;
-      font-weight: 700 !important;
-      letter-spacing: -.015em;
-    }
-    body.dark-mode .client-card-name-btn { color: #edf5ef !important; }
-    .client-card-phone-wrap {
-      flex: 1 1 auto !important;
-      min-width: 0;
-      width: auto !important;
-    }
-    .client-phone-btn {
-      min-width: 0;
-      padding: 4px 0 !important;
-      color: #526258 !important;
-      font-size: 13px !important;
-      font-weight: 550 !important;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: .01em;
-      white-space: nowrap;
-    }
-    body.dark-mode .client-phone-btn:not(.privacy-add-vx) { color: #c1d0c5 !important; }
-    .client-phone-btn:not(.privacy-add-vx):hover,
-    .client-phone-btn:not(.privacy-add-vx):active {
-      color: #079b50 !important;
-      background: transparent !important;
-    }
-    .client-phone-btn.privacy-add-vx {
-      min-height: 34px;
-      padding: 0 10px !important;
-      border: 1px solid rgba(7,193,96,.22) !important;
-      border-radius: 9px !important;
-      background: rgba(7,193,96,.09) !important;
-      color: #079b50 !important;
-      font-size: 12px !important;
-      font-weight: 750 !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-    }
-    .client-phone-btn.privacy-add-vx.copied {
-      color: #078c49 !important;
-      background: rgba(7,193,96,.13) !important;
-      border-color: transparent !important;
-      box-shadow: none !important;
-    }
-    body.dark-mode .client-phone-btn.privacy-add-vx {
-      color: #52df91 !important;
-      background: rgba(7,193,96,.13) !important;
-      border-color: rgba(7,193,96,.28) !important;
-    }
-    .xls-card-dial-btn:not(.privacy-dial-icon) {
-      min-width: 58px;
-      min-height: 34px !important;
-      height: 34px !important;
-      padding: 0 13px !important;
-      border: 1px solid transparent !important;
-      border-radius: 9px !important;
-      background: rgba(7,193,96,.13) !important;
-      color: #078c49 !important;
-      box-shadow: none !important;
-      font-size: 12px !important;
-      font-weight: 700 !important;
-      transition: transform .15s ease, background-color .15s ease, box-shadow .15s ease;
-    }
-    .xls-card-dial-btn:not(.privacy-dial-icon):active {
-      transform: scale(.97);
-      background: rgba(7,193,96,.20) !important;
-      box-shadow: none !important;
-    }
-    body.dark-mode .xls-card-dial-btn:not(.privacy-dial-icon) {
-      background: rgba(7,193,96,.20) !important;
-      color: #65d995 !important;
-    }
-    body.dark-mode .xls-card-dial-btn:not(.privacy-dial-icon):active {
-      background: rgba(7,193,96,.28) !important;
-    }
-    .xls-card-dial-btn.privacy-dial-icon {
-      width: 36px !important;
-      min-width: 36px !important;
-      height: 36px !important;
-      min-height: 36px !important;
-      border: 1px solid rgba(7,193,96,.25) !important;
-      border-radius: 10px !important;
-      background: rgba(7,193,96,.10) !important;
-      color: #079b50 !important;
-      box-shadow: none !important;
-    }
-    body.dark-mode .xls-card-dial-btn.privacy-dial-icon {
-      color: #55df93 !important;
-      background: rgba(7,193,96,.14) !important;
-      border-color: rgba(7,193,96,.3) !important;
-    }
-    .xls-dial-badge {
-      padding: 4px 7px !important;
-      border-radius: 7px !important;
-      font-size: 10px !important;
-      font-weight: 650 !important;
-      box-shadow: none !important;
-    }
-    .xls-dial-badge-success {
-      color: #087b43 !important;
-      background: #e6f7ed !important;
-    }
-    .xls-dial-badge-failed {
-      color: #b54742 !important;
-      background: #fff0ee !important;
-    }
-    .client-card-tags {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 6px !important;
-      margin-top: 0 !important;
-      padding-left: 1px;
-    }
-    .client-card-tag {
-      display: inline-flex;
-      align-items: center;
-      min-height: 25px;
-      padding: 3px 9px !important;
-      border: 1px solid transparent;
-      border-radius: 7px !important;
-      background: #f4f6f5 !important;
-      color: #59665e !important;
-      box-shadow: none !important;
-      font-size: 11px !important;
-      line-height: 1.35 !important;
-      font-weight: 550;
-    }
-    .client-card-tag-company {
-      max-width: 100%;
-      border-color: transparent !important;
-      background: rgba(7,193,96,.105) !important;
-      color: #078d49 !important;
-      font-size: 12px !important;
-      font-weight: 700 !important;
-      overflow-wrap: anywhere;
-    }
-    .client-card-tag-company:hover {
-      background: rgba(7,193,96,.16) !important;
-      color: #067c40 !important;
-    }
-    .client-card-tag-company.privacy-action-done {
-      color: #fff !important;
-      background: #07c160 !important;
-      border-color: transparent !important;
-    }
-    .xls-dial-badge-whitelist {
-      color: #078d49 !important;
-      background: #e8f7ee !important;
-      border-color: transparent !important;
-    }
-    .crm-fund-tag {
-      color: #94611c !important;
-      background: #fff7e8 !important;
-      border-color: transparent !important;
-    }
-    body.dark-mode .client-card-tag {
-      color: #c1cec5 !important;
-      background: #2b3530 !important;
-      border-color: transparent !important;
-    }
-    body.dark-mode .client-card-tag-company {
-      color: #58dc91 !important;
-      background: rgba(7,193,96,.14) !important;
-      border-color: transparent !important;
-    }
-    body.dark-mode .client-card-tag-company.privacy-action-done {
-      color: #65d995 !important;
-      background: rgba(7,193,96,.20) !important;
-      border-color: transparent !important;
-    }
-    body.dark-mode .xls-dial-badge-whitelist {
-      color: #58dc91 !important;
-      background: rgba(7,193,96,.13) !important;
-      border-color: transparent !important;
-    }
-    body.dark-mode .crm-fund-tag {
-      color: #e5bb76 !important;
-      background: rgba(201,145,54,.12) !important;
-      border-color: transparent !important;
-    }
-    .client-card-body {
-      display: flex;
-      flex-direction: column;
-      gap: 5px !important;
-      padding: 0 0 0 10px !important;
-      margin-top: 3px !important;
-    }
-    .client-card-content-block {
-      gap: 4px !important;
-      padding: 8px 10px !important;
-      border: 1px solid transparent;
-      border-radius: 9px !important;
-      background: #f8faf8 !important;
-    }
-    .client-card-content-block.follow-up {
-      background: #f7faf8 !important;
-      border-color: transparent !important;
-    }
-    .client-card-label {
-      color: #849188 !important;
-      font-size: 10px !important;
-      line-height: 1.35;
-      font-weight: 650 !important;
-      letter-spacing: .025em;
-    }
-    .client-card-text {
-      color: #46544b !important;
-      font-size: 12px !important;
-      line-height: 1.6 !important;
-      overflow-wrap: anywhere;
-    }
-    .client-card-tag-note {
-      color: #078d49 !important;
-      font-size: 11px !important;
-      font-weight: 650;
-      text-decoration: none !important;
-    }
-    body.dark-mode .client-card-content-block {
-      background: #252f29 !important;
-      border-color: transparent !important;
-    }
-    body.dark-mode .client-card-label { color: #91a398 !important; }
-    body.dark-mode .client-card-text { color: #c5d1c9 !important; }
-    body.dark-mode .client-card-tag-note { color: #58dc91 !important; }
-    .client-card-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      padding-top: 9px !important;
-      margin-top: 2px !important;
-      border-top: 1px solid #edf1ee !important;
-    }
-    body.dark-mode .client-card-actions { border-top-color: #39483e !important; }
     .xls-dial-card.dialed {
-      opacity: .94 !important;
-      background: #f7f9f7 !important;
-      border-color: transparent !important;
+      opacity: .88;
+      border-color: #e2e6eb;
+      background: #f8f9fb !important;
     }
     body.dark-mode .xls-dial-card.dialed {
-      background: #1d2621 !important;
-      border-color: transparent !important;
+      background: #202329 !important;
+      border-color: #343a44;
     }
+    /* Copied state is a quiet neutral marker, not a green card fill/glow. */
     .xls-dial-card.copied-card,
     .xls-dial-card.copied-company {
-      border-color: transparent !important;
-      box-shadow: 0 3px 10px rgba(26,54,38,.075) !important;
+      border-color: #cbd5df;
+      background: #fbfcfd !important;
+      box-shadow: 0 1px 5px rgba(51,65,85,.07);
     }
     body.dark-mode .xls-dial-card.copied-card,
     body.dark-mode .xls-dial-card.copied-company {
-      border-color: transparent !important;
-      box-shadow: 0 3px 12px rgba(0,0,0,.2) !important;
+      border-color: #46515f;
+      background: #262b32 !important;
+      box-shadow: 0 1px 5px rgba(0,0,0,.18);
     }
-    /* Android copied-state feedback stays subtle; cards have no decorative side rails. */
-    body.android .xls-dial-card.copied-card,
-    body.android .xls-dial-card.copied-company,
-    body.android .xls-dial-card.copied-phone {
-      border-color: transparent !important;
-      box-shadow: 0 2px 8px rgba(26,54,38,.055) !important;
+    .client-card-name-btn {
+      color: #273449 !important;
+      font-size: .94rem;
+      font-weight: 650;
+      letter-spacing: .01em;
+    }
+    body.dark-mode .client-card-name-btn { color: #e2e8f0 !important; }
+    .client-phone-btn:not(.privacy-add-vx) {
+      color: #68778a !important;
+      font-weight: 500;
+      box-shadow: none;
+    }
+    .client-phone-btn:not(.privacy-add-vx):hover,
+    .client-phone-btn:not(.privacy-add-vx):active {
+      color: #526477 !important;
+      box-shadow: none;
+    }
+    body.dark-mode .client-phone-btn:not(.privacy-add-vx) { color: #aab6c5 !important; }
+    .client-phone-btn.privacy-add-vx,
+    .xls-card-dial-btn.privacy-dial-icon {
+      color: #557c68 !important;
+      background: rgba(85,124,104,.055) !important;
+      border: 1px solid rgba(85,124,104,.13) !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    .client-phone-btn.privacy-add-vx:active,
+    .xls-card-dial-btn.privacy-dial-icon:active {
+      box-shadow: none !important;
+      transform: scale(.97);
+    }
+    body.dark-mode .client-phone-btn.privacy-add-vx,
+    body.dark-mode .xls-card-dial-btn.privacy-dial-icon {
+      color: #9bb9a7 !important;
+      background: rgba(125,165,140,.08) !important;
+      border-color: rgba(125,165,140,.18) !important;
+    }
+    .client-card-tag {
+      color: #566477;
+      background: #f2f4f7;
+      box-shadow: none;
+      font-size: .82rem;
+      line-height: 1.55;
+      border-radius: 6px;
+    }
+    /* Company names keep a restrained green accent for quick recognition. */
+    .client-card-tag-company {
+      color: #527763 !important;
+      background: #eef4ef !important;
+      font-weight: 550;
+    }
+    .client-card-tag-company:hover {
+      color: #3f654f !important;
+      background: #e5eee7 !important;
+    }
+    .client-card-tag-company.privacy-action-done {
+      color: #557c68 !important;
+      background: #edf3ef !important;
+      font-weight: 600 !important;
+    }
+    body.dark-mode .client-card-tag,
+    body.dark-mode .client-card-tag-company {
+      color: #b2cbb9 !important;
+      background: #2d3932 !important;
+    }
+    body.dark-mode .client-card-tag-company.privacy-action-done {
+      color: #a8c2b1 !important;
+      background: #2d3932 !important;
+    }
+    .client-card-body {
+      border-left-color: #e5e9ef;
+      padding-left: 9px;
+      gap: 4px;
+    }
+    body.dark-mode .client-card-body { border-left-color: #414955; }
+    .client-card-label {
+      color: #8995a5;
+      font-size: .68rem;
+      letter-spacing: .025em;
+    }
+    .client-card-text {
+      color: #596779;
+      font-size: .76rem;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+    body.dark-mode .client-card-label { color: #8995a5; }
+    body.dark-mode .client-card-text { color: #b4bfcc; }
+    .xls-dial-badge-success {
+      color: #557c68;
+      background: #edf3ef;
+      box-shadow: none;
+    }
+    body.dark-mode .xls-dial-badge-success {
+      color: #a8c2b1;
+      background: #2d3932;
+    }
+    .client-card-actions {
+      border-top: 1px solid #edf0f3;
+    }
+    body.dark-mode .client-card-actions { border-top-color: #3a424d; }
+    .xls-card-dial-btn:not(.privacy-dial-icon) {
+      box-shadow: 0 1px 4px rgba(7,193,96,.12);
+    }
+    .xls-card-dial-btn:not(.privacy-dial-icon):hover,
+    .xls-card-dial-btn:not(.privacy-dial-icon):active {
+      box-shadow: 0 1px 5px rgba(7,193,96,.17);
     }
     @media (max-width: 480px) {
-      .xls-dial-card { padding: 11px 10px 10px !important; gap: 9px !important; }
-      .client-card-primary { gap: 7px !important; }
-      .client-card-name-btn { max-width: 31%; font-size: 14px !important; }
-      .client-phone-btn { font-size: 12px !important; }
-      .client-card-tag { font-size: 10px !important; min-height: 24px; padding: 3px 7px !important; }
-      .client-card-text { font-size: 11.5px !important; line-height: 1.55 !important; }
-      .client-card-content-block { padding: 7px 8px !important; }
-    }
-    @media (max-width: 360px) {
-      .client-card-name-btn { max-width: 28%; }
-      .client-phone-btn { font-size: 11px !important; }
-      .xls-dial-card { padding-right: 8px !important; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .xls-dial-card, .xls-card-dial-btn { transition: none !important; }
+      .xls-dial-card { padding: 9px 10px; gap: 6px; }
+      .client-card-name-btn { font-size: .9rem !important; }
+      .client-phone-btn { font-size: .78rem !important; }
+      .client-card-tag { font-size: .76rem !important; padding: 2px 7px; }
+      .client-card-label { font-size: .66rem !important; }
+      .client-card-text { font-size: .72rem !important; line-height: 1.5; }
+      .client-card-body { padding-left: 7px; gap: 3px; }
     }
   </style>
 </head>
