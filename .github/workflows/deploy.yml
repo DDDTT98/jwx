@@ -5,10 +5,22 @@ on:
     branches:
       - master
       - main
+  pull_request:
+    branches:
+      - master
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: bhp-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  deploy:
+  validate:
+    name: Validate source and rendered pages
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -19,32 +31,25 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Validate embedded browser JavaScript
-        run: |
-          # Validate the actual HTML string after JavaScript template-literal escapes
-          # have been evaluated. Reading the raw module text can miss broken output.
-          cp src/dialer_html.js /tmp/bhp-dialer-html.mjs
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import { execFileSync } from 'node:child_process';
-          const { DIALER_HTML } = await import('file:///tmp/bhp-dialer-html.mjs');
-          const scripts = [...DIALER_HTML.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
-          const inline = scripts.filter(m => !/\bsrc\s*=/.test(m[0].slice(0, m[0].indexOf('>') + 1)));
-          if (!inline.length) throw new Error('No inline browser script found');
-          inline.forEach((m, i) => {
-            const out = `/tmp/bhp-inline-${i}.js`;
-            fs.writeFileSync(out, m[1]);
-            try {
-              execFileSync(process.execPath, ['--check', out], { stdio: 'pipe', encoding: 'utf8' });
-            } catch (e) {
-              const detail = (e.stderr || e.stdout || e.message || String(e)).toString();
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### Embedded JavaScript syntax error\n\n```text\n' + detail + '\n```\n');
-              process.stderr.write(detail);
-              process.exit(1);
-            }
-          });
-          console.log('Rendered embedded browser JavaScript syntax OK');
-          NODE
+      - name: Check every Worker JavaScript module
+        run: find src -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Validate rendered HTML and inline browser scripts
+        run: node scripts/validate-html.mjs
+
+  deploy:
+    name: Deploy to Cloudflare Workers
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install Wrangler
         run: npm install -g wrangler
