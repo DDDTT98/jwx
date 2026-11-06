@@ -3094,12 +3094,8 @@
       <button class="crm-tool-btn green" id="crmAddCustBtn">添加客户</button>
       <button class="crm-tool-btn orange" id="crmAddToDialBtn">添加到待拨打</button>
       <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">按分类一键拉取</button>
-      <button class="crm-tool-btn blue" id="crmMoveLeadsBtn" title="转入线索池">转入线索池</button>
-      <button class="crm-tool-btn blue" id="crmMoveIntentBtn">转入意向客户</button>
       <button class="crm-tool-btn" id="crmMovePublicBtn">转入公海</button>
       <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">批量删除</button>
-      <button class="crm-tool-btn" id="crmAddHelperBtn">添加协助人</button>
-      <button class="crm-tool-btn" id="crmRemoveHelperBtn">取消协助人</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
@@ -3325,8 +3321,6 @@
   <div class="dbm-actionbar" id="dbmActionBar">
     <span class="dbm-actionbar-count" id="dbmActionBarCount">已选 0</span>
     <button class="dbm-action-btn green" id="dbmAddToDialBtn">添加到待拨打</button>
-    <button class="dbm-action-btn orange" id="dbmMoveIntentBtn">转意向客户</button>
-    <button class="dbm-action-btn blue" id="dbmMoveLeadsBtn">转线索池</button>
     <button class="dbm-action-btn" id="dbmMovePublicBtn">转公海</button>
     <button class="dbm-action-btn red" id="dbmBatchDeleteBtn">批量删除</button>
   </div>
@@ -10248,8 +10242,6 @@ function updateAutoDialBtn() {
       // 底部操作按钮：触发桌面版同 ID 按钮逻辑
       var actions = [
         ['dbmAddToDialBtn', 'crmAddToDialBtn'],
-        ['dbmMoveIntentBtn', 'crmMoveIntentBtn'],
-        ['dbmMoveLeadsBtn', 'crmMoveLeadsBtn'],
         ['dbmMovePublicBtn', 'crmMovePublicBtn'],
         ['dbmBatchDeleteBtn', 'crmBatchDeleteBtn']
       ];
@@ -10915,92 +10907,6 @@ function updateAutoDialBtn() {
         };
       }
 
-      // Toolbar action: 转入意向客户
-      var moveIntentBtn = document.getElementById('crmMoveIntentBtn');
-      if (moveIntentBtn) {
-        moveIntentBtn.onclick = function() {
-          var mobiles = Object.keys(DB.selectedIds);
-          if (mobiles.length === 0) { alert('请先勾选要转入意向客户的数据'); return; }
-          
-          if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「意向客户」吗？')) return;
-          
-          moveIntentBtn.disabled = true;
-          moveIntentBtn.textContent = '处理中...';
-          
-          var promises = mobiles.map(function(m) {
-            return fetch('/api/dialer/customers', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                account_id: getOrCreateAccountId(),
-                mobile: m,
-                fields: { category: '意向客户' }
-              })
-            }).then(function(r) { return r.json(); });
-          });
-          
-          Promise.all(promises)
-          .then(function(results) {
-            var successCount = results.filter(function(r) { return r && r.success; }).length;
-            alert('操作完成，成功转入意向客户 ' + successCount + ' / ' + mobiles.length + ' 条');
-            DB.selectedIds = {};
-            var selectAllCb = document.getElementById('crmSelectAll');
-            if (selectAllCb) selectAllCb.checked = false;
-            dbFetch();
-          })
-          .catch(function(err) {
-            alert('批量转入意向客户出错: ' + err.message);
-          })
-          .then(function() {
-            moveIntentBtn.disabled = false;
-            moveIntentBtn.textContent = '转入意向客户';
-          });
-        };
-      }
-
-      // Toolbar action: 转入线索池
-      var moveLeadsBtn = document.getElementById('crmMoveLeadsBtn');
-      if (moveLeadsBtn) {
-        moveLeadsBtn.onclick = function() {
-          var mobiles = Object.keys(DB.selectedIds);
-          if (mobiles.length === 0) { alert('请先勾选要转入线索池的数据'); return; }
-          
-          if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「线索池」吗？')) return;
-          
-          moveLeadsBtn.disabled = true;
-          moveLeadsBtn.textContent = '处理中...';
-          
-          var promises = mobiles.map(function(m) {
-            return fetch('/api/dialer/customers', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                account_id: getOrCreateAccountId(),
-                mobile: m,
-                fields: { category: '潜在客户' }
-              })
-            }).then(function(r) { return r.json(); });
-          });
-          
-          Promise.all(promises)
-          .then(function(results) {
-            var successCount = results.filter(function(r) { return r && r.success; }).length;
-            alert('操作完成，成功转入线索池 ' + successCount + ' / ' + mobiles.length + ' 条');
-            DB.selectedIds = {};
-            var selectAllCb = document.getElementById('crmSelectAll');
-            if (selectAllCb) selectAllCb.checked = false;
-            dbFetch();
-          })
-          .catch(function(err) {
-            alert('批量转入线索池出错: ' + err.message);
-          })
-          .then(function() {
-            moveLeadsBtn.disabled = false;
-            moveLeadsBtn.textContent = '转入线索池';
-          });
-        };
-      }
-
       // Toolbar action: 批量删除
       var batchDeleteBtn = document.getElementById('crmBatchDeleteBtn');
       if (batchDeleteBtn) {
@@ -11089,92 +10995,6 @@ function updateAutoDialBtn() {
               movePublicBtn.textContent = '转入公海';
             });
           };
-      }
-
-      // Toolbar action: 添加协助人
-      var addHelperBtn = document.getElementById('crmAddHelperBtn');
-      if (addHelperBtn) {
-        addHelperBtn.onclick = function() {
-          var mobiles = Object.keys(DB.selectedIds);
-          if (mobiles.length === 0) { alert('请先勾选需要添加协助人的客户'); return; }
-          var helper = prompt('请输入协助人姓名：');
-          if (helper === null) return;
-          helper = helper.trim();
-          if (!helper) return;
-          
-          addHelperBtn.disabled = true;
-          
-          var promises = mobiles.map(function(m) {
-            var clientData = DB.allData.find(function(c) { return c.mobile === m; });
-            var oldNote = clientData ? (clientData.note || '') : '';
-            var newNote = oldNote + (oldNote ? ' ' : '') + '[协助人: ' + helper + ']';
-            return fetch('/api/dialer/customers', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                account_id: getOrCreateAccountId(),
-                mobile: m,
-                fields: { note: newNote }
-              })
-            }).then(function(r) { return r.json(); });
-          });
-          
-          Promise.all(promises)
-          .then(function() {
-            alert('添加协助人成功');
-            DB.selectedIds = {};
-            var selectAllCb = document.getElementById('crmSelectAll');
-            if (selectAllCb) selectAllCb.checked = false;
-            dbFetch();
-          })
-          .catch(function(err) {
-            alert('添加协助人失败: ' + err.message);
-          })
-          .then(function() {
-            addHelperBtn.disabled = false;
-          });
-        };
-      }
-
-      // Toolbar action: 取消协助人
-      var removeHelperBtn = document.getElementById('crmRemoveHelperBtn');
-      if (removeHelperBtn) {
-        removeHelperBtn.onclick = function() {
-          var mobiles = Object.keys(DB.selectedIds);
-          if (mobiles.length === 0) { alert('请先勾选需要取消协助人的客户'); return; }
-          
-          removeHelperBtn.disabled = true;
-          
-          var promises = mobiles.map(function(m) {
-            var clientData = DB.allData.find(function(c) { return c.mobile === m; });
-            var note = clientData ? (clientData.note || '') : '';
-            var newNote = note.replace(/\\[协助人:\\s*[^\\]]+\\]/g, '').trim();
-            return fetch('/api/dialer/customers', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                account_id: getOrCreateAccountId(),
-                mobile: m,
-                fields: { note: newNote }
-              })
-            }).then(function(r) { return r.json(); });
-          });
-          
-          Promise.all(promises)
-          .then(function() {
-            alert('取消协助人成功');
-            DB.selectedIds = {};
-            var selectAllCb = document.getElementById('crmSelectAll');
-            if (selectAllCb) selectAllCb.checked = false;
-            dbFetch();
-          })
-          .catch(function(err) {
-            alert('取消协助人失败: ' + err.message);
-          })
-          .then(function() {
-            removeHelperBtn.disabled = false;
-          });
-        };
       }
 
       // Hash trigger: /dialer#db auto-opens
