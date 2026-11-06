@@ -9440,10 +9440,48 @@ function updateAutoDialBtn() {
         });
     }
 
+    // 手机版全屏期间锁定底层页面：iOS Safari/WKWebView 仅靠 fixed 遮罩
+    // 仍可能把触摸滚动传递给背景页面；记录原始样式和滚动位置，关闭时精确恢复。
+    var _dbmBodyLockState = null;
+    function lockDBMobileBackground() {
+      if (_dbmBodyLockState || !document.body) return;
+      var body = document.body;
+      var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+      _dbmBodyLockState = {
+        scrollY: scrollY,
+        position: body.style.position,
+        top: body.style.top,
+        left: body.style.left,
+        right: body.style.right,
+        width: body.style.width,
+        overflow: body.style.overflow
+      };
+      body.style.position = 'fixed';
+      body.style.top = '-' + scrollY + 'px';
+      body.style.left = '0';
+      body.style.right = '0';
+      body.style.width = '100%';
+      body.style.overflow = 'hidden';
+    }
+    function unlockDBMobileBackground() {
+      var state = _dbmBodyLockState;
+      if (!state || !document.body) return;
+      var body = document.body;
+      body.style.position = state.position;
+      body.style.top = state.top;
+      body.style.left = state.left;
+      body.style.right = state.right;
+      body.style.width = state.width;
+      body.style.overflow = state.overflow;
+      _dbmBodyLockState = null;
+      window.scrollTo(0, state.scrollY);
+    }
+
     // 打开手机版（数据复用 DB.allData / crmFilterData / 批量操作按钮）
     function openDBMobile() {
       var ov = document.getElementById('dbMobileOverlay');
       if (!ov) return;
+      if (!ov.classList.contains('active')) lockDBMobileBackground();
       ov.classList.add('active');
       // 复位到客户列表视图
       var navListBtn = document.getElementById('dbmNavListBtn');
@@ -9469,7 +9507,10 @@ function updateAutoDialBtn() {
       // 管理面板移回桌面隐藏容器
       dbmCloseMgr();
       var ov = document.getElementById('dbMobileOverlay');
-      if (ov) ov.classList.remove('active');
+      if (ov && ov.classList.contains('active')) {
+        ov.classList.remove('active');
+        unlockDBMobileBackground();
+      }
     }
     window.closeDBMobile = closeDBMobile;
 
