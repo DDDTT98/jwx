@@ -3950,9 +3950,22 @@
 
       window._roundTransferPending = true;
       console.log('[auto-transfer] 本轮已操作 ' + operatedClients.length + ' 人, 正在转入公海...');
+      var autoTransferToken = getSessionToken();
+      if (!autoTransferToken) {
+        window._roundTransferPending = false;
+        _reminderShown = false;
+        showCopyLimitToast('登录状态已失效，自动转公海未执行；请重新登录后重试', true);
+        return;
+      }
+      var autoTransferHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + autoTransferToken
+      };
+      // 主账户查看子账户时，转移请求必须限定在当前视图账户。
+      if (_viewAccountId) autoTransferHeaders['X-View-Account-Id'] = _viewAccountId;
       fetch('/api/dialer/customers/transfer-to-pool', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: autoTransferHeaders,
         body: JSON.stringify({ mobiles: mobiles })
       }).then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
