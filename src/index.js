@@ -594,7 +594,7 @@ export default {
         var body=await request.json(),name=String(body.account_name||'').trim(),pin=String(body.pin||'').trim(),label=String(body.label||name).trim();
         var role=(cr==='master'&&body.role==='manager')?'manager':'member';
         if(!name)throw new Error('请输入账户名');
-        if(!/^\\d{4,6}$/.test(pin))throw new Error('PIN 必须为 4-6 位数字');
+        if(!/^\d{4,6}$/.test(pin))throw new Error('PIN 必须为 4-6 位数字');
         if(aa.some(function(a){return a.account_name===name;}))throw new Error('账户名已存在');
         var parent=cr==='manager'?caller.account_id:(role==='member'?String(body.parent_account_id||caller.account_id):caller.account_id);
         if(parent!==caller.account_id&&!aa.some(function(a){return a.account_id===parent&&a.role==='manager'&&a.active!==false;}))throw new Error('指定的小组长不存在或已停用');
