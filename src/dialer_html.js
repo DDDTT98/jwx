@@ -7182,7 +7182,7 @@
           var badgeHtml = '';
           var cardClass = 'xls-dial-card';
           if (c.phone_copied) cardClass += ' copied-card';
-          if (c.company_copied) cardClass += ' copied-company';
+          if (c.company_copied || c.note_copied) cardClass += ' copied-company';
           if (c.fund_copied) cardClass += ' copied-card'; // 复制过公积金：卡片浅绿光晕提醒
           var phoneVal = c.phone || c.mobile || '';
           if (c.dialedStatus === 'success') {
@@ -7370,6 +7370,7 @@
               }
               b.textContent = '已复制';
               b.classList.add('privacy-action-done');
+              if (cardEl) cardEl.classList.add('copied-company');
               jumpToWechat();
               return;
             }
