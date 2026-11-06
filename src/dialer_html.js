@@ -2292,14 +2292,15 @@
       line-height: 1.55;
       border-radius: 6px;
     }
+    /* Company names keep a restrained green accent for quick recognition. */
     .client-card-tag-company {
-      color: #526477 !important;
-      background: #f1f4f7 !important;
-      font-weight: 500;
+      color: #527763 !important;
+      background: #eef4ef !important;
+      font-weight: 550;
     }
     .client-card-tag-company:hover {
-      color: #344256 !important;
-      background: #e9eef3 !important;
+      color: #3f654f !important;
+      background: #e5eee7 !important;
     }
     .client-card-tag-company.privacy-action-done {
       color: #557c68 !important;
@@ -2308,8 +2309,8 @@
     }
     body.dark-mode .client-card-tag,
     body.dark-mode .client-card-tag-company {
-      color: #b7c2cf !important;
-      background: #303640 !important;
+      color: #b2cbb9 !important;
+      background: #2d3932 !important;
     }
     body.dark-mode .client-card-tag-company.privacy-action-done {
       color: #a8c2b1 !important;
