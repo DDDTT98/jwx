@@ -2156,6 +2156,50 @@
         padding-top: 8px;
       }
     }
+
+    /* Consistent action affordance: subtle WeChat-green halo in normal mode too.
+       Privacy-mode icon styling remains owned by its dedicated selectors. */
+    .client-phone-btn:not(.privacy-add-vx) {
+      color: var(--accent-wechat);
+      border-radius: 8px;
+      box-shadow: 0 0 0 1px rgba(7,193,96,.10), 0 0 8px rgba(7,193,96,.14);
+      transition: color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+    .client-phone-btn:not(.privacy-add-vx):hover {
+      color: #079b50;
+      box-shadow: 0 0 0 1px rgba(7,193,96,.18), 0 0 12px rgba(7,193,96,.24);
+    }
+    .client-phone-btn:not(.privacy-add-vx):active {
+      transform: scale(.97);
+      box-shadow: 0 0 0 1px rgba(7,193,96,.24), 0 0 14px rgba(7,193,96,.30);
+    }
+
+    .xls-card-dial-btn:not(.privacy-dial-icon) {
+      box-shadow: 0 2px 7px rgba(7,193,96,.20), 0 0 0 1px rgba(7,193,96,.08);
+      transition: box-shadow .18s ease, transform .18s ease, filter .18s ease;
+    }
+    .xls-card-dial-btn:not(.privacy-dial-icon):hover {
+      filter: brightness(1.04);
+      box-shadow: 0 3px 11px rgba(7,193,96,.30), 0 0 0 1px rgba(7,193,96,.14);
+    }
+    .xls-card-dial-btn:not(.privacy-dial-icon):active {
+      transform: translateY(1px) scale(.97);
+      box-shadow: 0 1px 5px rgba(7,193,96,.24);
+    }
+
+    .client-phone-btn:focus-visible,
+    .client-card-tag-company:focus-visible,
+    .xls-card-dial-btn:focus-visible {
+      outline: 2px solid rgba(7,193,96,.75);
+      outline-offset: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .client-phone-btn:not(.privacy-add-vx),
+      .xls-card-dial-btn:not(.privacy-dial-icon) {
+        transition: none !important;
+      }
+    }
   </style>
 </head>
 <body>
