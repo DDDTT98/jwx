@@ -3101,7 +3101,7 @@
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
       <span id="crmReassignGroup" style="display:none; align-items:center; gap:5px; flex-wrap:wrap;">
         <span style="font-size:0.7rem; font-weight:700; color:var(--text-soft);">分配给子账号</span>
-        <select id="crmReassignSel" multiple size="1" title="可多选子账号（按住 Ctrl/⌘）" style="height:30px; min-width:130px; max-width:190px; padding:0 5px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:5px; font-weight:700; background:var(--card-bg); color:var(--text-main);"></select>
+        <div id="crmReassignSel" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap; max-width:340px; font-size:0.68rem;"></div>
         <select id="crmReassignMode" title="分配方式" style="height:30px; padding:0 5px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:5px; font-weight:700; background:var(--card-bg); color:var(--text-main);">
           <option value="equal">平均分配</option><option value="proportional">按现有客户量比例</option>
         </select>
@@ -9687,10 +9687,15 @@ function updateAutoDialBtn() {
           res.accounts.forEach(function(s) {
             if (!s.active || s.is_master) return;
             var name = s.account_name || s.label || s.account_id.slice(0, 10);
-            var opt = document.createElement('option');
-            opt.value = s.account_id; opt.textContent = name; reassignSel.appendChild(opt);
+            var label = document.createElement('label');
+            label.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);';
+            var cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.className = 'crm-reassign-account'; cb.value = s.account_id;
+            cb.style.cssText = 'width:14px;height:14px;accent-color:#07c160;margin:0;';
+            var txt = document.createElement('span'); txt.textContent = name;
+            label.appendChild(cb); label.appendChild(txt); reassignSel.appendChild(label);
           });
-          reassignGroup.style.display = reassignSel.options.length ? 'flex' : 'none';
+          reassignGroup.style.display = reassignSel.querySelectorAll('.crm-reassign-account').length ? 'flex' : 'none';
         })
         .catch(function() { reassignGroup.style.display = 'none'; });
     }
@@ -11229,10 +11234,10 @@ function updateAutoDialBtn() {
           var selectedMobiles = Object.keys(DB.selectedIds);
           if (!selectedMobiles.length) { alert('请先勾选要分配的客户'); return; }
           var targetSel = document.getElementById('crmReassignSel');
-          var targetIds = targetSel ? Array.prototype.map.call(targetSel.selectedOptions, function(o) { return o.value; }) : [];
+          var targetIds = targetSel ? Array.prototype.map.call(targetSel.querySelectorAll('.crm-reassign-account:checked'), function(o) { return o.value; }) : [];
           if (!targetIds.length) { alert('请至少选择一个子账号'); return; }
           var mode = (document.getElementById('crmReassignMode') || {}).value || 'equal';
-          var targetNames = Array.prototype.filter.call(targetSel.selectedOptions, function(o) { return targetIds.indexOf(o.value) >= 0; }).map(function(o) { return o.textContent; });
+          var targetNames = Array.prototype.map.call(targetSel.querySelectorAll('.crm-reassign-account:checked'), function(o) { return o.parentNode.textContent.trim(); });
           var modeName = mode === 'equal' ? '平均分配' : '按现有客户量比例分配';
           if (!confirm('将勾选的 ' + selectedMobiles.length + ' 条客户，按「' + modeName + '」分配给：' + targetNames.join('、') + '？')) return;
           reassignBtn.disabled = true; reassignBtn.textContent = '分配中...';
