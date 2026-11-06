@@ -11054,7 +11054,14 @@ function updateAutoDialBtn() {
         var mobiles = Object.keys(DB.selectedIds || {}).filter(function(m) { return DB.selectedIds[m]; });
         if (!mobiles.length) { alert('请先勾选需要添加类型的客户'); return; }
         if (!typeName) { alert('请输入自定义类型名称'); if (bcpName) bcpName.focus(); return; }
-        if (!confirm('确认给已勾选的 ' + mobiles.length + ' 位客户添加类型「' + typeName + '」吗？')) return;
+        if (!confirm('确认给已勾选的 ' + mobiles.length + ' 位客户设置类型「' + typeName + '」吗？')) return;
+
+        // 类型是独立的自定义列，不修改系统原有的“分类”字段。
+        if (DB.customColumns.indexOf('类型') === -1) {
+          DB.customColumns.push('类型');
+          localStorage.setItem('crm_custom_columns', JSON.stringify(DB.customColumns));
+        }
+        renderCRMHeaders();
 
         var selected = {};
         (DB.allData || []).forEach(function(customer) {
@@ -11068,17 +11075,19 @@ function updateAutoDialBtn() {
         targets.reduce(function(queue, mobile) {
           return queue.then(function() {
             var customer = selected[mobile];
-            var oldCategory = String(customer.category || '').trim();
-            var parts = oldCategory ? oldCategory.split(/[、,，]/).map(function(x) { return x.trim(); }) : [];
-            if (parts.indexOf(typeName) >= 0) { done++; return; }
-            var nextCategory = oldCategory ? oldCategory + '、' + typeName : typeName;
+            var parsed = parseCustomerNote(customer);
+            var custom = Object.assign({}, parsed.custom || {});
+            custom['类型'] = typeName;
+            var payload = { note: parsed.note || '', custom: custom };
+            if (customer.fund) payload.fund = customer.fund;
             return fetch('/api/dialer/customers', {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ mobile: mobile, fields: { category: nextCategory } })
+              body: JSON.stringify({ mobile: mobile, fields: { note: JSON.stringify(payload) } })
             }).then(function(resp) { return resp.json(); }).then(function(result) {
               if (result && result.success) {
-                customer.category = nextCategory;
+                customer.note = JSON.stringify(payload);
+                customer.custom = custom;
                 done++;
               } else { failed++; }
             }).catch(function() { failed++; }).then(function() {
