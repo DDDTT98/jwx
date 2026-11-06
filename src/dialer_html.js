@@ -2082,7 +2082,6 @@
             <input type="checkbox" id="showClientInfoToggle" style="width:18px;height:18px;accent-color:var(--accent-wechat);">
           </span>
         </label>
-        <span style="font-size:0.66rem;color:var(--text-light);">关闭后隐藏姓名、公积金及备注等资料；单位位置显示“复制备注”。</span>
       </div>
       <!-- 轮次与模式 -->
       <div class="drawer-group-card">
