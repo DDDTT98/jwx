@@ -3067,19 +3067,6 @@
       </span>
     </div>
 
-    <div id="dbWecomConfig" style="display:none; padding:12px 16px; border-bottom:1px solid var(--card-border); background:var(--card-bg);">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:7px;">
-        <strong style="font-size:0.78rem; color:var(--text-main);">企业微信通知配置</strong>
-        <span id="dbWecomStatus" style="font-size:0.68rem; color:var(--text-soft);">检查配置中…</span>
-      </div>
-      <div style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
-        <input id="dbWecomWebhookInput" type="password" autocomplete="new-password" placeholder="粘贴企业微信群机器人 Webhook 地址" style="flex:1; min-width:220px; height:34px; padding:0 10px; border:1px solid var(--card-border); border-radius:5px; background:var(--btn-bg); color:var(--text-main); font-size:0.72rem;">
-        <button id="dbWecomSaveBtn" class="crm-tool-btn blue" style="height:34px;">保存</button>
-        <button id="dbWecomTestBtn" class="crm-tool-btn" style="height:34px;">发送测试</button>
-      </div>
-      <div style="font-size:0.65rem; color:var(--text-soft); margin-top:6px;">仅主账号可配置。地址保存在服务端，不会显示完整密钥，也不会提交到 GitHub。</div>
-    </div>
-
     <!-- CRM Shortcut Filters -->
     <div class="crm-shortcut-bar">
       <button class="crm-shortcut-btn active" data-shortcut="all">全部</button>
@@ -3217,6 +3204,20 @@
     <!-- Content Config Panel -->
     <div id="dbContentConfigPanel" style="display:none; flex-direction:column; gap:14px; padding:16px; overflow-y:auto; flex:1;">
       <div style="font-size:0.85rem; font-weight:900; color:var(--text-main); border-bottom:0.5px solid var(--card-border); padding-bottom:8px;">内容配置（仅主账号可编辑）</div>
+
+      <!-- 企业微信通知配置：仅在内容配置栏目显示 -->
+          <div id="dbWecomConfig" style="display:none; padding:12px 16px; border-bottom:1px solid var(--card-border); background:var(--card-bg);">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:7px;">
+              <strong style="font-size:0.78rem; color:var(--text-main);">企业微信通知配置</strong>
+              <span id="dbWecomStatus" style="font-size:0.68rem; color:var(--text-soft);">检查配置中…</span>
+            </div>
+            <div style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
+              <input id="dbWecomWebhookInput" type="password" autocomplete="new-password" placeholder="粘贴企业微信群机器人 Webhook 地址" style="flex:1; min-width:220px; height:34px; padding:0 10px; border:1px solid var(--card-border); border-radius:5px; background:var(--btn-bg); color:var(--text-main); font-size:0.72rem;">
+              <button id="dbWecomSaveBtn" class="crm-tool-btn blue" style="height:34px;">保存</button>
+              <button id="dbWecomTestBtn" class="crm-tool-btn" style="height:34px;">发送测试</button>
+            </div>
+            <div style="font-size:0.65rem; color:var(--text-soft); margin-top:6px;">仅主账号可配置。地址保存在服务端，不会显示完整密钥，也不会提交到 GitHub。</div>
+          </div>
 
       <!-- Reminder Config -->
       <div style="display:flex; flex-direction:column; gap:8px; background:var(--card-bg); border-radius:var(--radius-sm); padding:12px; border:0.5px solid var(--card-border);">
