@@ -3112,7 +3112,13 @@
     <!-- Account Management Panel -->
     <div id="dbAccountMgrPanel" style="display:none; flex-direction:column; gap:12px; padding:16px; overflow-y:auto; flex:1;">
       <div id="dbAccountMgrSubs" style="display:none;">
-        <div style="font-size:0.85rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">子账户管理</div>
+        <div style="font-size:0.85rem; font-weight:900; color:var(--text-main); margin-bottom:8px;">小组与子账号管理</div>
+        <div id="dbCreateRoleRow" style="display:flex; gap:6px; margin-bottom:6px;">
+          <select id="dbSubAccountRoleInput" style="height:32px;padding:0 7px;font-size:0.72rem;border:0.5px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main);">
+            <option value="member">普通子账号</option><option value="manager">二级管理账号（组长）</option>
+          </select>
+          <select id="dbSubAccountParentInput" style="height:32px;flex:1;padding:0 7px;font-size:0.72rem;border:0.5px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main);"><option value="">归属小组（默认主账号）</option></select>
+        </div>
         <div id="dbSubAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; margin-bottom:8px;"></div>
         <div style="display:flex; gap:6px;">
           <input type="text" id="dbSubAccountNameInput" maxlength="20" placeholder="账户名" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
@@ -3460,12 +3466,16 @@
     var SESS_TOKEN_K = 'dialer_sess_token';
     var SESS_AID_K = 'dialer_sess_aid';
     var SESS_MASTER_K = 'dialer_sess_master';
+    var SESS_ROLE_K = 'dialer_sess_role';
     var SESS_LABEL_K = 'dialer_sess_label';
     var SESS_TS_K = 'dialer_sess_ts';
 
     function getSessionToken() { return localStorage.getItem(SESS_TOKEN_K) || ''; }
     function getSessionAccountId() { return localStorage.getItem(SESS_AID_K) || ''; }
     function isSessionMaster() { return localStorage.getItem(SESS_MASTER_K) === '1'; }
+    function getSessionRole() { return localStorage.getItem(SESS_ROLE_K) || (isSessionMaster() ? 'master' : 'member'); }
+    function isSessionManager() { return getSessionRole() === 'manager'; }
+    function canManageTeam() { return isSessionMaster() || isSessionManager(); }
 
     // 子账号隐藏仅限主账号使用的管理栏目（桌面与手机版同步）
     function syncManagerTabVisibility() {
@@ -3512,6 +3522,7 @@
       localStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
       localStorage.setItem(SESS_AID_K, acct.account_id || '');
       localStorage.setItem(SESS_MASTER_K, acct.is_master ? '1' : '0');
+      localStorage.setItem(SESS_ROLE_K, acct.role || (acct.is_master ? 'master' : 'member'));
       localStorage.setItem(SESS_LABEL_K, acct.label || '');
       localStorage.setItem(SESS_TS_K, Date.now().toString());
     }
@@ -3576,6 +3587,7 @@
       localStorage.removeItem(SESS_TOKEN_K);
       localStorage.removeItem(SESS_AID_K);
       localStorage.removeItem(SESS_MASTER_K);
+      localStorage.removeItem(SESS_ROLE_K);
       localStorage.removeItem(SESS_LABEL_K);
       localStorage.removeItem(SESS_TS_K);
     }
@@ -10164,7 +10176,7 @@ function updateAutoDialBtn() {
       if (entry.load) entry.load();
       // 主账户才显示子账户管理
       var subs = document.getElementById('dbAccountMgrSubs');
-      if (subs) subs.style.display = isSessionMaster() ? 'block' : 'none';
+      if (subs) subs.style.display = canManageTeam() ? 'block' : 'none';
     }
 
     // 手机版管理面板使用占位符记录桌面原位置，关闭/切换时必须精确复原。
@@ -11426,7 +11438,7 @@ function updateAutoDialBtn() {
     function initAccountMgrPanel() {
       updateAccountDisplay();
       var subsSection = document.getElementById("dbAccountMgrSubs");
-      if (subsSection) subsSection.style.display = isSessionMaster() ? "block" : "none";
+      if (subsSection) subsSection.style.display = canManageTeam() ? "block" : "none";
       var resetBtn = document.getElementById("dbResetAccountsBtn");
       if (resetBtn) resetBtn.style.display = isSessionMaster() ? "block" : "none";
 
@@ -11440,7 +11452,7 @@ function updateAutoDialBtn() {
           if (!accountName) { error.textContent = "请输入账户名"; return; }
           if (pin.length < 4) { error.textContent = "PIN 至少 4 位"; return; }
           createSubBtn.disabled = true; createSubBtn.textContent = "创建中...";
-          fetch("/api/dialer/auth/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ account_name: accountName, pin: pin, label: accountName }) })
+          fetch("/api/dialer/auth/accounts", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() }, body: JSON.stringify({ account_name: accountName, pin: pin, label: accountName, role: (document.getElementById("dbSubAccountRoleInput")||{}).value || "member", parent_account_id: (document.getElementById("dbSubAccountParentInput")||{}).value || "" }) })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.success) { document.getElementById("dbSubAccountNameInput").value = ""; document.getElementById("dbSubAccountPinInput").value = ""; error.textContent = ""; loadSubAccounts(); loadAccountStats(); }
@@ -12367,45 +12379,36 @@ function updateAutoDialBtn() {
     }
 
     function loadSubAccounts() {
-      var list = document.getElementById('dbSubAccountList');
-      if (!list) return;
-      fetch('/api/dialer/auth/accounts').then(function(r) { return r.json(); }).then(function(res) {
-        var subs = (res.accounts || []).filter(function(a) { return !a.is_master; });
-        if (subs.length === 0) { list.innerHTML = '<div style=\"font-size:0.68rem; color:var(--text-light); text-align:center; padding:8px;\">暂无子账户</div>'; }
-        else {
-          list.innerHTML = subs.map(function(s) {
-            var activeTag = s.active ? '' : ' [已禁用]';
-            return '<div style=\"display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--btn-bg); border-radius:4px;' + (s.active ? '' : 'opacity:0.5;') + '\">'
-              + '<span style=\"font-size:0.72rem; font-weight:700; color:var(--text-main);\">' + (s.account_name || s.label || s.account_id.slice(0,12)) + activeTag + '</span>'
-              + '<div style=\"display:flex; gap:3px;\">'
-              + '<button class=\"sub-toggle-btn\" data-id=\"' + s.account_id + '\" data-active=\"' + (s.active ? '1' : '0') + '\" style=\"font-size:0.58rem; padding:2px 6px; border:none; box-shadow:var(--shadow-card); border-radius:3px; background:var(--card-bg); color:' + (s.active ? '#e74c3c' : '#07c160') + '; cursor:pointer; font-weight:700;\">' + (s.active ? '禁用' : '启用') + '</button>'
-              + '<button class=\"sub-delete-btn\" data-id=\"' + s.account_id + '\" style=\"font-size:0.58rem; padding:2px 6px; border:none; box-shadow:var(--shadow-card); border-radius:3px; background:var(--card-bg); color:#e74c3c; cursor:pointer; font-weight:700;\">删除</button>'
-              + '</div></div>';
-          }).join('');
-          list.querySelectorAll('.sub-toggle-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              var id = btn.dataset.id; var active = btn.dataset.active === '1';
-              btn.disabled = true; btn.textContent = '...';
-              fetch('/api/dialer/auth/accounts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_account_id: id, active: !active }) })
-              .then(function(r) { return r.json(); }).then(function() { loadSubAccounts(); loadAccountStats(); })
-              .catch(function() { btn.disabled = false; btn.textContent = active ? '禁用' : '启用'; });
-            });
-          });
-          list.querySelectorAll('.sub-delete-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-              var id = btn.dataset.id;
-              if (!confirm('确定删除该子账户吗？其数据将自动转回主账户。')) return;
-              btn.disabled = true; btn.textContent = '...';
-              fetch('/api/dialer/auth/accounts', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target_account_id: id }) })
-              .then(function(r) { return r.json(); })
-              .then(function(res) { loadSubAccounts(); loadAccountStats(); if (res.migrated > 0) alert('已删除，' + res.migrated + ' 条数据已转回主账户'); })
-              .catch(function() { btn.disabled = false; btn.textContent = '删除'; });
-            });
-          });
+      var list=document.getElementById('dbSubAccountList'); if(!list)return;
+      var token=getSessionToken(), roleSel=document.getElementById('dbSubAccountRoleInput'), parentSel=document.getElementById('dbSubAccountParentInput');
+      fetch('/api/dialer/auth/accounts',{headers:{'Authorization':'Bearer '+token}}).then(function(r){return r.json();}).then(function(res){
+        if(res.error)throw new Error(res.error);
+        var accounts=res.accounts||[], callerRole=res.caller_role||getSessionRole();
+        if(roleSel)roleSel.style.display=callerRole==='master'?'':'none';
+        if(parentSel){
+          parentSel.style.display=callerRole==='master'?'':'none';
+          parentSel.innerHTML='<option value="'+(res.caller_account_id||'')+'">主账号默认组</option>'+accounts.filter(function(a){return a.role==='manager';}).map(function(m){return '<option value="'+m.account_id+'">'+escHtml(m.account_name||m.label||m.account_id)+' 小组</option>';}).join('');
         }
-      });
+        var createRow=document.getElementById('dbCreateRoleRow');if(createRow)createRow.style.display=callerRole==='member'?'none':'flex';
+        var shown=accounts.filter(function(a){return a.account_id!==(res.caller_account_id||getSessionAccountId());});
+        if(!shown.length){list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);text-align:center;padding:8px;">暂无下级账号</div>';return;}
+        function render(a){
+          var mgr=a.role==='manager', manager=accounts.find(function(x){return x.account_id===a.parent_account_id;});
+          var sub=mgr?'小组长':('归属：'+(manager?(manager.account_name||manager.label):'主账号默认组'));
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:var(--btn-bg);border-radius:5px;'+(a.active?'':'opacity:.5;')+'"><div style="min-width:0"><div style="font-size:.74rem;font-weight:800;color:var(--text-main)">'+(mgr?'二级管理账号 · ':'普通子账号 · ')+escHtml(a.account_name||a.label||a.account_id)+'</div><div style="font-size:.62rem;color:var(--text-soft)">'+escHtml(sub)+(a.active?'':' · 已禁用')+'</div></div><div style="display:flex;gap:4px;flex-shrink:0"><button class="sub-toggle-btn" data-id="'+a.account_id+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'禁用':'启用')+'</button><button class="sub-delete-btn" data-id="'+a.account_id+'" data-role="'+(a.role||'member')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:#e74c3c">删除</button></div></div>';
+        }
+        var managers=shown.filter(function(a){return a.role==='manager';}),members=shown.filter(function(a){return a.role!=='manager';});
+        list.innerHTML=(managers.length?'<div style="font-size:.68rem;font-weight:800;padding:5px 2px;color:var(--text-main)">二级管理账号 / 小组长</div>'+managers.map(render).join(''):'')+(members.length?'<div style="font-size:.68rem;font-weight:800;padding:7px 2px 5px;color:var(--text-main)">普通子账号</div>'+members.map(render).join(''):'');
+        list.querySelectorAll('.sub-toggle-btn').forEach(function(btn){btn.addEventListener('click',function(){
+          var active=btn.dataset.active==='1';btn.disabled=true;
+          fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,active:!active})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();}).catch(function(e){alert(e.message);btn.disabled=false;});
+        });});
+        list.querySelectorAll('.sub-delete-btn').forEach(function(btn){btn.addEventListener('click',function(){
+          if(!confirm(btn.dataset.role==='manager'?'确定删除该小组长账号？该小组必须先清空成员。':'确定删除该普通子账号？其客户数据将迁回所属上级。'))return;btn.disabled=true;
+          fetch('/api/dialer/auth/accounts',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();if(x.migrated)alert('已迁移 '+x.migrated+' 条客户数据');}).catch(function(e){alert(e.message);btn.disabled=false;});
+        });});
+      }).catch(function(e){list.innerHTML='<div style="font-size:.68rem;color:#e74c3c;padding:8px;">加载失败：'+escHtml(e.message)+'</div>';});
     }
-
 
     // ========== Auth Flow ==========
 
