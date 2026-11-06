@@ -3925,15 +3925,26 @@
 
       var mobiles = [];
       var mobileSet = {};
+      var missingMobileCount = 0;
       for (var k = 0; k < operatedClients.length; k++) {
-        var m = operatedClients[k].phone || operatedClients[k].mobile;
-        if (m && !mobileSet[m]) { mobiles.push(m); mobileSet[m] = true; }
+        var m = String(operatedClients[k].phone || operatedClients[k].mobile || '').trim();
+        if (!m) {
+          missingMobileCount++;
+          continue;
+        }
+        if (!mobileSet[m]) { mobiles.push(m); mobileSet[m] = true; }
       }
-      if (!mobiles.length) {
-        // 本次转移无法发起：解除提醒占用状态，用户修正数据/再次操作后仍可重试。
+      // 不允许只转走有手机号的部分客户：否则客户端会把这一轮误判为完整成功，
+      // 无手机号的已操作客户会残留在列表并污染下一轮的 50/10 人边界。
+      if (missingMobileCount > 0 || !mobiles.length) {
         _reminderShown = false;
         _pendingReminderClient = null;
-        showCopyLimitToast('本轮客户缺少有效手机号，未能转入公海；请检查手机号后重试', true);
+        showCopyLimitToast(
+          missingMobileCount > 0
+            ? '本轮有 ' + missingMobileCount + ' 位已操作客户缺少有效手机号，未转入公海；请补齐手机号或手动清空本轮'
+            : '本轮客户缺少有效手机号，未能转入公海；请检查手机号后重试',
+          true
+        );
         return;
       }
 
