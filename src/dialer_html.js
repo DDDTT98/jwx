@@ -3463,6 +3463,27 @@
     function getSessionToken() { return localStorage.getItem(SESS_TOKEN_K) || ''; }
     function getSessionAccountId() { return localStorage.getItem(SESS_AID_K) || ''; }
     function isSessionMaster() { return localStorage.getItem(SESS_MASTER_K) === '1'; }
+
+    // 子账号隐藏仅限主账号使用的管理栏目（桌面与手机版同步）
+    function syncManagerTabVisibility() {
+      var master = isSessionMaster();
+      var desktopBackup = document.querySelector('.crm-tab[data-tab="backupMgr"]');
+      var desktopContent = document.querySelector('.crm-tab[data-tab="contentConfig"]');
+      var mobileBackup = document.querySelector('.dbm-mgr-tab[data-mgrtab="backup"]');
+      var mobileContent = document.querySelector('.dbm-mgr-tab[data-mgrtab="content"]');
+      [desktopBackup, desktopContent, mobileBackup, mobileContent].forEach(function(tab) {
+        if (tab) tab.style.display = master ? '' : 'none';
+      });
+      // 若子账号当前停留在受限栏目，自动切回首页/账户管理，避免隐藏后仍停留在空白面板
+      if (!master) {
+        var activeDesktop = document.querySelector('.crm-tab.active');
+        if (activeDesktop && (activeDesktop.getAttribute('data-tab') === 'backupMgr' || activeDesktop.getAttribute('data-tab') === 'contentConfig')) {
+          var homeTab = document.querySelector('.crm-tab[data-tab="all"]');
+          if (homeTab) homeTab.click();
+        }
+        if (_dbmActiveTab === 'backup' || _dbmActiveTab === 'content') _dbmActiveTab = 'account';
+      }
+    }
     function getSessionLabel() { return localStorage.getItem(SESS_LABEL_K) || ''; }
     // 设备标识：每台设备（浏览器）持久化一个 ID，冷却倒计时按设备各走各的（两台手机互不影响）
     var DEVICE_ID_K = 'bhp_device_id';
@@ -9674,6 +9695,7 @@ function updateAutoDialBtn() {
 
     function _openDBDashboardInner() {
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
+      syncManagerTabVisibility();
       ov.classList.add('active'); DB.page=1;
       // Reset view account and load stats for master
       _viewAccountId = '';
@@ -10082,6 +10104,7 @@ function updateAutoDialBtn() {
     // 进入管理页：把当前 tab 的桌面面板移入手机容器（移动 DOM 不影响已绑定事件）
     function dbmOpenMgr() {
       var mgr = document.getElementById('dbmMgr');
+      syncManagerTabVisibility();
       var body = document.getElementById('dbmMgrBody');
       if (!mgr || !body) return;
       mgr.style.display = 'flex';
