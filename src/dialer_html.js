@@ -3123,7 +3123,6 @@
     <div class="crm-toolbar">
       <button class="crm-tool-btn green" id="crmAddCustBtn">添加客户</button>
       <button class="crm-tool-btn orange" id="crmAddToDialBtn">添加到待拨打</button>
-      <button class="crm-tool-btn orange" id="crmPullFilteredBtn" title="将当前分类和批次下的所有客户一键拉取到待拨打列表">按分类一键拉取</button>
       <button class="crm-tool-btn" id="crmMovePublicBtn">转入公海</button>
       <button class="crm-tool-btn red" id="crmBatchDeleteBtn" title="删除勾选的客户">批量删除</button>
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
@@ -10939,104 +10938,6 @@ function updateAutoDialBtn() {
             if (skippedCooldown === 0 && skippedExists === 0) msg2 = '选中的客户已在待拨打列表中';
             alert(msg2);
           }
-        };
-      }
-
-      // Toolbar action: 按分类一键拉取
-      var pullFilteredBtn = document.getElementById('crmPullFilteredBtn');
-      if (pullFilteredBtn) {
-        pullFilteredBtn.onclick = function() {
-          var activeTab = DB.activeTab || 'all';
-          var catFilter = document.getElementById('dbCatFilter') ? document.getElementById('dbCatFilter').value : '';
-          var batchFilter = document.getElementById('dbBatchFilter') ? document.getElementById('dbBatchFilter').value : '';
-          
-          var category = '';
-          if (activeTab && activeTab !== 'all') {
-            category = activeTab;
-          } else if (catFilter) {
-            category = catFilter;
-          }
-          
-          var confirmMsg = '确认从数据库拉取';
-          if (category) confirmMsg += '「' + category + '」分类';
-          if (batchFilter) confirmMsg += '「' + batchFilter + '」批次';
-          if (!category && !batchFilter) confirmMsg += '所有';
-          confirmMsg += '的客户到拨号盘吗？(已存在或10天内已添加的将自动跳过，最大拉取5000条)';
-          
-          if (!confirm(confirmMsg)) return;
-          
-          pullFilteredBtn.disabled = true;
-          pullFilteredBtn.textContent = '拉取中...';
-          
-          var pullUrl = '/api/dialer/customers?page=1&pageSize=5000&account_id=' + encodeURIComponent(getOrCreateAccountId());
-          if (category) pullUrl += '&category=' + encodeURIComponent(category);
-          if (batchFilter) pullUrl += '&batch_label=' + encodeURIComponent(batchFilter);
-          
-          fetch(pullUrl)
-            .then(function(r) { return r.json(); })
-            .then(function(res) {
-              pullFilteredBtn.disabled = false;
-              pullFilteredBtn.textContent = '按分类一键拉取';
-              if (res.error) {
-                alert('拉取失败: ' + res.error);
-                return;
-              }
-              var dbClients = res.data || [];
-              if (dbClients.length === 0) {
-                alert('数据库中没有找到符合当前分类/筛选的客户记录！');
-                return;
-              }
-              
-              var addedCount = 0;
-              var skippedCooldown = 0;
-              var addedMobiles = [];
-              dbClients.forEach(function(c) {
-                var m = c.mobile;
-                if (!m) return;
-                var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
-                if (exists) return;
-                if (!canAddToDialList(m)) {
-                  skippedCooldown++;
-                  return;
-                }
-                var parsed = parseCustomerNote(c);
-                importedClients.push({
-                  name: c.name || '未知',
-                  phone: c.mobile,
-                  mobile: c.mobile,
-                  company: c.company_name || '',
-                  note: parsed.note,
-                  custom: parsed.custom,
-                  fund: c.fund || '',
-                  category: c.category || '',
-                  batch_label: c.batch_label || '',
-                  last_operation: c.last_operation || null
-                });
-                recordAddToDialList(m);
-                addedMobiles.push(m);
-                addedCount++;
-              });
-
-              if (addedCount > 0) {
-                localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-                renderDialCards();
-                updateDashboardVisibility(true);
-                var msg = '成功从数据库拉取了 ' + addedCount + ' 个客户到拨号盘列表！';
-                if (skippedCooldown > 0) msg += '（' + skippedCooldown + ' 个在10天冷却期内已跳过）';
-                alert(msg);
-                document.getElementById('dbOverlay').classList.remove('active');
-              } else {
-                var msg2 = '拉取了 ' + dbClients.length + ' 个客户';
-                if (skippedCooldown > 0) msg2 += '，其中 ' + skippedCooldown + ' 个在10天冷却期内';
-                msg2 += '已全部存在在拨号盘列表中！';
-                alert(msg2);
-              }
-            })
-            .catch(function(err) {
-              pullFilteredBtn.disabled = false;
-              pullFilteredBtn.textContent = '按分类一键拉取';
-              alert('拉取失败: ' + err.message);
-            });
         };
       }
 
