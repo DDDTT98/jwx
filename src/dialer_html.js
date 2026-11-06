@@ -7345,6 +7345,7 @@
               }
               b.textContent = '已复制';
               b.classList.add('privacy-action-done');
+              jumpToWechat();
               return;
             }
             if (clientComp) {
