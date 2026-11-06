@@ -2036,6 +2036,17 @@
           </div>
         </div>
       </div>
+      <!-- 客户资料显示开关 -->
+      <div class="drawer-group-card" style="gap:8px;">
+        <label for="showClientInfoToggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;">
+          <span style="font-size:0.82rem;font-weight:600;color:var(--text-soft);">显示备注客户信息</span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            <span id="showClientInfoState" style="font-size:0.7rem;color:var(--text-light);">已关闭</span>
+            <input type="checkbox" id="showClientInfoToggle" style="width:18px;height:18px;accent-color:var(--accent-wechat);">
+          </span>
+        </label>
+        <span style="font-size:0.66rem;color:var(--text-light);">关闭后隐藏姓名、公积金及备注等资料；单位位置显示“复制备注”。</span>
+      </div>
       <!-- 轮次与模式 -->
       <div class="drawer-group-card">
         <div class="drawer-stat-row">
@@ -2960,6 +2971,19 @@
     function newModeKey() { return 'dialer_new_mode:' + getOrCreateAccountId(); }
     function isNewMode() {
       try { return localStorage.getItem(newModeKey()) === '1'; } catch (e) { return false; }
+    }
+
+    // 客户备注信息显示开关：默认关闭，按账号保存在本机
+    function clientInfoVisibleKey() { return 'dialer_client_info_visible:' + getOrCreateAccountId(); }
+    function isClientInfoVisible() {
+      try { return localStorage.getItem(clientInfoVisibleKey()) === '1'; } catch (e) { return false; }
+    }
+    function syncClientInfoToggle() {
+      var cb = document.getElementById('showClientInfoToggle');
+      var label = document.getElementById('showClientInfoState');
+      var visible = isClientInfoVisible();
+      if (cb) cb.checked = visible;
+      if (label) label.textContent = visible ? '已开启' : '已关闭';
     }
     function initNewModeToggle() {
       var btn = document.getElementById('newModeToggle');
@@ -6983,6 +7007,8 @@
       if (isNewMode() && sorted.length > 10) sorted = sorted.slice(0, 10);
 
       // 无分页 — 直接展示全部客户
+      var showClientInfo = isClientInfoVisible();
+
       var total = sorted.length;
 
       // 记录每个客户的显示序号（公海检查用）
@@ -7016,7 +7042,7 @@
             '<div class="client-card-top">' +
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
-                '<span class="client-card-name-btn" data-name="' + esc(c.name) + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + esc(c.name) + '</span>' +
+                '<span class="client-card-name-btn" data-name="' + (showClientInfo ? esc(c.name) : '☆') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
                   '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="点击复制号码" style="font-size: 0.82rem;">' + esc(maskPhone(phoneVal)) + '</span>' +
                 '</span>' +
@@ -7027,15 +7053,15 @@
               '</div>' +
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
-              (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') +
+              (showClientInfo ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注">复制备注</span>') +
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
-              (c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
+              (c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + (showClientInfo ? esc(c.fund) : '☆') + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + (showClientInfo ? esc(c.fund) : '☆') + '</span>' : '') +
               (function() {
                 var customHtml = '';
                 if (c.custom && typeof c.custom === 'object') {
                   for (var key in c.custom) {
                     if (c.custom.hasOwnProperty(key) && c.custom[key]) {
-                      customHtml += '<span class="client-card-tag" style="background:rgba(0,188,212,0.08);color:#0097a7;font-weight:700;" title="' + esc(key) + '">' + esc(key) + ': ' + esc(c.custom[key]) + '</span>';
+                      customHtml += '<span class="client-card-tag" style="background:rgba(0,188,212,0.08);color:#0097a7;font-weight:700;" title="' + esc(key) + '">' + (showClientInfo ? esc(key) + ': ' + esc(c.custom[key]) : '☆') + '</span>';
                     }
                   }
                 }
@@ -7056,16 +7082,16 @@
                 '<div class="client-card-content-block follow-up" style="background:rgba(74,108,247,0.03); border-left:3px solid #4a6cf7; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
                   '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">' +
                     '<span class="client-card-label" style="color:#4a6cf7; font-weight:800; font-size:0.65rem;">资料备注</span>' +
-                    '<span class="client-card-tag-note" data-note="' + esc(c.note) + '" style="font-size:0.6rem; color:#4a6cf7; cursor:pointer; text-decoration:underline;">[放大查看]</span>' +
+                    '<span class="client-card-tag-note" data-note="' + esc(c.note) + '" style="font-size:0.6rem; color:#4a6cf7; cursor:pointer; text-decoration:underline;">' + (showClientInfo ? '[放大查看]' : '☆') + '</span>' +
                   '</div>' +
-                  '<span class="client-card-text" style="color:var(--text-soft); white-space:pre-wrap; display:block; margin-top:2px;">' + esc(c.note) + '</span>' +
+                  '<span class="client-card-text" style="color:var(--text-soft); white-space:pre-wrap; display:block; margin-top:2px;">' + (showClientInfo ? esc(c.note) : '☆') + '</span>' +
                 '</div>' +
               '</div>' : '') +
             (c.callNote ? 
               '<div class="client-card-body" style="margin-top: 4px;">' +
                 '<div class="client-card-content-block follow-up">' +
                   '<span class="client-card-label">通话小记</span>' +
-                  '<span class="client-card-text" style="color:var(--accent-wechat);">' + esc(c.callNote) + '</span>' +
+                  '<span class="client-card-text" style="color:var(--accent-wechat);">' + (showClientInfo ? esc(c.callNote) : '☆') + '</span>' +
                 '</div>' +
               '</div>' : '') +
             (c.last_operation ?
@@ -7166,7 +7192,7 @@
             var idx = parseInt(b.dataset.idx);
             var client = importedClients[idx];
             // 按复制偏好组合（姓名/单位/公积金/日期，勾选哪个就包含哪个）；全部未勾选时兜底仅单位名称
-            var copyText = buildCopyText(client) || company;
+            var copyText = b.dataset.copyNote === '1' ? (client && client.note ? client.note : '') : (buildCopyText(client) || company);
             copyTextToClipboard(copyText);
 
             var cardEl = b.closest('.xls-dial-card');
@@ -7191,7 +7217,7 @@
             jumpToWechat(); // 与复制号码一致：复制单位后直接跳转微信（同步调用保持手势）
 
             setTimeout(function() {
-              b.textContent = company;
+              b.textContent = b.dataset.copyNote === '1' ? '复制备注' : company;
               b.style.color = oldColor;
             }, 1500);
           });
@@ -7293,11 +7319,11 @@
           return '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
             '<td class="col-no">' + rowNo + '</td>' +
             '<td class="col-status">' + badgeHtml + '</td>' +
-            '<td class="col-name"><span class="crm-copy-btn" data-copy="' + esc(c.name||'') + '" title="点击复制">' + esc(c.name||'-') + '</span></td>' +
+            '<td class="col-name"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc(c.name||'') : '☆') + '" title="点击复制">' + (showClientInfo ? esc(c.name||'-') : '☆') + '</span></td>' +
             '<td class="col-phone"><span class="crm-copy-btn' + (c.phone_copied ? ' copied-phone' : '') + '" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal ? maskPhone(phoneVal) : '-') + '</span></td>' +
-            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) + '">' + esc(c.company||'-') + '</span>' + wlBadge + '</td>' +
-            '<td class="col-note">' + esc(c.note||'-') + '</td>' +
-            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (displayBatchLabel(c.batch_label) || '-') + '</span>' + '</td>' +
+            '<td class="col-company"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) : esc(c.note||'')) + '">' + (showClientInfo ? esc(c.company||'-') : '复制备注') + '</span>' + (showClientInfo ? wlBadge : '') + '</td>' +
+            '<td class="col-note">' + (showClientInfo ? esc(c.note||'-') : '☆') + '</td>' +
+            '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (showClientInfo ? (displayBatchLabel(c.batch_label) || '-') : '☆') + '</span>' + '</td>' +
             '<td class="col-lastop" style="font-size:0.52rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
@@ -11620,6 +11646,13 @@ function updateAutoDialBtn() {
       });
       overlay.addEventListener('click', function(e) {
         if (e.target === overlay) overlay.classList.remove('active');
+      });
+      var infoToggle = document.getElementById('showClientInfoToggle');
+      syncClientInfoToggle();
+      if (infoToggle) infoToggle.addEventListener('change', function() {
+        try { localStorage.setItem(clientInfoVisibleKey(), infoToggle.checked ? '1' : '0'); } catch (e) {}
+        syncClientInfoToggle();
+        renderDialCards();
       });
       var closeBtn = document.getElementById('progressDrawerClose');
       if (closeBtn) closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
