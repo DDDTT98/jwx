@@ -3120,6 +3120,9 @@
           <select id="dbSubAccountParentInput" style="height:32px;flex:1;padding:0 7px;font-size:0.72rem;border:0.5px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main);"><option value="">归属小组（默认主账号）</option></select>
         </div>
         <div id="dbSubAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; margin-bottom:8px;"></div>
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <input type="text" id="dbSubAccountRealNameInput" maxlength="20" placeholder="真实姓名（必填）" style="width:100%; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
+        </div>
         <div style="display:flex; gap:6px;">
           <input type="text" id="dbSubAccountNameInput" maxlength="20" placeholder="账户名" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
           <input type="password" id="dbSubAccountPinInput" maxlength="6" placeholder="PIN码" style="width:80px; height:32px; padding:0 6px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
@@ -11446,16 +11449,18 @@ function updateAutoDialBtn() {
       var createSubBtn = document.getElementById("dbCreateSubAccountBtn");
       if (createSubBtn) {
         createSubBtn.addEventListener("click", function() {
+          var realName = document.getElementById("dbSubAccountRealNameInput").value.trim();
           var accountName = document.getElementById("dbSubAccountNameInput").value.trim();
           var pin = document.getElementById("dbSubAccountPinInput").value.trim();
           var error = document.getElementById("dbSubAccountError");
+          if (!realName) { error.textContent = "请输入真实姓名"; return; }
           if (!accountName) { error.textContent = "请输入账户名"; return; }
           if (pin.length < 4) { error.textContent = "PIN 至少 4 位"; return; }
           createSubBtn.disabled = true; createSubBtn.textContent = "创建中...";
-          fetch("/api/dialer/auth/accounts", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() }, body: JSON.stringify({ account_name: accountName, pin: pin, label: accountName, role: (document.getElementById("dbSubAccountRoleInput")||{}).value || "member", parent_account_id: (document.getElementById("dbSubAccountParentInput")||{}).value || "" }) })
+          fetch("/api/dialer/auth/accounts", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() }, body: JSON.stringify({ account_name: accountName, real_name: realName, pin: pin, label: accountName, role: (document.getElementById("dbSubAccountRoleInput")||{}).value || "member", parent_account_id: (document.getElementById("dbSubAccountParentInput")||{}).value || "" }) })
           .then(function(r) { return r.json(); })
           .then(function(res) {
-            if (res.success) { document.getElementById("dbSubAccountNameInput").value = ""; document.getElementById("dbSubAccountPinInput").value = ""; error.textContent = ""; loadSubAccounts(); loadAccountStats(); }
+            if (res.success) { document.getElementById("dbSubAccountRealNameInput").value = ""; document.getElementById("dbSubAccountNameInput").value = ""; document.getElementById("dbSubAccountPinInput").value = ""; error.textContent = ""; loadSubAccounts(); loadAccountStats(); }
             else { error.textContent = res.error || "创建失败"; }
           })
           .catch(function() { error.textContent = "网络错误"; })
@@ -12395,10 +12400,11 @@ function updateAutoDialBtn() {
         function render(a){
           var mgr=a.role==='manager', manager=accounts.find(function(x){return x.account_id===a.parent_account_id;});
           var sub=mgr?'小组长':('归属：'+(manager?(manager.account_name||manager.label):'主账号默认组'));
-          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:var(--btn-bg);border-radius:5px;'+(a.active?'':'opacity:.5;')+'"><div style="min-width:0"><div style="font-size:.74rem;font-weight:800;color:var(--text-main)">'+(mgr?'二级管理账号 · ':'普通子账号 · ')+escHtml(a.account_name||a.label||a.account_id)+'</div><div style="font-size:.62rem;color:var(--text-soft)">'+escHtml(sub)+(a.active?'':' · 已禁用')+'</div></div><div style="display:flex;gap:4px;flex-shrink:0"><button class="sub-toggle-btn" data-id="'+a.account_id+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'禁用':'启用')+'</button><button class="sub-delete-btn" data-id="'+a.account_id+'" data-role="'+(a.role||'member')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:#e74c3c">删除</button></div></div>';
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:var(--btn-bg);border-radius:5px;'+(a.active?'':'opacity:.5;')+'"><div style="min-width:0"><div style="font-size:.74rem;font-weight:800;color:var(--text-main)">'+(mgr?'二级管理账号 · ':'普通子账号 · ')+escHtml(a.real_name||'未登记姓名')+'</div><div style="font-size:.62rem;color:var(--text-soft)">登录账号：'+escHtml(a.account_name||a.label||a.account_id)+' · '+escHtml(sub)+(a.active?'':' · 已禁用')+'</div></div><div style="display:flex;gap:4px;flex-shrink:0"><button class="sub-edit-name-btn" data-id="'+a.account_id+'" data-name="'+escHtml(a.real_name||'')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:var(--text-main)">姓名</button><button class="sub-toggle-btn" data-id="'+a.account_id+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'禁用':'启用')+'</button><button class="sub-delete-btn" data-id="'+a.account_id+'" data-role="'+(a.role||'member')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:#e74c3c">删除</button></div></div>';
         }
         var managers=shown.filter(function(a){return a.role==='manager';}),members=shown.filter(function(a){return a.role!=='manager';});
         list.innerHTML=(managers.length?'<div style="font-size:.68rem;font-weight:800;padding:5px 2px;color:var(--text-main)">二级管理账号 / 小组长</div>'+managers.map(render).join(''):'')+(members.length?'<div style="font-size:.68rem;font-weight:800;padding:7px 2px 5px;color:var(--text-main)">普通子账号</div>'+members.map(render).join(''):'');
+        list.querySelectorAll('.sub-edit-name-btn').forEach(function(btn){btn.addEventListener('click',function(){var next=prompt('登记真实姓名',btn.dataset.name||'');if(next===null)return;next=next.trim();if(!next){alert('姓名不能为空');return;}fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,real_name:next})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();}).catch(function(e){alert(e.message);});});});
         list.querySelectorAll('.sub-toggle-btn').forEach(function(btn){btn.addEventListener('click',function(){
           var active=btn.dataset.active==='1';btn.disabled=true;
           fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,active:!active})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();}).catch(function(e){alert(e.message);btn.disabled=false;});
