@@ -325,6 +325,104 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
   lines.push('','**总计：新增 '+addedTotal+' 人｜通过微信 '+passedTotal+' 人**');await sendWecomText(env,lines.join('\n'));
 }
 
+
+/* ==================== Durable CRM background jobs ==================== */
+async function createCrmBackgroundJob(env, job) {
+  var id = 'crm_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+  var record = Object.assign({
+    id: id, status: 'queued', total: 0, processed: 0, succeeded: 0, failed: 0,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+  }, job);
+  await env.DATA_KV.put('dialer:bgjob:' + id, JSON.stringify(record));
+  return record;
+}
+async function processCrmBackgroundJobs(env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.DATA_KV || !env.DATA_KV.list) return;
+  var listed = await env.DATA_KV.list({ prefix: 'dialer:bgjob:', limit: 100 });
+  var keys = listed && listed.keys ? listed.keys : [];
+  var hdr = { apikey: env.SUPABASE_KEY, Authorization: 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
+  for (var ji = 0; ji < keys.length; ji++) {
+    var key = keys[ji].name;
+    var job = await env.DATA_KV.get(key, 'json');
+    if (!job || job.status !== 'queued' && job.status !== 'running') continue;
+    try {
+      job.status = 'running';
+      job.updated_at = new Date().toISOString();
+      var done = false;
+      if (job.kind === 'batch_type') {
+        var start = Number(job.cursor || 0);
+        var chunk = (job.mobiles || []).slice(start, start + 20);
+        if (!chunk.length) done = true;
+        else {
+          var filter = chunk.map(encodeURIComponent).join(',');
+          var q = env.SUPABASE_URL + '/rest/v1/customers?select=mobile,note,fund,account_id&mobile=in.(' + filter + ')';
+          if (job.source_account_id) q += '&account_id=eq.' + encodeURIComponent(job.source_account_id);
+          var read = await fetch(q, { headers: hdr });
+          if (!read.ok) throw new Error('读取客户失败：' + (await read.text()).slice(0, 240));
+          var rows = await read.json();
+          var byMobile = {};
+          rows.forEach(function(row) { byMobile[row.mobile] = row; });
+          for (var ri = 0; ri < chunk.length; ri++) {
+            var mobile = chunk[ri], row = byMobile[mobile];
+            if (!row) { job.failed++; job.errors = (job.errors || []).concat([mobile + '：客户不存在或无权限']); job.processed++; continue; }
+            try {
+              var old = row.note || '';
+              var parsed = {};
+              try { parsed = typeof old === 'string' ? JSON.parse(old) : (old || {}); } catch (_) { parsed = { note: String(old) }; }
+              if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) parsed = { note: String(old) };
+              var custom = parsed.custom && typeof parsed.custom === 'object' ? parsed.custom : {};
+              custom.__batch_type = job.type_name;
+              var payload = { note: parsed.note || '', custom: custom };
+              if (row.fund) payload.fund = row.fund;
+              var patch = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=eq.' + encodeURIComponent(mobile) + (job.source_account_id ? '&account_id=eq.' + encodeURIComponent(job.source_account_id) : ''), {
+                method: 'PATCH', headers: Object.assign({}, hdr, { Prefer: 'return=representation' }),
+                body: JSON.stringify({ note: JSON.stringify(payload) })
+              });
+              if (!patch.ok) throw new Error((await patch.text()).slice(0, 180));
+              var changed = await patch.json();
+              if (changed && changed.length) job.succeeded++; else job.failed++;
+            } catch (rowErr) { job.failed++; job.errors = (job.errors || []).concat([mobile + '：' + rowErr.message]); }
+            job.processed++;
+          }
+          job.cursor = start + chunk.length;
+          done = job.cursor >= (job.mobiles || []).length;
+        }
+      } else if (job.kind === 'reassign') {
+        var groups = job.allocations || [];
+        var gi = Number(job.group_cursor || 0), offset = Number(job.group_offset || 0);
+        var group = groups[gi];
+        if (!group) done = true;
+        else {
+          var mobiles = (group.mobiles || []).slice(offset, offset + 100);
+          if (!mobiles.length) { job.group_cursor = gi + 1; job.group_offset = 0; }
+          else {
+            var patchFilter = mobiles.map(encodeURIComponent).join(',');
+            var patchUrl = env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')&batch_label=eq.' + encodeURIComponent(job.batch_label);
+            if (job.source_account_id) patchUrl += '&account_id=eq.' + encodeURIComponent(job.source_account_id);
+            var patched = await fetch(patchUrl, {
+              method: 'PATCH', headers: Object.assign({}, hdr, { Prefer: 'return=representation' }),
+              body: JSON.stringify({ account_id: group.account_id, pulled_at: null })
+            });
+            if (!patched.ok) throw new Error('分配客户失败：' + (await patched.text()).slice(0, 240));
+            var changedRows = await patched.json();
+            var count = Array.isArray(changedRows) ? changedRows.length : 0;
+            job.succeeded += count; job.failed += mobiles.length - count; job.processed += mobiles.length;
+            job.group_offset = offset + mobiles.length;
+            if (job.group_offset >= group.mobiles.length) { job.group_cursor = gi + 1; job.group_offset = 0; }
+          }
+          done = Number(job.group_cursor || 0) >= groups.length;
+        }
+      } else { job.status = 'failed'; job.error = '未知后台任务类型'; }
+      if (done && job.status !== 'failed') job.status = job.failed ? 'completed_with_errors' : 'completed';
+      job.updated_at = new Date().toISOString();
+      await env.DATA_KV.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
+    } catch (err) {
+      job.status = 'failed'; job.error = err.message || String(err); job.updated_at = new Date().toISOString();
+      await env.DATA_KV.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
+    }
+  }
+}
+
 // ========== Main Worker ==========
 
 export default {
