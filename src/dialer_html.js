@@ -7249,7 +7249,7 @@
                 '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); border-left:3px solid #ffc107; padding: 6px 8px; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;">' +
                   '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.52rem;">最近操作</span>' +
                   '<span class="client-card-text" style="color:var(--text-soft); display:block; margin-top:2px; font-size:0.5rem;">' +
-                    TimelineDisplay.render(c.last_operation) +
+                    (showClientInfo ? TimelineDisplay.render(c.last_operation) : '☆☆☆☆') +
                   '</span>' +
                 '</div>' +
               '</div>' : '') +
