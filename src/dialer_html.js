@@ -3590,8 +3590,9 @@
       if (_reminderShown) return;
       if (!client) return;
       var roundSize = isNewMode() ? 10 : 50;
-      var clientPosition = importedClients.indexOf(client);
-      if (importedClients.length < roundSize || clientPosition < roundSize - 1) return;
+      // 每次姓名/单位/备注复制后都检查本轮前 50/10 位；
+      // 不依赖触发复制的客户恰好是数组最后一位，避免排序、筛选或先后操作导致漏触发。
+      if (importedClients.length < roundSize) return;
       var roundClients = importedClients.slice(0, roundSize);
       var qualifiedCount = roundClients.filter(function(c) { return c.name_copied || c.company_copied || c.note_copied; }).length;
       var requiredCount = Math.ceil(roundSize * 0.8);
