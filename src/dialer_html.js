@@ -3309,8 +3309,6 @@
 
     <!-- CRM Status Badges Bar -->
     <div class="crm-badge-bar">
-      <div class="crm-badge-item"><span class="crm-dot red"></span> 广告新客户待跟进：<span id="crmRedCount">0</span></div>
-      <div class="crm-badge-item"><span class="crm-dot yellow"></span> 广告再分配待跟进：<span id="crmYellowCount">0</span></div>
       <div class="crm-badge-item"><span class="crm-dot blue"></span> 导入新客户待跟进：<span id="crmBlueCount">0</span></div>
       <div class="crm-badge-item"><span class="crm-dot cyan"></span> 导入再分配待跟进：<span id="crmCyanCount">0</span></div>
     </div>
@@ -9215,30 +9213,16 @@ function updateAutoDialBtn() {
 
     // 统计状态栏更新
     function crmUpdateBadgeCounts(data) {
-      var red = 0, yellow = 0, blue = 0, cyan = 0;
+      var cyan = 0;
       var d = data || [];
-      var todayStr = new Date().toISOString().slice(0, 10);
-      
       for (var i = 0; i < d.length; i++) {
         var c = d[i];
         var cat = c.category || '';
-        if (c.batch_label && c.batch_label.includes('广告') && c.created_at && c.created_at.slice(0, 10) === todayStr) {
-          red++;
-        }
-        if (c.batch_label && c.batch_label.includes('广告') && cat === '待跟进') {
-          yellow++;
-        }
-        if (cat === '' || cat === '未分类' || !c.note) {
-          blue++;
-        }
         if (c.batch_label && !c.batch_label.includes('广告') && cat === '待跟进') {
           cyan++;
         }
       }
-
-      if (document.getElementById('crmRedCount')) document.getElementById('crmRedCount').textContent = red;
-      if (document.getElementById('crmYellowCount')) document.getElementById('crmYellowCount').textContent = yellow;
-      if (document.getElementById('crmBlueCount')) document.getElementById('crmBlueCount').textContent = DB.total; 
+      if (document.getElementById('crmBlueCount')) document.getElementById('crmBlueCount').textContent = DB.total;
       if (document.getElementById('crmCyanCount')) document.getElementById('crmCyanCount').textContent = cyan;
     }
 
