@@ -4585,7 +4585,7 @@
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
         var fundVal = '';
-        if (/^d{4,5}$/.test(noteVal)) {
+        if (/^\d{4,5}$/.test(noteVal)) {
           fundVal = noteVal;
           noteVal = '';
         }
@@ -4646,7 +4646,7 @@
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
-        if (!c.fund && /^d{4,5}$/.test((c.note || '').trim())) {
+        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
           c.fund = c.note.trim();
           c.note = '';
         }
@@ -6686,7 +6686,7 @@
         c.category = defaultCat;
         c.mobile = c.mobile || c.phone;
         c.phone = c.phone || c.mobile;
-        if (!c.fund && /^d{4,5}$/.test((c.note || '').trim())) {
+        if (!c.fund && /^\d{4,5}$/.test((c.note || '').trim())) {
           c.fund = c.note.trim();
           c.note = '';
         }
