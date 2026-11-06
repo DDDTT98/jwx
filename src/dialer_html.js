@@ -2209,20 +2209,20 @@
       flex-direction: column;
       gap: 10px;
       padding: 12px 13px 11px;
-      border: 1px solid #dce9df !important;
+      border: 1px solid transparent !important;
       border-radius: 14px !important;
       background: #ffffff !important;
       box-shadow: 0 2px 8px rgba(26, 54, 38, .055) !important;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
-      transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+      transition: box-shadow .16s ease, background-color .16s ease;
     }
     .xls-dial-card:hover {
-      border-color: rgba(7,193,96,.42) !important;
+      border-color: transparent !important;
       box-shadow: 0 3px 11px rgba(26, 54, 38, .075) !important;
     }
     body.dark-mode .xls-dial-card {
       background: #202923 !important;
-      border-color: #35483b !important;
+      border-color: transparent !important;
       box-shadow: 0 2px 9px rgba(0,0,0,.22) !important;
     }
     .corner-seq {
@@ -2368,7 +2368,7 @@
       align-items: center;
       min-height: 25px;
       padding: 3px 9px !important;
-      border: 1px solid #e8ede9;
+      border: 1px solid transparent;
       border-radius: 7px !important;
       background: #f4f6f5 !important;
       color: #59665e !important;
@@ -2379,7 +2379,7 @@
     }
     .client-card-tag-company {
       max-width: 100%;
-      border-color: rgba(7,193,96,.2) !important;
+      border-color: transparent !important;
       background: rgba(7,193,96,.105) !important;
       color: #078d49 !important;
       font-size: 12px !important;
@@ -2398,22 +2398,22 @@
     .xls-dial-badge-whitelist {
       color: #078d49 !important;
       background: #e8f7ee !important;
-      border-color: #d4efdf !important;
+      border-color: transparent !important;
     }
     .crm-fund-tag {
       color: #94611c !important;
       background: #fff7e8 !important;
-      border-color: #f4e5c7 !important;
+      border-color: transparent !important;
     }
     body.dark-mode .client-card-tag {
       color: #c1cec5 !important;
       background: #2b3530 !important;
-      border-color: #3b4940 !important;
+      border-color: transparent !important;
     }
     body.dark-mode .client-card-tag-company {
       color: #58dc91 !important;
       background: rgba(7,193,96,.14) !important;
-      border-color: rgba(7,193,96,.25) !important;
+      border-color: transparent !important;
     }
     body.dark-mode .client-card-tag-company.privacy-action-done {
       color: #102b1b !important;
@@ -2422,12 +2422,12 @@
     body.dark-mode .xls-dial-badge-whitelist {
       color: #58dc91 !important;
       background: rgba(7,193,96,.13) !important;
-      border-color: rgba(7,193,96,.22) !important;
+      border-color: transparent !important;
     }
     body.dark-mode .crm-fund-tag {
       color: #e5bb76 !important;
       background: rgba(201,145,54,.12) !important;
-      border-color: rgba(201,145,54,.2) !important;
+      border-color: transparent !important;
     }
     .client-card-body {
       display: flex;
@@ -2439,13 +2439,13 @@
     .client-card-content-block {
       gap: 4px !important;
       padding: 8px 10px !important;
-      border: 1px solid #edf1ee;
+      border: 1px solid transparent;
       border-radius: 9px !important;
       background: #f8faf8 !important;
     }
     .client-card-content-block.follow-up {
       background: #f7faf8 !important;
-      border-color: #e8efe9 !important;
+      border-color: transparent !important;
     }
     .client-card-label {
       color: #849188 !important;
@@ -2468,7 +2468,7 @@
     }
     body.dark-mode .client-card-content-block {
       background: #252f29 !important;
-      border-color: #39483e !important;
+      border-color: transparent !important;
     }
     body.dark-mode .client-card-label { color: #91a398 !important; }
     body.dark-mode .client-card-text { color: #c5d1c9 !important; }
@@ -2485,27 +2485,27 @@
     .xls-dial-card.dialed {
       opacity: .94 !important;
       background: #f7f9f7 !important;
-      border-color: #dce5de !important;
+      border-color: transparent !important;
     }
     body.dark-mode .xls-dial-card.dialed {
       background: #1d2621 !important;
-      border-color: #35443a !important;
+      border-color: transparent !important;
     }
     .xls-dial-card.copied-card,
     .xls-dial-card.copied-company {
-      border-color: rgba(7,193,96,.48) !important;
+      border-color: transparent !important;
       box-shadow: 0 0 0 1px rgba(7,193,96,.12), 0 3px 10px rgba(7,193,96,.09) !important;
     }
     body.dark-mode .xls-dial-card.copied-card,
     body.dark-mode .xls-dial-card.copied-company {
-      border-color: rgba(7,193,96,.48) !important;
+      border-color: transparent !important;
       box-shadow: 0 0 0 1px rgba(7,193,96,.13), 0 3px 12px rgba(0,0,0,.2) !important;
     }
     /* Android copied-state feedback stays subtle; cards have no decorative side rails. */
     body.android .xls-dial-card.copied-card,
     body.android .xls-dial-card.copied-company,
     body.android .xls-dial-card.copied-phone {
-      border-color: #dce9df !important;
+      border-color: transparent !important;
       box-shadow: 0 2px 8px rgba(26,54,38,.055) !important;
     }
     @media (max-width: 480px) {
