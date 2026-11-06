@@ -2503,6 +2503,230 @@
       border: 1px solid #465363 !important;
       box-shadow: none !important;
     }
+
+    /* ===== 完整数据库看板手机版：复用桌面 DOM 与全部业务事件 ===== */
+    .db-overlay.mobile-layout {
+      align-items: stretch !important;
+      justify-content: stretch !important;
+      padding: 0 !important;
+      background: var(--bg-main, #f8fafc) !important;
+      overscroll-behavior: none;
+    }
+    .db-overlay.mobile-layout .db-panel {
+      width: 100vw !important;
+      max-width: none !important;
+      height: 100vh !important;
+      height: 100dvh !important;
+      max-height: none !important;
+      min-height: 0 !important;
+      border-radius: 0 !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      overflow: hidden !important;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .db-overlay.mobile-layout .crm-tabs {
+      height: 48px;
+      min-height: 48px;
+      padding: 0 8px;
+      gap: 2px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+    }
+    .db-overlay.mobile-layout .crm-tabs::-webkit-scrollbar,
+    .db-overlay.mobile-layout .crm-shortcut-bar::-webkit-scrollbar,
+    .db-overlay.mobile-layout .crm-toolbar::-webkit-scrollbar { display: none; }
+    .db-overlay.mobile-layout .crm-tab {
+      flex: 0 0 auto;
+      height: 48px;
+      padding: 0 12px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .db-overlay.mobile-layout .crm-tabs-right {
+      position: sticky;
+      right: 0;
+      z-index: 5;
+      flex: 0 0 auto;
+      margin-left: 4px;
+      padding-left: 6px;
+      background: inherit;
+      gap: 6px;
+    }
+    .db-overlay.mobile-layout .db-close {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+    }
+    .db-overlay.mobile-layout #dbMobileBtn { display: none !important; }
+    .db-overlay.mobile-layout #dbClose { display: flex !important; }
+    .db-overlay.mobile-layout #dbAccountStats {
+      max-height: 34vh;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .db-overlay.mobile-layout #dbAccountStatsContent {
+      align-items: flex-start;
+      padding: 8px 10px;
+    }
+    .db-overlay.mobile-layout .crm-shortcut-bar {
+      padding: 7px 9px;
+      gap: 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-wrap: nowrap;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+    }
+    .db-overlay.mobile-layout .crm-shortcut-btn {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 0 11px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .db-overlay.mobile-layout .crm-shortcut-add { flex: 0 0 auto; }
+    .db-overlay.mobile-layout .crm-shortcut-toggle {
+      flex: 0 0 auto;
+      min-height: 32px;
+      margin-left: 0;
+    }
+    .db-overlay.mobile-layout .crm-search-card {
+      padding: 9px 10px;
+    }
+    .db-overlay.mobile-layout .crm-search-grid { display: block; }
+    .db-overlay.mobile-layout .crm-search-item-full {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .db-overlay.mobile-layout .crm-search-label {
+      width: 78px !important;
+      flex: 0 0 78px;
+      font-size: 11px;
+    }
+    .db-overlay.mobile-layout #dbFuzzySearch {
+      min-width: 0;
+      height: 38px;
+      font-size: 12px;
+    }
+    .db-overlay.mobile-layout .crm-search-actions {
+      margin-top: 7px;
+    }
+    .db-overlay.mobile-layout .crm-btn-search {
+      min-height: 36px;
+      padding: 0 22px;
+    }
+    .db-overlay.mobile-layout .crm-toolbar {
+      padding: 8px 9px;
+      gap: 7px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: visible;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+    }
+    .db-overlay.mobile-layout .crm-tool-btn {
+      flex: 0 0 auto;
+      min-height: 36px;
+      height: 36px;
+      padding: 0 11px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .db-overlay.mobile-layout #dbImportBatchView {
+      flex: 0 0 116px !important;
+      width: 116px !important;
+      max-width: 116px !important;
+    }
+    .db-overlay.mobile-layout #crmReassignGroup {
+      flex: 0 0 94%;
+      min-width: 280px;
+      white-space: normal;
+    }
+    .db-overlay.mobile-layout .crm-badge-bar {
+      padding: 7px 10px;
+      gap: 9px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .db-overlay.mobile-layout .db-table-wrap {
+      flex: 1 1 0%;
+      min-height: 120px;
+      width: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .db-overlay.mobile-layout .crm-table {
+      min-width: 1180px;
+      font-size: 12px;
+    }
+    .db-overlay.mobile-layout .crm-table th,
+    .db-overlay.mobile-layout .crm-table td {
+      padding: 9px 10px;
+      font-size: 11px;
+    }
+    .db-overlay.mobile-layout .crm-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+    }
+    .db-overlay.mobile-layout .crm-pager {
+      min-height: 48px;
+      padding: 6px 8px;
+      gap: 8px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .db-overlay.mobile-layout .crm-pager-left,
+    .db-overlay.mobile-layout .crm-pager-center,
+    .db-overlay.mobile-layout .crm-pager-right {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .db-overlay.mobile-layout .crm-pager-btn {
+      min-height: 34px;
+      padding: 0 10px;
+    }
+    .db-overlay.mobile-layout #dbAccountMgrPanel,
+    .db-overlay.mobile-layout #dbBackupMgrPanel,
+    .db-overlay.mobile-layout #dbContentConfigPanel,
+    .db-overlay.mobile-layout #dbUploadLogPanel,
+    .db-overlay.mobile-layout #dbMasterPullLogPanel {
+      min-height: 0;
+      flex: 1 1 0%;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px !important;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .db-overlay.mobile-layout #dbAccountMgrPanel input,
+    .db-overlay.mobile-layout #dbAccountMgrPanel select,
+    .db-overlay.mobile-layout #dbBackupMgrPanel input,
+    .db-overlay.mobile-layout #dbContentConfigPanel input,
+    .db-overlay.mobile-layout #dbContentConfigPanel textarea {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .db-overlay.mobile-layout #dbContentConfigPanel > div,
+    .db-overlay.mobile-layout #dbBackupMgrPanel > div {
+      max-width: 100%;
+    }
+    @media (max-width: 430px) {
+      .db-overlay.mobile-layout .crm-tab { padding: 0 10px; font-size: 11px; }
+      .db-overlay.mobile-layout .crm-toolbar { gap: 6px; }
+      .db-overlay.mobile-layout .crm-tool-btn { padding: 0 9px; }
+    }
+
   </style>
 </head>
 <body>
@@ -10019,6 +10243,7 @@ function updateAutoDialBtn() {
 
     function _openDBDashboardInner() {
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
+      ov.classList.remove('mobile-layout');
       // 看板打开时再次同步搜索区域主题，覆盖可能存在的组件内联样式
       var darkEnabled = document.body.classList.contains('dark-mode');
       var searchCard = document.querySelector('#dbOverlay .crm-search-card');
@@ -10194,37 +10419,30 @@ function updateAutoDialBtn() {
       }
     }
 
-    // 打开手机版（数据复用 DB.allData / crmFilterData / 批量操作按钮）
+    // 手机版入口：直接切换完整数据库看板的移动布局，复用全部 DOM、权限、筛选、排序和事件。
     function openDBMobile() {
-      var ov = document.getElementById('dbMobileOverlay');
+      var ov = document.getElementById('dbOverlay');
       if (!ov) return;
       syncManagerTabVisibility();
-      if (!ov.classList.contains('active')) lockDBMobileBackground();
+      ov.classList.add('mobile-layout');
       ov.classList.add('active');
-      // 复位到客户列表视图
-      var navListBtn = document.getElementById('dbmNavListBtn');
-      var navMgrBtn = document.getElementById('dbmNavMgrBtn');
-      if (navListBtn) navListBtn.classList.add('active');
-      if (navMgrBtn) navMgrBtn.classList.remove('active');
-      dbmCloseMgr();
-      var sb = document.querySelector('.dbm-searchbar'); if (sb) sb.style.display = '';
-      var fb = document.getElementById('dbmFilterBar'); if (fb) fb.style.display = '';
-      var ab = document.getElementById('dbmActionBar'); if (ab) ab.style.display = '';
-      var listEl = document.getElementById('dbmList'); if (listEl) listEl.style.display = '';
-      // 每次打开都重新从服务端取当前页，避免复用桌面端缓存或过期页数据。
-      DBM_PAGE = 1;
-      dbmFetch();
+      // 旧版独立精简界面不再作为主入口，避免功能缺失与两套数据状态不一致。
+      var legacyMobile = document.getElementById('dbMobileOverlay');
+      if (legacyMobile) legacyMobile.classList.remove('active');
+      // 进入时维持当前筛选/分页/勾选状态；只有尚未加载数据时才请求。
+      if (!DB.allData || !DB.allData.length) dbFetch();
     }
     window.openDBMobile = openDBMobile;
 
     function closeDBMobile() {
-      // 管理面板移回桌面隐藏容器
-      dbmCloseMgr();
-      var ov = document.getElementById('dbMobileOverlay');
-      if (ov) ov.classList.remove('active');
-      // Always release a pending body lock, even if another UI path already hid the overlay.
+      var ov = document.getElementById('dbOverlay');
+      if (ov) {
+        ov.classList.remove('mobile-layout');
+        ov.classList.remove('active');
+      }
+      var legacyMobile = document.getElementById('dbMobileOverlay');
+      if (legacyMobile) legacyMobile.classList.remove('active');
       unlockDBMobileBackground();
-      // 通过 #dbm 深链接进入时，关闭后清理地址栏，避免刷新页面再次自动打开。
       if (window.location.hash === '#dbm' && window.history && window.history.replaceState) {
         window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
       }
@@ -10876,7 +11094,7 @@ function updateAutoDialBtn() {
 
     function initCustViewer(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
-      var cls=document.getElementById('dbClose'); if(cls)cls.addEventListener('click',function(){ov.classList.remove('active');});
+      var cls=document.getElementById('dbClose'); if(cls)cls.addEventListener('click',function(){ov.classList.remove('active');ov.classList.remove('mobile-layout');});
       var mbtn=document.getElementById('dbMobileBtn'); if(mbtn)mbtn.addEventListener('click',function(){openDBMobile();});
       ov.addEventListener('click',function(e){if(e.target===ov)ov.classList.remove('active');});
       
