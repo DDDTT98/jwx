@@ -8895,7 +8895,6 @@ function updateAutoDialBtn() {
         html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + '<span class="sort-arrow"></span></th>';
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
-        '<th style="min-width: 130px; cursor: default;">白名单名称</th>' +
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
         '<th style="min-width:145px;cursor:default;">操作时间</th>' +
         '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -9265,9 +9264,11 @@ function updateAutoDialBtn() {
         var parsed = parseCustomerNote(c);
         var realNote = parsed.note;
         var noteDisplay = '';
-        if (c.fund) {
+        var whitelistProductHtml = c.whitelist_name ? '<span style="display:inline-flex;align-items:center;margin-bottom:3px;padding:2px 6px;border-radius:4px;background:rgba(7,193,96,0.10);color:#079447;font-size:11px;font-weight:700;">白名单产品：' + esc(c.whitelist_name) + '</span>' : '';
+        if (c.fund || whitelistProductHtml) {
           noteDisplay = '<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">' +
-            '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border:none; box-shadow:var(--shadow-card);">公积金: ' + esc(c.fund) + '</span>' +
+            (c.fund ? '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border:none; box-shadow:var(--shadow-card);">公积金: ' + esc(c.fund) + '</span>' : '') +
+            whitelistProductHtml +
             (realNote ? '<span style="color:var(--text-soft); font-weight:normal;">' + esc(realNote) + '</span>' : '') +
             '</div>';
         } else {
@@ -9305,7 +9306,6 @@ function updateAutoDialBtn() {
           batchTypeTd +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
-          '<td style="white-space: normal;">' + esc(c.whitelist_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
@@ -10098,7 +10098,6 @@ function updateAutoDialBtn() {
         headHtml += '<th style="min-width: 100px; cursor: default;">' + esc(col) + '</th>';
       });
       headHtml += '<th style="min-width: 200px; cursor: default;">单位</th>' +
-         '<th style="min-width:130px;cursor:default;">白名单名称</th>' +
          '<th style="width: 100px; cursor: default;">分类</th>' +
          '<th style="min-width:145px;cursor:default;">操作时间</th>' +
          '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -10119,11 +10118,14 @@ function updateAutoDialBtn() {
         var avatarHtml = '<span class="crm-avatar" style="background:' + avatarColors[colorIdx] + ';">' + esc(firstChar) + '</span>';
         var parsed = parseCustomerNote(c);
         var realNote = parsed.note;
+        var whitelistProductHtml = c.whitelist_name ? '<span style="display:inline-flex;align-items:center;margin-bottom:3px;padding:2px 6px;border-radius:4px;background:rgba(7,193,96,0.10);color:#079447;font-size:11px;font-weight:700;">白名单产品：' + esc(c.whitelist_name) + '</span>' : '';
         var callBtn = '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>';
         var noteDisplay = '';
-        if (c.fund) {
+        var whitelistProductHtml = c.whitelist_name ? '<span style="display:inline-flex;align-items:center;margin-bottom:3px;padding:2px 6px;border-radius:4px;background:rgba(7,193,96,0.10);color:#079447;font-size:11px;font-weight:700;">白名单产品：' + esc(c.whitelist_name) + '</span>' : '';
+        if (c.fund || whitelistProductHtml) {
           noteDisplay = '<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">' +
-            '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border:none; box-shadow:var(--shadow-card);">公积金: ' + esc(c.fund) + '</span>' +
+            (c.fund ? '<span class="crm-fund-tag" style="background:rgba(255,152,0,0.12); color:#e65100; font-weight:900; font-size:11px; padding:2px 6px; border-radius:4px; display:inline-flex; align-items:center; border:none; box-shadow:var(--shadow-card);">公积金: ' + esc(c.fund) + '</span>' : '') +
+            whitelistProductHtml +
             (realNote ? '<span style="color:var(--text-soft); font-weight:normal;">' + esc(realNote) + '</span>' : '') +
             '</div>';
         } else {
@@ -10154,7 +10156,6 @@ function updateAutoDialBtn() {
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
-          '<td style="white-space: normal;">' + esc(c.whitelist_name || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
