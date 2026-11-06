@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import vm from 'node:vm';
 import { DIALER_HTML } from '../src/dialer_html.js';
 import { DIET_HTML } from '../src/diet_html.js';
@@ -34,6 +35,18 @@ if (!DIALER_HTML.includes('id="authLoginOverlay"') ||
 if (!DIALER_HTML.includes('class="auth-overlay"') ||
     DIALER_HTML.includes('id="authLoginOverlay" class="auth-overlay auth-hidden"')) {
   throw new Error('[dialer] Login overlay must remain visible until JavaScript initializes');
+}
+
+const workerSource = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+if (!DIALER_HTML.includes('<option value="manager">二级管理账号（组长）</option>') ||
+    !DIALER_HTML.includes('class="sub-group-select"') ||
+    !DIALER_HTML.includes('parent_account_id: role === "manager"')) {
+  throw new Error('[dialer] Group leader creation or member reassignment controls are missing');
+}
+if (!workerSource.includes("var requestedRole=String(body.role||'member')") ||
+    !workerSource.includes("if(requestedRole==='manager'&&cr!=='master')") ||
+    !workerSource.includes("target.parent_account_id=p")) {
+  throw new Error('[worker] Hierarchical account creation or group reassignment logic is missing');
 }
 
 console.log(`Validated ${pages.length} HTML pages and ${checkedScripts} inline browser scripts.`);
