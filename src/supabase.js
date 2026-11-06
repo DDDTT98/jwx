@@ -1,3 +1,113 @@
+// Cloudflare KV-compatible adapter backed by Supabase public.app_kv.
+// Values are stored as UTF-8 text or base64-encoded bytes; TTL is preserved in expires_at.
+export function createSupabaseKV(env) {
+  const baseUrl = env.SUPABASE_URL;
+  const key = env.SUPABASE_KEY;
+  if (!baseUrl || !key) throw new Error('Supabase KV requires SUPABASE_URL and SUPABASE_KEY');
+
+  function headers(extra) {
+    return Object.assign({
+      'Content-Type': 'application/json',
+      'apikey': key,
+      'Authorization': 'Bearer ' + key
+    }, extra || {});
+  }
+  function endpoint(params) {
+    return baseUrl.replace(/\/$/, '') + '/rest/v1/app_kv?' + params;
+  }
+  function decodeBase64(value) {
+    const binary = atob(value || '');
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function encodeBase64(bytes) {
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+  async function get(keyName, type) {
+    const params = new URLSearchParams({
+      select: 'value,value_type,expires_at',
+      key: 'eq.' + keyName,
+      limit: '1'
+    });
+    const resp = await fetch(endpoint(params.toString()), { headers: headers() });
+    if (!resp.ok) throw new Error('Supabase KV get failed [' + resp.status + ']: ' + await resp.text());
+    const rows = await resp.json();
+    if (!rows.length) return null;
+    const row = rows[0];
+    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) {
+      await remove(keyName);
+      return null;
+    }
+    const bytes = row.value_type === 'base64' ? decodeBase64(row.value) : new TextEncoder().encode(row.value || '');
+    const requestedType = typeof type === 'string' ? type : (type && type.type) || 'text';
+    if (requestedType === 'json') return JSON.parse(new TextDecoder().decode(bytes));
+    if (requestedType === 'arrayBuffer') return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    if (requestedType === 'stream') return new Response(bytes).body;
+    return new TextDecoder().decode(bytes);
+  }
+  async function put(keyName, value, options) {
+    let storedValue;
+    let valueType = 'text';
+    if (typeof value === 'string') {
+      storedValue = value;
+    } else {
+      let bytes;
+      if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
+      else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+      else if (value && typeof value.arrayBuffer === 'function') bytes = new Uint8Array(await value.arrayBuffer());
+      else storedValue = String(value);
+      if (bytes) {
+        storedValue = encodeBase64(bytes);
+        valueType = 'base64';
+      }
+    }
+    const opts = options || {};
+    let expiresAt = null;
+    if (Number.isFinite(opts.expirationTtl) && opts.expirationTtl > 0) {
+      expiresAt = new Date(Date.now() + opts.expirationTtl * 1000).toISOString();
+    } else if (Number.isFinite(opts.expiration) && opts.expiration > 0) {
+      expiresAt = new Date(opts.expiration * 1000).toISOString();
+    }
+    const resp = await fetch(endpoint('on_conflict=key'), {
+      method: 'POST',
+      headers: headers({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify([{ key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt, updated_at: new Date().toISOString() }])
+    });
+    if (!resp.ok) throw new Error('Supabase KV put failed [' + resp.status + ']: ' + await resp.text());
+  }
+  async function remove(keyName) {
+    const params = new URLSearchParams({ key: 'eq.' + keyName });
+    const resp = await fetch(endpoint(params.toString()), { method: 'DELETE', headers: headers() });
+    if (!resp.ok) throw new Error('Supabase KV delete failed [' + resp.status + ']: ' + await resp.text());
+  }
+  async function list(options) {
+    const opts = options || {};
+    const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 1000));
+    const offset = Math.max(0, parseInt(opts.cursor || '0', 10) || 0);
+    const params = new URLSearchParams({
+      select: 'key',
+      order: 'key.asc',
+      limit: String(limit),
+      offset: String(offset),
+      or: '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')'
+    });
+    if (opts.prefix) params.set('key', 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
+    const resp = await fetch(endpoint(params.toString()), { headers: headers() });
+    if (!resp.ok) throw new Error('Supabase KV list failed [' + resp.status + ']: ' + await resp.text());
+    const rows = await resp.json();
+    const keys = rows.map(row => ({ name: row.key }));
+    const complete = rows.length < limit;
+    return { keys: keys, list_complete: complete, cursor: complete ? undefined : String(offset + rows.length) };
+  }
+  return { get: get, put: put, delete: remove, list: list };
+}
+
 // Supabase REST API helper for Cloudflare Workers
 // Uses fetch() directly to avoid SDK compatibility issues
 
