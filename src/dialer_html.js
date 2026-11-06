@@ -8289,9 +8289,13 @@
 
           var wlBadge = '';
           if (c.company) {
-            var matchedWls = matchWhitelistCompanies(c.company);
-            if (matchedWls.length) {
-              var productNames = matchedWls.map(function(w) { return w.bank_name || '白名单'; });
+            var productNames = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
+            if (!productNames.length) {
+              var matchedWls = matchWhitelistCompanies(c.company);
+              productNames = matchedWls.map(function(w) { return w.bank_name || '白名单'; });
+            }
+            productNames = productNames.filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+            if (productNames.length) {
               wlBadge = ' <span style="font-size:10px;background:rgba(7,193,96,0.1);color:#07c160;padding:0 4px;border-radius:2px;">' + esc(productNames.join('、')) + '</span>';
             }
           }
@@ -11080,6 +11084,7 @@ function updateAutoDialBtn() {
                     note: noteObj.note || '',
                     custom: noteObj.custom || '',
                     fund: c.fund || noteObj.fund || '',
+                    whitelist_name: c.whitelist_name || '',
                     category: c.category || '',
                     batch_label: c.batch_label || '',
                     dialedStatus: 'todo',
