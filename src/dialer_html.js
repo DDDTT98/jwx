@@ -2224,6 +2224,39 @@
       }
     }
 
+    /* Final customer-card typography overrides: placed last to win over legacy action styles. */
+    .xls-dial-card .client-card-name-btn,
+    .xls-dial-card .client-card-tag,
+    .xls-dial-card .client-card-label,
+    .xls-dial-card .client-card-text {
+      font-weight: 700 !important;
+    }
+    .xls-dial-card .client-card-tag-company {
+      font-weight: 700 !important;
+    }
+    .xls-dial-card .client-phone-btn:not(.privacy-add-vx) {
+      color: #1c1c1e !important;
+      font-weight: 700 !important;
+      border: 0 !important;
+      outline: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+    .xls-dial-card .client-phone-btn:not(.privacy-add-vx):hover,
+    .xls-dial-card .client-phone-btn:not(.privacy-add-vx):active {
+      color: #1c1c1e !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    body.dark-mode .xls-dial-card .client-phone-btn:not(.privacy-add-vx),
+    body.dark-mode .xls-dial-card .client-phone-btn:not(.privacy-add-vx):hover,
+    body.dark-mode .xls-dial-card .client-phone-btn:not(.privacy-add-vx):active {
+      color: #f2f2f7 !important;
+    }
+
   </style>
 </head>
 <body>
