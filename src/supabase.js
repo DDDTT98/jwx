@@ -582,7 +582,8 @@ export function createSupabaseClient(env) {
     if (acctId) {
       try {
         var existingMobiles = {};
-        var existingCategories = {};\n        var existingCompanies = {};
+        var existingCategories = {};
+        var existingCompanies = {};
         // Query in chunks (Supabase in filter max ~100 items)
         var allMobiles = Object.keys(uniqueMap);
         for (var mi = 0; mi < allMobiles.length; mi += 100) {
