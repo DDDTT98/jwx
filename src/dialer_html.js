@@ -10041,13 +10041,7 @@ function updateAutoDialBtn() {
       var prev = document.getElementById('dbmPrev');
       var next = document.getElementById('dbmNext');
       var pageInput = document.getElementById('dbmPageInput');
-      var cat = document.getElementById('dbmCatFilter');
-      var batch = document.getElementById('dbmBatchFilter');
-      var search = document.getElementById('dbmSearchInput');
       var refresh = document.getElementById('dbmRefreshBtn');
-      var clearSearch = document.getElementById('dbmSearchClearBtn');
-      if (clearSearch && search) clearSearch.addEventListener('click', function() { search.value = ''; DBM_PAGE = 1; dbmFetch(); clearSearch.style.display = 'none'; });
-      if (search) search.addEventListener('input', function() { if (clearSearch) clearSearch.style.display = search.value ? '' : 'none'; });
       if (prev) prev.addEventListener('click', function() { window.dbmChangePage(-1); });
       if (next) next.addEventListener('click', function() { window.dbmChangePage(1); });
       if (pageInput) pageInput.addEventListener('change', function() {
@@ -10055,17 +10049,7 @@ function updateAutoDialBtn() {
         DBM_PAGE = Math.max(1, Math.min(max, parseInt(pageInput.value, 10) || 1));
         dbmFetch();
       });
-      function resetAndFetch() { DBM_PAGE = 1; dbmFetch(); }
-      if (cat) cat.addEventListener('change', resetAndFetch);
-      if (batch) batch.addEventListener('change', resetAndFetch);
-      if (search) {
-        var timer = null;
-        search.addEventListener('input', function() {
-          clearTimeout(timer);
-          timer = setTimeout(resetAndFetch, 250);
-        });
-      }
-      if (refresh) refresh.addEventListener('click', resetAndFetch);
+      if (refresh) refresh.addEventListener('click', function() { DBM_PAGE = 1; dbmFetch(); });
     })();
 
     // 填充分类/批次下拉
