@@ -369,8 +369,8 @@ export function createSupabaseClient(env) {
     if (!baseUrl || !key) return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
 
     try {
-      var p = page || 1;
-      var ps = pageSize || 50; // no cap — fetch whatever client asks
+      var p = Math.max(1, parseInt(page, 10) || 1);
+      var ps = Math.min(5000, Math.max(1, parseInt(pageSize, 10) || 50)); // 最多 5000 条，避免单次请求扫描过大
 
       var searchOrFilter = '';
       if (search) {
