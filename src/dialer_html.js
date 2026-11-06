@@ -11273,7 +11273,7 @@ function updateAutoDialBtn() {
           if (!confirm('从当前批次「' + batchLabel + '」自动分配 ' + totalCount + ' 条客户：\n' + summary + '\n确认执行？')) return;
           reassignBtn.disabled = true; reassignBtn.textContent = '分配中...';
           fetch('/api/dialer/customers/reassign', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken(), 'X-View-Account-Id': _viewAccountId || '' },
             body: JSON.stringify({ batch_label: batchLabel, allocations: allocations.map(function(a) { return { account_id: a.account_id, count: a.count }; }) })
           }).then(function(r) { return r.json(); }).then(function(res) {
             if (res.success) {
