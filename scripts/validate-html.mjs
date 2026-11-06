@@ -39,7 +39,8 @@ if (!DIALER_HTML.includes('class="auth-overlay"') ||
 
 const workerSource = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
 if (!DIALER_HTML.includes('id="dbSubAccountGroupNameInput"') ||
-    !DIALER_HTML.includes('新建小组（同时创建组长账号）') ||
+    !DIALER_HTML.includes('id="dbCreateGroupBtn"') ||
+    !DIALER_HTML.includes('id="dbCreateMemberBtn"') ||
     !DIALER_HTML.includes('class="sub-group-select"') ||
     !DIALER_HTML.includes('group_name: role === "manager"')) {
   throw new Error('[dialer] Named group creation or member reassignment controls are missing');
