@@ -372,9 +372,9 @@ export function createSupabaseClient(env) {
       var p = page || 1;
       var ps = pageSize || 50; // no cap — fetch whatever client asks
 
-      var baseSearch = '';
+      var searchOrFilter = '';
       if (search) {
-        baseSearch = '&or=(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25)';
+        searchOrFilter = 'or(name.ilike.%25' + encodeURIComponent(search) + '%25,mobile.ilike.%25' + encodeURIComponent(search) + '%25,company_name.ilike.%25' + encodeURIComponent(search) + '%25)';
       }
 
       // Exclude cooldown mobiles (cap at 100 to keep URL within limits)
@@ -386,12 +386,18 @@ export function createSupabaseClient(env) {
 
       // 普通首页按当前账户过滤；公海视图只显示主账户归属及历史未归属的公海数据。
       var accountFilter = '';
+      var accountOrFilter = '';
       if (accountId && String(accountId).indexOf('__public_pool__:') === 0) {
         var poolMasterId = String(accountId).slice('__public_pool__:'.length);
-        accountFilter = '&and=(or(account_id.is.null,account_id.eq.' + encodeURIComponent(poolMasterId) + '))';
+        accountOrFilter = 'or(account_id.is.null,account_id.eq.' + encodeURIComponent(poolMasterId) + ')';
       } else if (accountId) {
         accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
       }
+      // 把搜索 OR 与公海归属 OR 放进同一个 AND，避免重复 or 查询参数相互覆盖。
+      var andFilters = [];
+      if (searchOrFilter) andFilters.push(searchOrFilter);
+      if (accountOrFilter) andFilters.push(accountOrFilter);
+      var andFilter = andFilters.length ? '&and=(' + andFilters.join(',') + ')' : '';
 
       var filterParams = '';
       if (category) {
@@ -450,7 +456,7 @@ export function createSupabaseClient(env) {
         var anySuccess = false;
 
         for (var ci = 0; ci < colSets.length; ci++) {
-          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + baseSearch + excludeFilter + accountFilter + filterParams;
+          var url2 = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderClause + andFilter + excludeFilter + accountFilter + filterParams;
           resp = await fetch(url2, { headers: headersWithCount });
           if (resp.ok) {
             batch = await resp.json();
