@@ -479,7 +479,7 @@ export function createSupabaseClient(env) {
       }
       // Return result — may be empty for new accounts with no data yet
       // (real query failures are caught earlier by anySuccess check)
-      return { data: allData, total: totalCount || allData.length, page: p, pageSize: ps };
+      return { data: allData, total: totalCount, page: p, pageSize: ps };
     } catch (e) {
       console.error('[supabase] getAllCustomers error:', e.message);
       return { data: [], total: 0, page: page || 1, pageSize: pageSize || 50 };
