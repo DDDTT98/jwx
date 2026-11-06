@@ -2090,7 +2090,7 @@ export default {
             }
           })());
 
-          return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit }), {
+          return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
           });
         } catch (innerErr) {
