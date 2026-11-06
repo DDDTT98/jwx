@@ -1928,24 +1928,16 @@ export default {
           const existingBatch = await createSupabaseClient(env).getBatchDialStatus(batchLabel, accountId, false);
           if (existingBatch.total > 0) throw new Error('该批次标签在当前账户中已存在数据，请更换唯一批次标签，避免误删旧客户');
         }
-        const tagged = customers.map(function(c) {
-          return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId });
-        });
-        const sb = createSupabaseClient(env);
-        const result = await sb.upsertCustomers(tagged, accountId);
-        // 新增客户记录操作来源：时间、添加方式、实际操作账户（主账户切换视图时仍记录登录操作者）。
+        // 新增客户记录操作来源；仅首次新增写入，重复导入不覆盖原有操作记录。
         var uploadActor = _session.account_id;
         var uploadActorAccount = (await dialerGetAccounts(env)).find(function(a) { return a.account_id === uploadActor; });
         var uploadActorName = uploadActorAccount ? (uploadActorAccount.real_name || uploadActorAccount.account_name || uploadActorAccount.label || uploadActor) : uploadActor;
-        var uploadedNewRows = Array.isArray(result.new_customers) ? result.new_customers : [];
-        for (var ui = 0; ui < uploadedNewRows.length; ui++) {
-          try {
-            await sb.updateCustomerTimeline(uploadedNewRows[ui].mobile, {
-              type: 'add', ts: new Date().toISOString(), operator_account_id: uploadActor,
-              operator_account_name: uploadActorName, detail: '新增客户'
-            }, uploadedNewRows[ui].account_id || accountId);
-          } catch (timelineErr) { console.error('[dialer] write add timeline failed:', timelineErr.message); }
-        }
+        var addOperation = { type: 'add', ts: new Date().toISOString(), operator_account_id: uploadActor, operator_account_name: uploadActorName, detail: '新增客户' };
+        const tagged = customers.map(function(c) {
+          return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId, last_operation: addOperation });
+        });
+        const sb = createSupabaseClient(env);
+        const result = await sb.upsertCustomers(tagged, accountId);
         if (autoDeleteAfterDial) {
           // 清空同手机号旧记录遗留的操作结果，避免新批次被误判为已拨打。
           await sb.resetBatchDialStatus(batchLabel, accountId);
