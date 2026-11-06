@@ -3970,7 +3970,8 @@
 
         // 仅在云端确认全部成功后，才清除本轮客户并推进轮次。
         importedClients = importedClients.filter(function(c) {
-          var cm = c.phone || c.mobile;
+          // 与请求前的手机号标准化保持一致，避免首尾空格导致云端已转移、本地却残留。
+          var cm = String(c.phone || c.mobile || '').trim();
           return !mobileSet[cm];
         });
         saveState();
