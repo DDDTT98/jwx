@@ -3918,7 +3918,10 @@
         if (m && !mobileSet[m]) { mobiles.push(m); mobileSet[m] = true; }
       }
       if (!mobiles.length) {
-        showCopyLimitToast('本轮客户缺少有效手机号，未能转入公海；可手动清空后再加载', true);
+        // 本次转移无法发起：解除提醒占用状态，用户修正数据/再次操作后仍可重试。
+        _reminderShown = false;
+        _pendingReminderClient = null;
+        showCopyLimitToast('本轮客户缺少有效手机号，未能转入公海；请检查手机号后重试', true);
         return;
       }
 
@@ -3935,7 +3938,9 @@
         if (!d || !d.success || Number(d.transferred) !== Number(d.total) || Number(d.total) !== mobiles.length) {
           var msg = d && d.error ? d.error : '云端未确认全部转移（' + (d && d.transferred != null ? d.transferred : 0) + '/' + mobiles.length + '）';
           console.error('[auto-transfer] 未全部转入公海: ' + msg);
-          showCopyLimitToast('自动转公海未完成：' + msg + '。当前客户列表已保留，不能换一批；可右上角手动清空', true);
+          // 云端未完整确认时保留本地数据，并释放提醒锁；再次复制/返回页面可重新触发检查。
+          _reminderShown = false;
+          showCopyLimitToast('自动转公海未完成：' + msg + '。客户列表已保留，请再次复制备注/单位重试', true);
           return;
         }
 
@@ -3965,7 +3970,9 @@
         showCopyLimitToast('本轮 ' + mobiles.length + ' 位客户已成功转入公海，列表已自动清空', true);
       }).catch(function(e) {
         console.error('[auto-transfer] 请求失败: ' + e.message);
-        showCopyLimitToast('自动转公海请求失败：' + e.message + '。当前客户列表已保留，不能换一批；可右上角手动清空', true);
+        // 网络异常不清空客户，也不把 _reminderShown 永久锁死；允许下一次操作重新尝试。
+        _reminderShown = false;
+        showCopyLimitToast('自动转公海请求失败：' + e.message + '。客户列表已保留，请再次复制备注/单位重试', true);
       }).then(function() {
         window._roundTransferPending = false;
       });
