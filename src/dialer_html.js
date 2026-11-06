@@ -11037,6 +11037,30 @@ function updateAutoDialBtn() {
       if(window.location.hash==='#db'){setTimeout(openDBDashboard,300);}
       window.addEventListener('hashchange',function(){if(window.location.hash==='#db'){openDBDashboard();}});
 
+      // Polling is only for displaying progress; the scheduled Worker owns execution.
+      function watchCrmBackgroundJob(jobId, statusEl, onDone) {
+        var stopped = false;
+        function poll() {
+          if (stopped) return;
+          fetch('/api/dialer/background-jobs/' + encodeURIComponent(jobId), {
+            headers:{'Authorization':'Bearer '+getSessionToken()}
+          }).then(function(r){return r.json();}).then(function(res){
+            if(!res.success || !res.job) throw new Error(res.error||'读取任务状态失败');
+            var j=res.job, total=Number(j.total||0), done=Number(j.processed||0);
+            if(statusEl){statusEl.style.display='inline';statusEl.textContent='后台处理中 '+done+'/'+total+'（成功 '+(j.succeeded||0)+'，失败 '+(j.failed||0)+'）';statusEl.style.color='#f57c00';}
+            if(j.status==='completed'||j.status==='completed_with_errors'||j.status==='failed'){
+              stopped=true;
+              if(statusEl){statusEl.textContent='后台任务'+(j.status==='completed'?'完成':j.status==='failed'?'失败':'完成（有失败）')+'：成功 '+(j.succeeded||0)+'，失败 '+(j.failed||0);statusEl.style.color=j.failed?'#e74c3c':'#07c160';}
+              if(typeof onDone==='function') onDone(j);
+              dbFetch(); loadAccountStats(); populateReassignSel();
+              return;
+            }
+            setTimeout(poll,5000);
+          }).catch(function(){if(!stopped)setTimeout(poll,10000);});
+        }
+        poll();
+        return function(){stopped=true;};
+      }
       // Batch category wiring: append a custom type to selected customers
       var bcpBtn = document.getElementById('dbBatchCatBtn');
       var bcpPanel = document.getElementById('dbBatchCatPanel');
@@ -11059,52 +11083,20 @@ function updateAutoDialBtn() {
         var mobiles = Object.keys(DB.selectedIds || {}).filter(function(m) { return DB.selectedIds[m]; });
         if (!mobiles.length) { alert('请先勾选需要添加类型的客户'); return; }
         if (!typeName) { alert('请输入自定义类型名称'); if (bcpName) bcpName.focus(); return; }
-        if (!confirm('确认给已勾选的 ' + mobiles.length + ' 位客户设置类型「' + typeName + '」吗？')) return;
-
-        // 类型使用专用存储键和固定列，不写入通用自定义列，也不触碰单位/分类字段。
-        renderCRMHeaders();
-
-        var selected = {};
-        (DB.allData || []).forEach(function(customer) {
-          if (customer && DB.selectedIds[customer.mobile]) selected[customer.mobile] = customer;
-        });
-        var targets = mobiles.filter(function(m) { return !!selected[m]; });
-        if (!targets.length) { alert('当前勾选客户数据已失效，请重新勾选'); return; }
-        bcpApply.disabled = true;
-        if (bcpStatus) { bcpStatus.style.display = 'inline'; bcpStatus.textContent = '正在更新 0/' + targets.length; bcpStatus.style.color = '#f57c00'; }
-        var done = 0, failed = 0;
-        targets.reduce(function(queue, mobile) {
-          return queue.then(function() {
-            var customer = selected[mobile];
-            var parsed = parseCustomerNote(customer);
-            var custom = Object.assign({}, parsed.custom || {});
-            custom.__batch_type = typeName;
-            var payload = { note: parsed.note || '', custom: custom };
-            if (customer.fund) payload.fund = customer.fund;
-            return fetch('/api/dialer/customers', {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ mobile: mobile, fields: { note: JSON.stringify(payload) } })
-            }).then(function(resp) { return resp.json(); }).then(function(result) {
-              if (result && result.success) {
-                customer.note = JSON.stringify(payload);
-                customer.custom = custom;
-                done++;
-              } else { failed++; }
-            }).catch(function() { failed++; }).then(function() {
-              if (bcpStatus) bcpStatus.textContent = '正在更新 ' + done + '/' + targets.length + (failed ? '，失败 ' + failed : '');
-            });
-          });
-        }, Promise.resolve()).then(function() {
-          bcpApply.disabled = false;
-          if (bcpStatus) {
-            bcpStatus.textContent = '完成：成功 ' + done + ' 条，失败 ' + failed + ' 条';
-            bcpStatus.style.color = failed ? '#e74c3c' : '#07c160';
-          }
-          if (bcpName) bcpName.value = '';
-          DB.selectedIds = {};
-          dbFetch();
-        });
+        if (!confirm('确认给已勾选的 ' + mobiles.length + ' 位客户设置类型「' + typeName + '」吗？提交后由服务器后台执行，可关闭页面。')) return;
+        bcpApply.disabled = true; bcpApply.textContent = '提交中...';
+        fetch('/api/dialer/background-jobs/type', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+getSessionToken(),'X-View-Account-Id':_viewAccountId||''},
+          body:JSON.stringify({type_name:typeName,mobiles:mobiles})
+        }).then(function(r){return r.json();}).then(function(res){
+          if(!res.success) throw new Error(res.error||'任务提交失败');
+          if(bcpStatus){bcpStatus.style.display='inline';bcpStatus.style.color='#f57c00';bcpStatus.textContent='后台任务已提交：'+res.total+' 条';}
+          alert('已提交后台任务（'+res.job_id+'），你可以关闭页面，服务器会继续处理。');
+          bcpName.value=''; DB.selectedIds={}; dbFetch();
+          watchCrmBackgroundJob(res.job_id, bcpStatus);
+        }).catch(function(err){alert(err.message||'提交失败');})
+        .finally(function(){bcpApply.disabled=false;bcpApply.textContent='添加到类型列';});
       });
 
  // 企业微信通知配置（仅主账号）
