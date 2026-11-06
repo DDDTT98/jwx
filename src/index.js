@@ -1932,7 +1932,7 @@ export default {
         var uploadActor = _session.account_id;
         var uploadActorAccount = (await dialerGetAccounts(env)).find(function(a) { return a.account_id === uploadActor; });
         var uploadActorName = uploadActorAccount ? (uploadActorAccount.real_name || uploadActorAccount.account_name || uploadActorAccount.label || uploadActor) : uploadActor;
-        var addOperation = { type: 'add', ts: new Date().toISOString(), operator_account_id: uploadActor, operator_account_name: uploadActorName, detail: '新增客户' };
+        var addOperation = { type: 'add', ts: new Date().toISOString(), operator_account_id: uploadActor, operator_account_name: uploadActorName, previous_operator_account_id: uploadActor, previous_operator_account_name: uploadActorName, detail: '新增客户' };
         const tagged = customers.map(function(c) {
           return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId, last_operation: addOperation });
         });
