@@ -9607,7 +9607,7 @@ function updateAutoDialBtn() {
     function loadAccountStats() {
       var bar = document.getElementById('dbAccountStats');
       if (!bar) return;
-      if (!isSessionMaster()) { bar.style.display = 'none'; return; }
+      if (!canManageTeam()) { bar.style.display = 'none'; return; }
       bar.style.display = 'flex';
       var list = document.getElementById('dbAccountStatsList');
       var sel = document.getElementById('dbViewAccountSel');
@@ -9632,7 +9632,7 @@ function updateAutoDialBtn() {
           // Show migrate button if orphan records exist
           var migrateBtn = document.getElementById('dbMigrateBtn');
           if (migrateBtn) {
-            if (res.unknown_count > 0) {
+            if (isSessionMaster() && res.unknown_count > 0) {
               migrateBtn.style.display = 'inline-block';
               migrateBtn.textContent = '归属主账户 (' + res.unknown_count + ')';
               migrateBtn.onclick = function() {
