@@ -28,8 +28,8 @@ jobs:
           import fs from 'node:fs';
           import { execFileSync } from 'node:child_process';
           const { DIALER_HTML } = await import('file:///tmp/bhp-dialer-html.mjs');
-          const scripts = [...DIALER_HTML.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)];
-          const inline = scripts.filter(m => !/\\bsrc\\s*=/.test(m[0].slice(0, m[0].indexOf('>') + 1)));
+          const scripts = [...DIALER_HTML.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+          const inline = scripts.filter(m => !/\bsrc\s*=/.test(m[0].slice(0, m[0].indexOf('>') + 1)));
           if (!inline.length) throw new Error('No inline browser script found');
           inline.forEach((m, i) => {
             const out = `/tmp/bhp-inline-${i}.js`;
@@ -38,7 +38,7 @@ jobs:
               execFileSync(process.execPath, ['--check', out], { stdio: 'pipe', encoding: 'utf8' });
             } catch (e) {
               const detail = (e.stderr || e.stdout || e.message || String(e)).toString();
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### Embedded JavaScript syntax error\\n\\n```text\\n' + detail + '\\n```\\n');
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### Embedded JavaScript syntax error\n\n```text\n' + detail + '\n```\n');
               process.stderr.write(detail);
               process.exit(1);
             }
