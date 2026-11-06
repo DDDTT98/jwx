@@ -2296,7 +2296,8 @@ export default {
     if (path === '/api/dialer/timeline' && request.method === 'POST') {
       try {
         const body = await request.json();
-        const { mobile, entry } = body;
+        const mobile = body.mobile;
+        var entry = body.entry;
         const accountId = _dialerAccountId;
         if (!mobile || !entry || !entry.type) throw new Error('缺少参数');
         var actorAccounts = await dialerGetAccounts(env);
