@@ -1960,7 +1960,7 @@
     /* 统一宽屏表格：dbmList 横向滚动（.crm-table min-width:900px），不再渲染卡片 */
     .dbm-list {
       flex: 1 1 0%; min-height: 0; min-width: 0;
-      overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+      overflow-x: auto; overflow-y: auto; overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch; background: #fff;
     }
     body.dark-mode .dbm-list { background: #1e293b; }
