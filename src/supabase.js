@@ -536,7 +536,7 @@ export function createSupabaseClient(env) {
         }
       }
 
-      return {
+      var row = {
         name: (c.name || '').trim() || '未知姓名',
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
@@ -545,6 +545,8 @@ export function createSupabaseClient(env) {
         batch_label: (c.batch_label || '').trim(),
         account_id: c.account_id || acctId
       };
+      if (c.last_operation) row.last_operation = c.last_operation;
+      return row;
     }).filter(function(r) {
       return r.mobile.length > 0;
     });
@@ -610,7 +612,8 @@ export function createSupabaseClient(env) {
             skippedForeignCount++;
             console.warn('[supabase] Skipping mobile ' + rowMobile.slice(0, 3) + '**** — owned by ' + existingOwner);
           } else {
-            // 属于同一账户，允许更新
+            // 属于同一账户，允许更新客户资料，但不能把重复导入误记成一次新添加。
+            delete uniqueRows[ri].last_operation;
             safeRows.push(uniqueRows[ri]);
           }
         }
