@@ -2511,10 +2511,11 @@
   </div>
 
   <!-- Auth: Login Overlay -->
-  <div id="authLoginOverlay" class="auth-overlay auth-hidden">
+  <div id="authLoginOverlay" class="auth-overlay">
     <div class="lock-wallpaper" id="loginWallpaper"></div>
     <div class="lock-wallpaper-overlay"></div>
     <div class="auth-card">
+      <div id="bootFallbackNotice" role="alert" style="padding:10px 12px;margin-bottom:12px;border-radius:10px;background:rgba(255,149,0,0.12);color:#9a5b00;font-size:13px;text-align:center;">页面正在启动。如果此提示持续显示，说明页面脚本未能正常启动，请刷新页面或联系管理员。</div>
       <form autocomplete="off" style="margin:0;">
         <div style="position:absolute;opacity:0;pointer-events:none;height:0;overflow:hidden" aria-hidden="true"><input type="text" name="username" autocomplete="username" tabindex="-1"><input type="password" name="password" autocomplete="current-password" tabindex="-1"></div>
         <input type="text" id="authLoginAccountName" class="auth-input" placeholder="账号" autocomplete="off" spellcheck="false" data-lpignore="true" readonly>
@@ -13070,6 +13071,10 @@ function updateAutoDialBtn() {
         });
       }
     });
+
+    // Hide the static warning only after all startup initializers have completed.
+    var bootFallbackNotice = document.getElementById("bootFallbackNotice");
+    if (bootFallbackNotice) bootFallbackNotice.style.display = "none";
 
   })();
   </script>
