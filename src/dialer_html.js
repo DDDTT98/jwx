@@ -9624,7 +9624,7 @@ function updateAutoDialBtn() {
             return;
           }
           list.innerHTML = res.stats.map(function(s) {
-            var name = s.account_name || s.label || s.account_id.slice(0, 10);
+            var name = (s.real_name ? s.real_name + '（' + (s.account_name || s.label || s.account_id.slice(0, 10)) + '）' : (s.account_name || s.label || s.account_id.slice(0, 10)));
             var badge = s.is_master ? ' [主]' : '';
             var inactive = !s.active ? ' [禁用]' : '';
             return '<span style="background:var(--card-bg); padding:2px 8px; border-radius:3px; white-space:nowrap;">'
