@@ -4,7 +4,7 @@
 import { DIALER_HTML } from './dialer_html.js';
 import { DIET_HTML } from './diet_html.js';
 import { LEARN_HTML, LEARN_DEFAULT_CONTENT } from './learn_html.js';
-import { createSupabaseClient } from './supabase.js';
+import { createSupabaseClient, createSupabaseKV } from './supabase.js';
 
 // KV 读取缓存
 const kvCache = new Map();
@@ -329,6 +329,13 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
 
 export default {
   async fetch(request, env, ctx) {
+    // Use the already-migrated app_kv table as the primary KV store.
+    // Keep the Cloudflare binding as a fallback only when Supabase is not configured.
+    if (env.SUPABASE_URL && env.SUPABASE_KEY) {
+      const workerEnv = Object.create(env);
+      workerEnv.DATA_KV = createSupabaseKV(env);
+      env = workerEnv;
+    }
     const url = new URL(request.url);
     const path = url.pathname;
     const clientIP = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
@@ -3717,6 +3724,11 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
   async scheduled(event, env, ctx) {
+    if (env.SUPABASE_URL && env.SUPABASE_KEY) {
+      const workerEnv = Object.create(env);
+      workerEnv.DATA_KV = createSupabaseKV(env);
+      env = workerEnv;
+    }
     try {
       var today=beijingDateKey(new Date());
       await sendPerformanceReport(env,today,today,'BHP 每日业绩日报');
