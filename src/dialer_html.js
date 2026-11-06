@@ -2257,6 +2257,32 @@
       color: #f2f2f7 !important;
     }
 
+
+    /* Privacy mode: remove hard borders from WeChat / dial icons.
+       Keep only the same faint tint used by the copy-note affordance. */
+    body.privacy-mode .xls-dial-card .privacy-add-vx,
+    body.privacy-mode .xls-dial-card .privacy-dial-icon {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: rgba(7,193,96,.055) !important;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    body.privacy-mode .xls-dial-card .privacy-add-vx:hover,
+    body.privacy-mode .xls-dial-card .privacy-add-vx:active,
+    body.privacy-mode .xls-dial-card .privacy-dial-icon:hover,
+    body.privacy-mode .xls-dial-card .privacy-dial-icon:active {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+      background: rgba(7,193,96,.09) !important;
+    }
+    body.dark-mode.privacy-mode .xls-dial-card .privacy-add-vx,
+    body.dark-mode.privacy-mode .xls-dial-card .privacy-dial-icon {
+      background: rgba(48,209,88,.09) !important;
+    }
+
   </style>
 </head>
 <body>
