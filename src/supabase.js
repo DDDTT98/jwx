@@ -543,11 +543,28 @@ export function createSupabaseClient(env) {
       return r.mobile.length > 0;
     });
 
-    // Deduplicate by mobile to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    // 同一批次内同手机号只保留一条记录，但把不同单位名称按出现顺序合并。
+    function mergeCompanyNames(a, b) {
+      var values = [];
+      [a, b].forEach(function(value) {
+        String(value || '').split(/[；;\n、|]+/).forEach(function(part) {
+          var name = part.trim();
+          if (name && !values.some(function(v) { return v.toLowerCase() === name.toLowerCase(); })) values.push(name);
+        });
+      });
+      return values.join('；');
+    }
     var uniqueMap = {};
     var uniqueRows = [];
     rows.forEach(function(row) {
-      uniqueMap[row.mobile] = row;
+      if (uniqueMap[row.mobile]) {
+        var previous = uniqueMap[row.mobile];
+        var merged = Object.assign({}, previous, row);
+        merged.company_name = mergeCompanyNames(previous.company_name, row.company_name);
+        uniqueMap[row.mobile] = merged;
+      } else {
+        uniqueMap[row.mobile] = row;
+      }
     });
     for (var m in uniqueMap) {
       if (uniqueMap.hasOwnProperty(m)) {
@@ -565,13 +582,13 @@ export function createSupabaseClient(env) {
     if (acctId) {
       try {
         var existingMobiles = {};
-        var existingCategories = {};
+        var existingCategories = {};\n        var existingCompanies = {};
         // Query in chunks (Supabase in filter max ~100 items)
         var allMobiles = Object.keys(uniqueMap);
         for (var mi = 0; mi < allMobiles.length; mi += 100) {
           var mobileChunk = allMobiles.slice(mi, mi + 100);
           var inFilter = 'mobile=in.(' + mobileChunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
-          var checkUrl = baseUrl + '/rest/v1/customers?select=mobile,account_id,category&' + inFilter;
+          var checkUrl = baseUrl + '/rest/v1/customers?select=mobile,account_id,category,company_name&' + inFilter;
           var checkResp = await fetch(checkUrl, { headers: headers() });
           if (!checkResp.ok) {
             var checkError = await checkResp.text();
@@ -582,7 +599,7 @@ export function createSupabaseClient(env) {
             if (Array.isArray(checkData)) {
               for (var ci = 0; ci < checkData.length; ci++) {
                 existingMobiles[checkData[ci].mobile] = checkData[ci].account_id;
-                existingCategories[checkData[ci].mobile] = checkData[ci].category || '';
+                existingCategories[checkData[ci].mobile] = checkData[ci].category || '';\n                existingCompanies[checkData[ci].mobile] = checkData[ci].company_name || '';
               }
             }
           }
@@ -606,7 +623,9 @@ export function createSupabaseClient(env) {
             skippedForeignCount++;
             console.warn('[supabase] Skipping mobile ' + rowMobile.slice(0, 3) + '**** — owned by ' + existingOwner);
           } else {
-            // 属于同一账户，允许更新客户资料，但不能把重复导入误记成一次新添加。
+            // 属于同一账户：保留原单位名称，并把本次上传的不同单位名称追加在后面。
+            uniqueRows[ri].company_name = mergeCompanyNames(existingCompanies[rowMobile], uniqueRows[ri].company_name);
+            // 不能把重复导入误记成一次新添加。
             delete uniqueRows[ri].last_operation;
             safeRows.push(uniqueRows[ri]);
           }
