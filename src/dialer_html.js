@@ -8039,13 +8039,18 @@
                 return customHtml;
               })() +
               (function() {
-                if (!c.company) return '';
-                var matchedWl = matchWhitelistCompany(c.company);
-                if (matchedWl) {
-                  var bank = matchedWl.bank_name || '建行建易贷';
-                  return '<span class="client-card-tag xls-dial-badge-whitelist">' + esc(bank) + '</span>';
+                // 正常模式显示后端已匹配的全部白名单产品；兼容旧缓存时再走本地匹配。
+                if (!showClientInfo || !c.company) return '';
+                var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
+                if (!products.length) {
+                  var matched = matchWhitelistCompanies(c.company);
+                  products = matched.map(function(w) { return w.bank_name || '白名单'; });
                 }
-                return '';
+                products = products.filter(function(v, i, arr) { return arr.indexOf(v) === i; });
+                if (!products.length) return '';
+                return products.map(function(name) {
+                  return '<span class="client-card-tag xls-dial-badge-whitelist">' + esc(name) + '</span>';
+                }).join('');
               })() +
             '</div>' +
             (c.note ? 
