@@ -655,9 +655,10 @@
     }
     .client-phone-btn.privacy-add-vx.copied {
       background: transparent !important;
-      color: #079b50 !important;
+      color: #e53935 !important;
       border: 0 !important;
       box-shadow: none !important;
+      font-weight: 800;
     }
     .xls-card-dial-btn.privacy-dial-icon {
       width: 30px;
