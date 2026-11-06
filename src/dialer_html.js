@@ -9268,7 +9268,7 @@ function updateAutoDialBtn() {
           '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');recordTimeline(\'' + esc(c.mobile) + '\',\'copy_phone\');"></button>' +
             '</div>' +
           '</td>' +
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
@@ -9966,7 +9966,7 @@ function updateAutoDialBtn() {
         var avatarHtml = '<span class="crm-avatar" style="background:' + avatarColors[colorIdx] + ';">' + esc(firstChar) + '</span>';
         var parsed = parseCustomerNote(c);
         var realNote = parsed.note;
-        var callBtn = '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>';
+        var callBtn = '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\'' + esc(c.mobile) + '\');showCopyLimitToast(\'已复制: ' + esc(c.mobile) + '\');recordTimeline(\'' + esc(c.mobile) + '\',\'copy_phone\');"></button>';
         var noteDisplay = '';
         if (c.fund) {
           noteDisplay = '<div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">' +
