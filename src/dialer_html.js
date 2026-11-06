@@ -634,6 +634,26 @@
       border-radius: var(--radius-sm);
       transition: all 0.2s;
     }
+    .client-phone-btn.privacy-add-vx {
+      min-height: 29px;
+      padding: 0 11px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #07c160, #06a94f);
+      color: #fff !important;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+      box-shadow: 0 2px 7px rgba(7,193,96,.22);
+      justify-content: center;
+    }
+    .client-phone-btn.privacy-add-vx:active {
+      transform: scale(.96);
+      box-shadow: 0 1px 3px rgba(7,193,96,.18);
+    }
+    .client-phone-btn.privacy-add-vx.copied {
+      background: #159b55;
+      color: #fff !important;
+    }
     .client-phone-btn:hover {
       background: var(--btn-hover);
       color: var(--text-main);
@@ -2029,7 +2049,8 @@
         </div>
         <div style="font-size:1rem;font-weight:800;margin-bottom:6px;">设置说明</div>
         <ul style="padding-left:21px;margin:0;">
-          <li>开关默认关闭。</li>
+          <li>自动时段：周一至周六 09:00-12:00、14:00-18:00、19:00-20:00 自动关闭隐私显示，其余时间自动开启。</li>
+          <li>可在当前时段手动切换，手动设置仅在当前时段有效；进入下一个时段后恢复自动规则。</li>
           <li>设置按当前账号保存在当前设备，不影响其他账号或设备。</li>
           <li>切换显示状态只改变页面展示，不会删除或修改客户原始资料。</li>
           <li>手机号位置显示「添加VX」，点击可复制号码并打开微信。</li>
@@ -3027,10 +3048,34 @@
       try { return localStorage.getItem(newModeKey()) === '1'; } catch (e) { return false; }
     }
 
-    // 客户备注信息显示开关：默认关闭，按账号保存在本机
+    // 隐私操作按设备本地时间自动切换：周一至周六 09:00-12:00、14:00-18:00、19:00-20:00 关闭，其余时间开启。
     function clientInfoVisibleKey() { return 'dialer_client_info_visible:' + getOrCreateAccountId(); }
+    function privacyScheduleBlock(now) {
+      now = now || new Date();
+      var day = now.getDay(), mins = now.getHours() * 60 + now.getMinutes();
+      var ranges = [[540,720,'09-12'],[840,1080,'14-18'],[1140,1200,'19-20']];
+      var dateKey = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+      if (day >= 1 && day <= 6) {
+        for (var i = 0; i < ranges.length; i++) {
+          if (mins >= ranges[i][0] && mins < ranges[i][1]) return { key: dateKey + ':' + ranges[i][2], visible: false };
+        }
+      }
+      var boundaries = [0,540,720,840,1080,1140,1200,1440], start = 0, end = 1440;
+      for (var j = 0; j < boundaries.length - 1; j++) {
+        if (mins >= boundaries[j] && mins < boundaries[j+1]) { start = boundaries[j]; end = boundaries[j+1]; break; }
+      }
+      return { key: dateKey + ':' + start + '-' + end, visible: true };
+    }
     function isClientInfoVisible() {
-      try { return localStorage.getItem(clientInfoVisibleKey()) === '1'; } catch (e) { return false; }
+      try {
+        var block = privacyScheduleBlock();
+        var override = localStorage.getItem('dialer_privacy_override:' + getOrCreateAccountId());
+        if (override) {
+          var saved = JSON.parse(override);
+          if (saved && saved.key === block.key) return saved.visible === true;
+        }
+        return block.visible;
+      } catch (e) { return privacyScheduleBlock().visible; }
     }
     function syncClientInfoToggle() {
       var cb = document.getElementById('showClientInfoToggle');
@@ -3038,6 +3083,27 @@
       var visible = isClientInfoVisible();
       if (cb) cb.checked = visible;
       if (label) label.textContent = visible ? '已开启' : '已关闭';
+    }
+    function initPrivacySchedule() {
+      var last = isClientInfoVisible();
+      syncClientInfoToggle();
+      window.setInterval(function() {
+        var current = isClientInfoVisible();
+        syncClientInfoToggle();
+        if (current !== last) { last = current; renderDialCards(); }
+      }, 15000);
+      window.addEventListener('focus', function() {
+        var current = isClientInfoVisible();
+        syncClientInfoToggle();
+        if (current !== last) { last = current; renderDialCards(); }
+      });
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+          var current = isClientInfoVisible();
+          syncClientInfoToggle();
+          if (current !== last) { last = current; renderDialCards(); }
+        }
+      });
     }
     function initNewModeToggle() {
       var btn = document.getElementById('newModeToggle');
@@ -7098,7 +7164,7 @@
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : '添加VX') + '</span>' +
+                  '<span class="' + phoneClass + (showClientInfo ? '' : ' privacy-add-vx') + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : '添加VX') + '</span>' +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
@@ -11729,9 +11795,12 @@ function updateAutoDialBtn() {
         if (e.target === privacyInfoOverlay) closePrivacyInfo();
       });
       var infoToggle = document.getElementById('showClientInfoToggle');
-      syncClientInfoToggle();
+      initPrivacySchedule();
       if (infoToggle) infoToggle.addEventListener('change', function() {
-        try { localStorage.setItem(clientInfoVisibleKey(), infoToggle.checked ? '1' : '0'); } catch (e) {}
+        try {
+          var block = privacyScheduleBlock();
+          localStorage.setItem('dialer_privacy_override:' + getOrCreateAccountId(), JSON.stringify({ key: block.key, visible: !!infoToggle.checked }));
+        } catch (e) {}
         syncClientInfoToggle();
         renderDialCards();
       });
