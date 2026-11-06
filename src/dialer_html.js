@@ -3305,6 +3305,7 @@
           <option value="50" selected>50条/页</option>
           <option value="100">100条/页</option>
           <option value="300">300条/页</option>
+          <option value="5000">本批全部/页</option>
         </select>
       </div>
     </div>
@@ -3451,7 +3452,7 @@
         if (dbmOv && dbmOv.classList.contains('active') && typeof dbmRender === 'function') dbmRender();
         var dbOv = document.getElementById('dbOverlay');
         if (dbOv && dbOv.classList.contains('active') && typeof dbRenderCached === 'function') {
-          DB.pageSize = parseInt((document.getElementById('dbPageSize') || {}).value || '50');
+          DB.pageSize = parseInt((document.getElementById('dbPageSize') || {}).value || '50', 10) || 50;
           DB.page = 1;
           dbRenderCached();
         }
@@ -9749,7 +9750,7 @@ function updateAutoDialBtn() {
         var savedPs = localStorage.getItem('crm_page_size');
         psSel.value = savedPs || (isNewMode() ? '10' : '50');
       }
-      DB.pageSize=parseInt((document.getElementById('dbPageSize')||{}).value||'50');
+      DB.pageSize=parseInt((document.getElementById('dbPageSize')||{}).value||'50',10)||50;
       DB.selectedIds = {}; // Reset selections
       var selectAllCb = document.getElementById('crmSelectAll');
       if (selectAllCb) selectAllCb.checked = false;
@@ -10528,7 +10529,7 @@ function updateAutoDialBtn() {
       }
       var cf=document.getElementById('dbCatFilter'); if(cf)cf.addEventListener('change',function(){DB.page=1;dbFetch();});
       var bf=document.getElementById('dbBatchFilter'); if(bf)bf.addEventListener('change',function(){DB.page=1;dbFetch();});
-      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){localStorage.setItem('crm_page_size', ps.value);DB.pageSize=parseInt(ps.value);DB.page=1;dbRenderCached();});
+      var ps=document.getElementById('dbPageSize'); if(ps)ps.addEventListener('change',function(){if(ps.value==='5000' && !(document.getElementById('dbBatchFilter')||{}).value){alert('请先选择一个导入批次，再使用“本批全部/页”');ps.value='300';}localStorage.setItem('crm_page_size', ps.value);DB.pageSize=parseInt(ps.value,10)||300;DB.page=1;dbRenderCached();});
       var pr=document.getElementById('dbPrev'); if(pr)pr.addEventListener('click',function(){if(DB.page>1){DB.page--;dbRenderCached();}});
       var nx=document.getElementById('dbNext'); if(nx)nx.addEventListener('click',function(){var tp=Math.max(1,Math.ceil(DB.total/DB.pageSize));if(DB.page<tp){DB.page++;dbRenderCached();}});
       
