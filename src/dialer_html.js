@@ -9990,50 +9990,77 @@ function updateAutoDialBtn() {
       var cancelBtn = document.getElementById('dbPwdCancelBtn');
       var confirmBtn = document.getElementById('dbPwdConfirmBtn');
 
-      if (!overlay) { callback(); return; }
+      // 密码弹窗必须独立挂到 body：避免被 app-shell / iOS Safari 的层叠上下文遮挡。
+      if (!overlay || !input || !error || !cancelBtn || !confirmBtn) {
+        console.error('[db-auth] password gate DOM is incomplete');
+        var notice = document.getElementById('bootFallbackNotice');
+        if (notice) {
+          notice.style.display = 'block';
+          notice.textContent = '数据库密码窗口初始化失败，请刷新页面后重试。';
+        }
+        return;
+      }
+      if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
 
-      var savedHash = getDbPassword();
+      var savedHash = '';
+      try {
+        savedHash = getDbPassword();
+      } catch (storageError) {
+        error.textContent = '浏览器本地存储不可用，请退出无痕模式后重试';
+        error.style.display = 'block';
+        return;
+      }
       var isFirstTime = !savedHash;
 
       input.value = '';
-      if (isFirstTime) {
-        input.placeholder = '';
-      } else {
-        input.placeholder = '';
-      }
+      input.placeholder = '';
+      error.textContent = '';
       error.style.display = 'none';
-      overlay.style.display = 'flex';
-      setTimeout(function() { overlay.classList.add('active'); input.focus(); }, 10);
+
+      // 不依赖延迟动画才能显示；强制覆盖可能存在的旧层级/隐藏样式。
+      overlay.style.setProperty('display', 'flex', 'important');
+      overlay.style.setProperty('position', 'fixed', 'important');
+      overlay.style.setProperty('inset', '0', 'important');
+      overlay.style.setProperty('z-index', '2147483647', 'important');
+      overlay.style.setProperty('visibility', 'visible', 'important');
+      overlay.classList.add('active');
+
+      function focusPasswordInput() {
+        try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+      }
+      setTimeout(focusPasswordInput, 60);
 
       function doConfirm() {
         var pwd = input.value.trim();
-        if (pwd.length !== 6) {
+        if (pwd.length !== 6 || !/^[a-zA-Z0-9]+$/.test(pwd)) {
+          error.textContent = '请输入 6 位字母或数字密码';
+          error.style.display = 'block';
           input.value = '';
-          input.focus();
-          return;
-        }
-        if (!/^[a-zA-Z0-9]+$/.test(pwd)) {
-          input.value = '';
-          input.focus();
+          focusPasswordInput();
           return;
         }
 
         if (isFirstTime) {
-          // Set password
-          localStorage.setItem(DB_PWD_K, hashPwd(pwd));
+          // 首次使用时设置本地数据库密码；存储失败时绝不绕过验证。
+          try {
+            localStorage.setItem(DB_PWD_K, hashPwd(pwd));
+          } catch (storageError) {
+            error.textContent = '无法保存密码，请检查浏览器本地存储设置';
+            error.style.display = 'block';
+            return;
+          }
+          closeDbPasswordGate();
+          dbPwdCallback && dbPwdCallback();
+          dbPwdCallback = null;
+        } else if (hashPwd(pwd) === savedHash) {
           closeDbPasswordGate();
           dbPwdCallback && dbPwdCallback();
           dbPwdCallback = null;
         } else {
-          // Verify password
-          if (hashPwd(pwd) === savedHash) {
-            closeDbPasswordGate();
-            dbPwdCallback && dbPwdCallback();
-            dbPwdCallback = null;
-          } else {
-            input.value = '';
-            input.focus();
-          }
+          error.textContent = '密码不正确，请重新输入';
+          error.style.display = 'block';
+          input.value = '';
+          focusPasswordInput();
         }
       }
 
@@ -10041,7 +10068,6 @@ function updateAutoDialBtn() {
       input.onkeydown = function(e) {
         if (e.key === 'Enter') doConfirm();
       };
-
       cancelBtn.onclick = function() {
         closeDbPasswordGate();
         dbPwdCallback = null;
