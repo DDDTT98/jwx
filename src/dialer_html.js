@@ -3217,7 +3217,7 @@
       d.title = '账户: ' + id + (label ? ' (' + label + ')' : '') + typeTag;
       // 账号变化后刷新新号模式开关（状态按账号独立记录，不跨账号/设备继承）
       var ntb = document.getElementById('newModeToggle');
-      if (ntb) ntb.classList.toggle('on', isNewMode());
+      if (ntb) { var enabled = isNewMode(); ntb.classList.toggle('on', enabled); var state = document.getElementById('newModeState'); if (state) state.textContent = enabled ? '已开启' : '已关闭'; }
       // Fetch DB count for this account
       refreshAccountDataCount();
     }
