@@ -1933,6 +1933,19 @@ export default {
         });
         const sb = createSupabaseClient(env);
         const result = await sb.upsertCustomers(tagged, accountId);
+        // 新增客户记录操作来源：时间、添加方式、实际操作账户（主账户切换视图时仍记录登录操作者）。
+        var uploadActor = _session.account_id;
+        var uploadActorAccount = (await dialerGetAccounts(env)).find(function(a) { return a.account_id === uploadActor; });
+        var uploadActorName = uploadActorAccount ? (uploadActorAccount.real_name || uploadActorAccount.account_name || uploadActorAccount.label || uploadActor) : uploadActor;
+        var uploadedNewRows = Array.isArray(result.new_customers) ? result.new_customers : [];
+        for (var ui = 0; ui < uploadedNewRows.length; ui++) {
+          try {
+            await sb.updateCustomerTimeline(uploadedNewRows[ui].mobile, {
+              type: 'add', ts: new Date().toISOString(), operator_account_id: uploadActor,
+              operator_account_name: uploadActorName, detail: '新增客户'
+            }, uploadedNewRows[ui].account_id || accountId);
+          } catch (timelineErr) { console.error('[dialer] write add timeline failed:', timelineErr.message); }
+        }
         if (autoDeleteAfterDial) {
           // 清空同手机号旧记录遗留的操作结果，避免新批次被误判为已拨打。
           await sb.resetBatchDialStatus(batchLabel, accountId);
