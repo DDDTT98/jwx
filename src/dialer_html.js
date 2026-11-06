@@ -1911,7 +1911,9 @@
     /* ===== 手机版数据库看板（独立全屏界面） ===== */
     .dbm-overlay {
       position: fixed; inset: 0; z-index: 100000;
+      width: 100%; height: 100vh; height: 100dvh; min-height: 0;
       background: #f8fafc; display: none; flex-direction: column;
+      overflow: hidden; overscroll-behavior: none;
       -webkit-overflow-scrolling: touch;
     }
     body.dark-mode .dbm-overlay { background: #0f172a; }
@@ -1956,7 +1958,11 @@
     }
     .dbm-selectall-label input { width: 17px; height: 17px; accent-color: #4a6cf7; cursor: pointer; }
     /* 统一宽屏表格：dbmList 横向滚动（.crm-table min-width:900px），不再渲染卡片 */
-    .dbm-list { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; background: #fff; }
+    .dbm-list {
+      flex: 1 1 0%; min-height: 0; min-width: 0;
+      overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch; background: #fff;
+    }
     body.dark-mode .dbm-list { background: #1e293b; }
     .dbm-empty { text-align: center; color: var(--text-light); padding: 60px 20px; font-size: 0.85rem; font-weight: 600; }
     .dbm-actionbar {
@@ -2008,7 +2014,11 @@
       box-shadow: var(--shadow-card);
     }
     .dbm-mgr-tab.active { background: rgba(74,108,247,0.12); color: #4a6cf7; }
-    #dbmMgrBody { flex: 1; overflow-y: auto; padding: 12px; }
+    #dbmMgrBody {
+      flex: 1 1 0%; min-height: 0; min-width: 0;
+      overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch; padding: 12px;
+    }
     /* 移入的管理面板：手机化适配 */
     #dbmMgrBody .dbm-mgr-inner { display: flex; flex-direction: column; gap: 14px; }
     #dbmMgrBody .dbm-mgr-inner > div { background: #fff; border-radius: 14px; padding: 14px; box-shadow: var(--shadow-card); }
