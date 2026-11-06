@@ -2297,7 +2297,7 @@ export default {
         var sourceFilter = (callerRole === 'manager' || viewHeader) ? '&account_id=eq.' + encodeURIComponent(sourceAccountId) : '';
         var batchFilter = '&batch_label=eq.' + encodeURIComponent(batchLabel);
         if (mode === 'manual' && (!Number.isSafeInteger(totalRequested) || totalRequested <= 0 || totalRequested > 5000)) throw new Error('本次分配总数必须在 1 至 5000 条之间');
-        var readLimit = mode === 'equal' ? 5000 : totalRequested;
+        var readLimit = mode === 'equal' ? 5001 : totalRequested;
         var readResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&order=created_at.asc,mobile.asc&limit=' + readLimit + sourceFilter + batchFilter, { headers: hdr });
         if (!readResp.ok) throw new Error('读取当前批次失败：' + (await readResp.text()).slice(0, 180));
         var batchRows = await readResp.json();
