@@ -1913,6 +1913,55 @@ export default {
       }
     }
 
+    // Import/update shared whitelist products. Only master and manager accounts may change the global whitelist.
+    if (path === '/api/dialer/whitelist/import' && request.method === 'POST') {
+      try {
+        if (_gateRole !== 'master' && _gateRole !== 'manager') {
+          return new Response(JSON.stringify({ success: false, error: '仅主账号或管理员可以导入白名单产品' }), {
+            status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        var whitelistBody = await request.json();
+        var productName = String(whitelistBody.product_name || '').trim();
+        var whitelistRows = Array.isArray(whitelistBody.companies) ? whitelistBody.companies : [];
+        if (!productName) throw new Error('请先填写白名单名称');
+        if (!whitelistRows.length) throw new Error('没有识别到可导入的单位名称');
+        var normalizedRows = [];
+        var seenWhitelistNames = new Set();
+        whitelistRows.forEach(function(row) {
+          var companyName = String((row && (row.company_name || row.name)) || '').trim();
+          var alias = String((row && row.alias) || '').trim();
+          var key = companyName.toLowerCase();
+          if (!companyName || seenWhitelistNames.has(key)) return;
+          seenWhitelistNames.add(key);
+          normalizedRows.push({ company_name: companyName, alias: alias || null, bank_name: productName, status: '正常' });
+        });
+        if (!normalizedRows.length) throw new Error('没有有效的单位名称');
+        var whitelistSb = createSupabaseClient(env);
+        var existingWhitelist = await whitelistSb.getAllCompanies();
+        var existingNames = new Set((existingWhitelist || []).map(function(row) {
+          return String(row.company_name || '').trim().toLowerCase();
+        }).filter(Boolean));
+        var addedCount = normalizedRows.filter(function(row) { return !existingNames.has(row.company_name.toLowerCase()); }).length;
+        var updatedCount = normalizedRows.length - addedCount;
+        var saveResult = await whitelistSb.upsertCompanies(normalizedRows);
+        dialerWhitelistCache = { data: [], ts: 0 };
+        return new Response(JSON.stringify({
+          success: true,
+          count: saveResult.count || normalizedRows.length,
+          added: addedCount,
+          updated: updatedCount,
+          skipped: Math.max(whitelistRows.length - normalizedRows.length, 0)
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 400, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // ==================== Data API ====================
 
     // Upload customers
