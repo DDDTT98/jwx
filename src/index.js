@@ -2321,62 +2321,84 @@ export default {
       }
     }
 
-    // Reassign customers to sub-account
+    // 主账号批量分配客户到多个子账号：支持平均分配和按现有客户量比例分配
     if (path === '/api/dialer/customers/reassign' && request.method === 'POST') {
       try {
-        const body = await request.json();
-        const { mobiles, target_account_id } = body;
-        if (!mobiles || !Array.isArray(mobiles) || mobiles.length === 0) throw new Error('请选择要分配的客户');
-        if (!target_account_id) throw new Error('请选择目标子账户');
+        var authHeader = request.headers.get('Authorization') || '';
+        var sessionToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        var session = await dialerValidateSession(env, sessionToken);
+        if (!session) throw new Error('未登录');
+        var allAccounts = await dialerGetAccounts(env);
+        var masterAccount = allAccounts.find(function(a) { return a.account_id === session.account_id && a.is_master !== false; });
+        if (!masterAccount) throw new Error('仅主账号可批量分配');
 
-        // 所有已登录账号都可分配（2026-08-04 放开主账户限制）
-        var _accounts = await dialerGetAccounts(env);
-        var _targetFound = false;
-        for (var _ak = 0; _ak < _accounts.length; _ak++) {
-          if (_accounts[_ak].account_id === target_account_id) { _targetFound = true; break; }
+        var body = await request.json();
+        var mobiles = Array.isArray(body.mobiles) ? Array.from(new Set(body.mobiles.map(String).filter(Boolean))) : [];
+        var targetIds = Array.isArray(body.target_account_ids) ? Array.from(new Set(body.target_account_ids.map(String).filter(Boolean))) : [];
+        var mode = body.mode === 'proportional' ? 'proportional' : 'equal';
+        if (!mobiles.length) throw new Error('请选择要分配的客户');
+        if (!targetIds.length) throw new Error('至少选择一个子账号');
+        var targets = allAccounts.filter(function(a) { return targetIds.indexOf(a.account_id) >= 0 && a.active && !a.is_master; });
+        if (targets.length !== targetIds.length) throw new Error('目标账号无效或已停用');
+        if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
+
+        var hdr = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
+        var existing = [];
+        for (var i = 0; i < mobiles.length; i += 100) {
+          var chunk = mobiles.slice(i, i + 100);
+          var inFilter = chunk.map(function(m) { return encodeURIComponent(m); }).join(',');
+          var check = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&mobile=in.(' + inFilter + ')&limit=100', { headers: hdr });
+          if (!check.ok) throw new Error('读取待分配客户失败：' + check.status);
+          var rows = await check.json();
+          if (Array.isArray(rows)) rows.forEach(function(row) { if (row.mobile) existing.push(row.mobile); });
         }
-        if (!_targetFound) throw new Error('目标账号不存在');
-        if (target_account_id === _dialerAccountId) throw new Error('不能分配给当前账号自己');
+        existing = Array.from(new Set(existing));
+        if (!existing.length) throw new Error('所选客户在数据库中不存在');
 
-        var supabaseUrl2 = env.SUPABASE_URL;
-        var supabaseKey2 = env.SUPABASE_KEY;
-        if (!supabaseUrl2 || !supabaseKey2) throw new Error('Supabase 未配置');
-
-        // Batch SELECT
-        var selBatchSize = 100;
-        var existingMobiles = [];
-        for (var _sb = 0; _sb < mobiles.length; _sb += selBatchSize) {
-          var selChunk = mobiles.slice(_sb, _sb + selBatchSize);
-          var selInFilter = selChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-          var checkUrl = supabaseUrl2 + '/rest/v1/customers?select=mobile&mobile=in.(' + selInFilter + ')&account_id=eq.' + encodeURIComponent(_dialerAccountId) + '&limit=' + selBatchSize;
-          var checkResp = await fetch(checkUrl, { headers: { 'apikey': supabaseKey2, 'Authorization': 'Bearer ' + supabaseKey2 } });
-          if (checkResp.ok) {
-            var rows2 = await checkResp.json();
-            if (Array.isArray(rows2)) { for (var _ri = 0; _ri < rows2.length; _ri++) { existingMobiles.push(rows2[_ri].mobile); } }
+        var weights = targets.map(function() { return 1; });
+        if (mode === 'proportional') {
+          weights = [];
+          for (var ti = 0; ti < targets.length; ti++) {
+            var countResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=mobile&account_id=eq.' + encodeURIComponent(targets[ti].account_id) + '&limit=1', {
+              headers: Object.assign({}, hdr, { 'Prefer': 'count=exact', 'Range': '0-0' })
+            });
+            if (!countResp.ok) throw new Error('读取子账号客户量失败：' + countResp.status);
+            var range = countResp.headers.get('content-range') || '';
+            var match = range.match(/\/(\d+)$/);
+            weights.push(match ? Math.max(1, parseInt(match[1], 10)) : 1);
           }
         }
-        if (existingMobiles.length === 0) throw new Error('所选客户在数据库中不存在');
+        var totalWeight = weights.reduce(function(a,b) { return a+b; }, 0);
+        var allocations = [], cursor = 0, remaining = existing.length, remainingWeight = totalWeight;
+        targets.forEach(function(account, idx) {
+          var take = idx === targets.length - 1 ? remaining : Math.floor(remaining * (mode === 'equal' ? 1 / (targets.length - idx) : weights[idx] / remainingWeight));
+          allocations.push({ account: account, mobiles: existing.slice(cursor, cursor + take) });
+          cursor += take; remaining -= take; remainingWeight -= weights[idx];
+        });
 
-        // Batch PATCH
-        var patchBatchSize = 200; var updatedTotal = 0;
-        for (var _bi = 0; _bi < existingMobiles.length; _bi += patchBatchSize) {
-          var patchChunk = existingMobiles.slice(_bi, _bi + patchBatchSize);
-          var patchInFilter = patchChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
-          var patchUrl2 = supabaseUrl2 + '/rest/v1/customers?mobile=in.(' + patchInFilter + ')';
-          var patchResp2 = await fetch(patchUrl2, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey2, 'Authorization': 'Bearer ' + supabaseKey2, 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ account_id: target_account_id, pulled_at: null })
-          });
-          if (patchResp2.ok) updatedTotal += patchChunk.length;
+        var updatedTotal = 0, allocationSummary = [];
+        for (var ai = 0; ai < allocations.length; ai++) {
+          var allocation = allocations[ai];
+          for (var bi = 0; bi < allocation.mobiles.length; bi += 200) {
+            var patchChunk = allocation.mobiles.slice(bi, bi + 200);
+            var patchFilter = patchChunk.map(function(m) { return encodeURIComponent(m); }).join(',');
+            var patchResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + patchFilter + ')', {
+              method: 'PATCH',
+              headers: Object.assign({}, hdr, { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }),
+              body: JSON.stringify({ account_id: allocation.account.account_id, pulled_at: null })
+            });
+            if (!patchResp.ok) throw new Error('分配给 ' + (allocation.account.account_name || allocation.account.label || '子账号') + ' 失败：' + (await patchResp.text()).slice(0, 180));
+            updatedTotal += patchChunk.length;
+          }
+          allocationSummary.push({ account_name: allocation.account.account_name || allocation.account.label || allocation.account.account_id, count: allocation.mobiles.length });
         }
-
-        return new Response(JSON.stringify({ success: true, updated: updatedTotal, selected: mobiles.length, found: existingMobiles.length }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        return new Response(JSON.stringify({ success: true, updated: updatedTotal, selected: mobiles.length, found: existing.length, allocations: allocationSummary }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
-          status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          status: e.message === '未登录' ? 401 : 400,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
