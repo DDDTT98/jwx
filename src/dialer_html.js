@@ -3109,7 +3109,7 @@
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
       <button class="crm-tool-btn orange" id="crmReassignToggle" type="button" style="display:none;">分配数据</button>
-      <select id="dbImportBatchView" aria-label="按导入批次查看" title="按导入批次筛选客户" style="height:30px;max-width:190px;padding:0 9px;border:1px solid var(--card-border);border-radius:8px;background:var(--bg-app);color:var(--text-main);font-size:.76rem;font-weight:700;"><option value="">导入批次：全部</option></select>
+      <select id="dbImportBatchView" aria-label="按导入批次查看" title="按导入批次筛选客户" style="height:26px;width:112px;max-width:112px;min-width:0;flex:0 1 112px;padding:0 5px;border:1px solid var(--card-border);border-radius:7px;background:var(--bg-app);color:var(--text-main);font-size:.68rem;font-weight:600;white-space:nowrap;"><option value="">批次：全部</option></select>
       <div id="crmReassignGroup" style="display:none; flex:1 1 100%; flex-direction:column; align-items:stretch; gap:8px; padding:10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
           <span id="crmReassignTitle" style="font-size:0.75rem;font-weight:700;color:var(--text-soft);">分配给所有小组和组员</span>
