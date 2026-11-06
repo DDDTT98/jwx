@@ -433,19 +433,16 @@ export function createSupabaseClient(env) {
         '*'
       ];
 
-      // Supabase max 1000 rows/request. Loop until we hit the end.
+      // Supabase 默认每次最多返回 1000 行。严格遵守调用方 pageSize，
+      // 避免旧逻辑无视 pageSize 一直扫描整张表，造成 Worker 子请求超限。
       var SUPABASE_MAX = 1000;
       var allData = [];
       var totalCount = 0;
-      var from = (p - 1) * ps;
-      var currentFrom = from;
+      var currentFrom = (p - 1) * ps;
 
-      while (true) {
-        var fetchSize = SUPABASE_MAX;
-        // On the last chunk, we may overshoot the total; Supabase just returns
-        // whatever is left, so we can always ask for a full SUPABASE_MAX.
+      while (allData.length < ps) {
+        var fetchSize = Math.min(SUPABASE_MAX, ps - allData.length);
         var currentTo = currentFrom + fetchSize - 1;
-
         var headersWithCount = Object.assign({}, headers(), {
           'Range': currentFrom + '-' + currentTo,
           'Prefer': 'count=exact'
@@ -465,26 +462,21 @@ export function createSupabaseClient(env) {
           }
         }
 
-        if (!batch || !Array.isArray(batch)) {
-          if (!anySuccess) {
-            console.error('[supabase] getAllCustomers query failed — all column sets returned non-ok');
-            return { data: [], total: 0, page: p, pageSize: ps, error: 'Supabase 查询失败，请检查数据库连接' };
-          }
-          break;
+        if (!anySuccess || !Array.isArray(batch)) {
+          console.error('[supabase] getAllCustomers query failed — all column sets returned non-ok');
+          return { data: [], total: 0, page: p, pageSize: ps, error: 'Supabase 查询失败，请检查数据库连接' };
         }
 
         allData = allData.concat(batch);
-
         var contentRange = resp.headers.get('Content-Range');
         if (contentRange) {
           var parts = contentRange.split('/');
-          if (parts.length === 2) totalCount = parseInt(parts[1], 10) || totalCount;
+          if (parts.length === 2 && parts[1] !== '*') totalCount = parseInt(parts[1], 10) || totalCount;
         }
 
-        if (batch.length < fetchSize) break; // no more data
-        currentFrom += fetchSize;
+        if (batch.length < fetchSize) break;
+        currentFrom += batch.length;
       }
-
       // Return result — may be empty for new accounts with no data yet
       // (real query failures are caught earlier by anySuccess check)
       return { data: allData, total: totalCount || allData.length, page: p, pageSize: ps };
