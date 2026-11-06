@@ -12446,14 +12446,42 @@ function updateAutoDialBtn() {
         showAuthScreen();
         return;
       }
-      var token = getSessionToken();
-      var aid = getSessionAccountId();
+      var token = '';
+      var aid = '';
+      try {
+        token = getSessionToken();
+        aid = getSessionAccountId();
+      } catch (storageError) {
+        console.error('[auth] session storage unavailable:', storageError);
+        try { clearSession(); } catch (_) {}
+        showAuthScreen();
+        return;
+      }
+
       if (token && aid) {
-        // Have session — verify, then show lock screen
-        fetch('/api/dialer/auth/accounts',{headers:{'Authorization':'Bearer '+token}})
-          .then(function(r) { return r.json(); })
+        // Existing session: show the lock screen even if the account-verification
+        // endpoint hangs. Never leave the wallpaper-only screen while waiting.
+        var authSettled = false;
+        var authFallback = setTimeout(function() {
+          if (authSettled) return;
+          authSettled = true;
+          console.warn('[auth] account verification timed out; showing lock screen');
+          showLockScreen();
+          updateAccountDisplay();
+        }, 7000);
+
+        fetch('/api/dialer/auth/accounts', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        })
+          .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          })
           .then(function(res) {
-            if (res.accounts) {
+            if (authSettled) return;
+            authSettled = true;
+            clearTimeout(authFallback);
+            if (res && res.accounts) {
               showLockScreen();
               updateAccountDisplay();
             } else {
@@ -12461,7 +12489,11 @@ function updateAutoDialBtn() {
               showAuthScreen();
             }
           })
-          .catch(function() {
+          .catch(function(err) {
+            if (authSettled) return;
+            authSettled = true;
+            clearTimeout(authFallback);
+            console.error('[auth] account verification failed:', err);
             showLockScreen();
             updateAccountDisplay();
           });
