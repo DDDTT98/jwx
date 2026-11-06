@@ -9225,8 +9225,8 @@ function updateAutoDialBtn() {
       var em = document.getElementById('dbEmpty');
       if (!tb) return;
 
-      // 客户端分页：仅渲染当前页数据
-      if (data && data.length > 0) {
+      // 服务端分页时 data 已经是当前页；本地缓存渲染才在这里切片。
+      if (!alreadyPaged && data && data.length > 0) {
         var sliceStart = (DB.page - 1) * DB.pageSize;
         var sliceEnd = Math.min(sliceStart + DB.pageSize, data.length);
         data = data.slice(sliceStart, sliceEnd);
@@ -9992,13 +9992,9 @@ function updateAutoDialBtn() {
       var fb = document.getElementById('dbmFilterBar'); if (fb) fb.style.display = '';
       var ab = document.getElementById('dbmActionBar'); if (ab) ab.style.display = '';
       var listEl = document.getElementById('dbmList'); if (listEl) listEl.style.display = '';
-      // 数据未加载或首次进入时独立加载
-      if (!DB.allData || DB.allData.length === 0) {
-        dbmFetch();
-      } else {
-        dbmPopulateFilters();
-        dbmRender();
-      }
+      // 每次打开都重新从服务端取当前页，避免复用桌面端缓存或过期页数据。
+      DBM_PAGE = 1;
+      dbmFetch();
     }
     window.openDBMobile = openDBMobile;
 
@@ -10031,7 +10027,7 @@ function updateAutoDialBtn() {
             (c.note || '').toLowerCase().indexOf(ql) >= 0;
         });
       }
-      if (cat) filtered = filtered.filter(function(c) { return (c.category || '') === cat; });
+      if (cat && cat !== '公海客户') filtered = filtered.filter(function(c) { return (c.category || '') === cat; });
       if (batch) filtered = filtered.filter(function(c) { return (c.batch_label || '') === batch; });
       filtered = crmFilterData(filtered);
       var countEl = document.getElementById('dbmCount');
@@ -10048,6 +10044,9 @@ function updateAutoDialBtn() {
       var batch = document.getElementById('dbmBatchFilter');
       var search = document.getElementById('dbmSearchInput');
       var refresh = document.getElementById('dbmRefreshBtn');
+      var clearSearch = document.getElementById('dbmSearchClearBtn');
+      if (clearSearch && search) clearSearch.addEventListener('click', function() { search.value = ''; DBM_PAGE = 1; dbmFetch(); clearSearch.style.display = 'none'; });
+      if (search) search.addEventListener('input', function() { if (clearSearch) clearSearch.style.display = search.value ? '' : 'none'; });
       if (prev) prev.addEventListener('click', function() { window.dbmChangePage(-1); });
       if (next) next.addEventListener('click', function() { window.dbmChangePage(1); });
       if (pageInput) pageInput.addEventListener('change', function() {
