@@ -634,41 +634,46 @@
       border-radius: var(--radius-sm);
       transition: all 0.2s;
     }
+    /* 隐私模式快捷操作统一为无边框、透明底样式，与“复制备注”保持一致 */
     .client-phone-btn.privacy-add-vx {
-      min-height: 29px;
-      padding: 0 11px;
-      border-radius: 999px;
-      background: rgba(7,193,96,.12);
+      min-height: 34px;
+      padding: 0 4px;
+      border-radius: 0;
+      background: transparent !important;
       color: #079b50 !important;
-      border: 1px solid rgba(7,193,96,.28);
-      font-size: 0.78rem;
+      border: 0 !important;
+      font-size: 0.82rem;
       font-weight: 800;
       letter-spacing: .02em;
-      box-shadow: 0 1px 4px rgba(7,193,96,.08);
+      box-shadow: none !important;
       justify-content: center;
     }
     .client-phone-btn.privacy-add-vx:active {
       transform: scale(.96);
-      box-shadow: 0 1px 3px rgba(7,193,96,.18);
+      background: transparent !important;
+      box-shadow: none !important;
     }
     .client-phone-btn.privacy-add-vx.copied {
-      background: rgba(7,193,96,.12) !important;
+      background: transparent !important;
       color: #079b50 !important;
-      border: 1px solid rgba(7,193,96,.28);
+      border: 0 !important;
+      box-shadow: none !important;
     }
     .xls-card-dial-btn.privacy-dial-icon {
       width: 30px;
       min-width: 30px;
       padding: 0 !important;
-      border-radius: 8px;
-      background: rgba(7,193,96,.12) !important;
+      border-radius: 0;
+      background: transparent !important;
       color: #079b50 !important;
-      border: 1px solid rgba(7,193,96,.28);
+      border: 0 !important;
+      box-shadow: none !important;
     }
     .xls-card-dial-btn.privacy-dial-icon.dial-attempted {
-      background: rgba(229,57,53,.11) !important;
+      background: transparent !important;
       color: #e53935 !important;
-      border-color: rgba(229,57,53,.28);
+      border: 0 !important;
+      box-shadow: none !important;
     }
     .xls-card-dial-btn.privacy-dial-icon svg {
       width: 16px;
