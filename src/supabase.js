@@ -388,7 +388,7 @@ export function createSupabaseClient(env) {
       var accountFilter = '';
       if (accountId && String(accountId).indexOf('__public_pool__:') === 0) {
         var poolMasterId = String(accountId).slice('__public_pool__:'.length);
-        accountFilter = '&or=(account_id.is.null,account_id.eq.' + encodeURIComponent(poolMasterId) + ')';
+        accountFilter = '&and=(or(account_id.is.null,account_id.eq.' + encodeURIComponent(poolMasterId) + '))';
       } else if (accountId) {
         accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
       }
