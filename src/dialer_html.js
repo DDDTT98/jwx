@@ -7378,23 +7378,12 @@
             // 使用按钮自身 data-idx 对应的客户对象，避免卡片 DOM 索引与数据索引不一致
             // 导致时间线、复制状态和自动流转记录落到不同客户。
             var isCopyNote = b.dataset.copyNote === '1';
+            var originalLabel = b.textContent;
             if (client) recordTimeline(client.phone || client.mobile, isCopyNote ? 'copy_note' : 'copy_company');
-            if (isCopyNote) {
-              if (client) {
-                client.copied = true;
-                client.note_copied = true;
-                saveState();
-                scheduleReminder(client);
-              }
-              b.textContent = '已复制';
-              b.classList.add('privacy-action-done');
-              if (cardEl) cardEl.classList.add('copied-company');
-              jumpToWechat();
-              return;
-            }
             if (client) {
               client.copied = true;
-              client.company_copied = true;
+              if (isCopyNote) client.note_copied = true;
+              else client.company_copied = true;
               saveState();
               scheduleReminder(client);
             }
@@ -7402,8 +7391,9 @@
             b.textContent = '已复制';
             b.classList.add('privacy-action-done');
             jumpToWechat();
+            // 备注和单位按钮统一反馈时长，并恢复各自原始文案。
             setTimeout(function() {
-              b.textContent = company;
+              b.textContent = originalLabel;
               b.classList.remove('privacy-action-done');
             }, 1500);
           });
