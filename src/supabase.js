@@ -61,6 +61,13 @@ export function createSupabaseKV(env) {
     if ((parts[0] === 'client_ops_all' || parts[0] === 'client_ops_dial') && parts.length >= 4) {
       return { kind: 'operation', operationType: parts[0] === 'client_ops_dial' ? 'dial' : 'all', accountId: parts[1], date: parts[2] };
     }
+    if (keyName === 'diet:config') return { kind: 'diet_config' };
+    if (parts[0] === 'diet' && parts.length === 2 && /^\d{4}-\d{2}-\d{2}$/.test(parts[1])) return { kind: 'diet_date', date: parts[1] };
+    if (parts[0] === 'dialer' && parts[1] === 'wc' && parts.length === 4) return { kind: 'wechat', accountId: parts[2], date: parts[3] };
+    if (parts[0] === 'dialer' && parts[1] === 'master-pull' && parts[2] === 'day' && parts.length === 5) return { kind: 'master_pull', accountId: parts[3], date: parts[4] };
+    if (parts[0] === 'dialer' && parts[1] === 'lock' && parts[2] === 'pull' && parts.length >= 4) return { kind: 'pull_lock', accountId: parts.slice(3).join(':') };
+    if (parts[0] === 'auto_delete_batch' && parts.length >= 3) return { kind: 'batch_marker', accountId: parts[1], batchLabel: parts.slice(2).join(':') };
+    if (parts[0] === 'correction' && parts.length >= 2) return { kind: 'runtime_cache' };
     return null;
   }
   function normalizeTypedRow(keyName, kind, row) {
@@ -71,6 +78,13 @@ export function createSupabaseKV(env) {
       return { key: keyName, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
     }
     if (kind === 'operation') return { key: keyName, value: row.value || '1', value_type: row.value_type || 'text', expires_at: row.expires_at || null };
+    if (kind === 'diet_config') return { key: keyName, value: JSON.stringify(row.config || {}), value_type: 'text', expires_at: null };
+    if (kind === 'diet_date') return { key: keyName, value: JSON.stringify(row.data || {}), value_type: 'text', expires_at: null };
+    if (kind === 'wechat') return { key: keyName, value: String(row.count || 0), value_type: 'text', expires_at: null };
+    if (kind === 'master_pull') return { key: keyName, value: JSON.stringify({ count: row.count || 0, updated_at: row.updated_at }), value_type: 'text', expires_at: row.expires_at || null };
+    if (kind === 'pull_lock') return { key: keyName, value: row.lock_value || '', value_type: 'text', expires_at: row.expires_at || null };
+    if (kind === 'batch_marker') return { key: keyName, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: null };
+    if (kind === 'runtime_cache') return { key: keyName, value: row.value, value_type: row.value_type || 'text', expires_at: row.expires_at || null };
     return null;
   }
   async function getTypedRow(keyName, descriptor) {
@@ -92,6 +106,20 @@ export function createSupabaseKV(env) {
       table = 'dialer_upload_logs'; params.set('select', 'payload'); params.set('log_key', 'eq.' + keyName);
     } else if (kind === 'operation') {
       table = 'dialer_client_operations'; params.set('select', 'value,value_type,expires_at'); params.set('operation_key', 'eq.' + keyName);
+    } else if (kind === 'diet_config') {
+      table = 'diet_settings'; params.set('select', 'config'); params.set('settings_id', 'eq.primary');
+    } else if (kind === 'diet_date') {
+      table = 'diet_daily_entries'; params.set('select', 'data'); params.set('entry_date', 'eq.' + descriptor.date);
+    } else if (kind === 'wechat') {
+      table = 'dialer_wechat_counts'; params.set('select', 'count'); params.set('account_id', 'eq.' + descriptor.accountId); params.set('count_date', 'eq.' + descriptor.date);
+    } else if (kind === 'master_pull') {
+      table = 'dialer_master_pull_daily'; params.set('select', 'count,updated_at,expires_at'); params.set('account_id', 'eq.' + descriptor.accountId); params.set('pull_date', 'eq.' + descriptor.date);
+    } else if (kind === 'pull_lock') {
+      table = 'dialer_pull_locks'; params.set('select', 'lock_value,expires_at'); params.set('account_id', 'eq.' + descriptor.accountId);
+    } else if (kind === 'batch_marker') {
+      table = 'dialer_batch_delete_markers'; params.set('select', 'payload'); params.set('marker_key', 'eq.' + keyName);
+    } else if (kind === 'runtime_cache') {
+      table = 'app_runtime_cache'; params.set('select', 'value,value_type,expires_at'); params.set('cache_key', 'eq.' + keyName);
     } else return null;
     params.set('limit', '1');
     const rows = await requestTable(table, params.toString());
@@ -179,6 +207,52 @@ export function createSupabaseKV(env) {
       });
       return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: expiresAt };
     }
+    if (descriptor.kind === 'diet_config') {
+      const config = JSON.parse(storedValue || '{}');
+      await upsertTable('diet_settings', 'settings_id', { settings_id: 'primary', config: config, updated_at: now });
+      return { key: keyName, value: JSON.stringify(config), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'diet_date') {
+      const data = JSON.parse(storedValue || '{}');
+      await upsertTable('diet_daily_entries', 'entry_date', { entry_date: descriptor.date, data: data, updated_at: now });
+      return { key: keyName, value: JSON.stringify(data), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'wechat') {
+      const count = Math.max(0, parseInt(storedValue || '0', 10) || 0);
+      await upsertTable('dialer_wechat_counts', 'account_id,count_date', { account_id: descriptor.accountId, count_date: descriptor.date, count: count, updated_at: now });
+      return { key: keyName, value: String(count), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'master_pull') {
+      const payload = JSON.parse(storedValue || '{}');
+      const updatedAt = Number(payload.updated_at);
+      const updatedIso = Number.isFinite(updatedAt) && updatedAt > 0
+        ? new Date(updatedAt < 100000000000 ? updatedAt * 1000 : updatedAt).toISOString()
+        : now;
+      await upsertTable('dialer_master_pull_daily', 'account_id,pull_date', {
+        account_id: descriptor.accountId, pull_date: descriptor.date,
+        count: Math.max(0, parseInt(payload.count || 0, 10) || 0),
+        updated_at: updatedIso, expires_at: expiresAt
+      });
+      return { key: keyName, value: JSON.stringify({ count: Math.max(0, parseInt(payload.count || 0, 10) || 0), updated_at: payload.updated_at }), value_type: 'text', expires_at: expiresAt };
+    }
+    if (descriptor.kind === 'pull_lock') {
+      const lockExpiry = expiresAt || new Date(Date.now() + 60000).toISOString();
+      await upsertTable('dialer_pull_locks', 'account_id', { account_id: descriptor.accountId, lock_value: storedValue, expires_at: lockExpiry, updated_at: now });
+      return { key: keyName, value: storedValue, value_type: 'text', expires_at: lockExpiry };
+    }
+    if (descriptor.kind === 'batch_marker') {
+      const payload = JSON.parse(storedValue || '{}');
+      let label = descriptor.batchLabel;
+      try { label = decodeURIComponent(label); } catch (_) {}
+      await upsertTable('dialer_batch_delete_markers', 'marker_key', {
+        marker_key: keyName, account_id: descriptor.accountId, batch_label: label, payload: payload, created_at: now
+      });
+      return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'runtime_cache') {
+      await upsertTable('app_runtime_cache', 'cache_key', { cache_key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt, updated_at: now });
+      return { key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt };
+    }
     return null;
   }
   async function deleteTyped(keyName, descriptor) {
@@ -192,6 +266,13 @@ export function createSupabaseKV(env) {
     else if (descriptor.kind === 'cooldown') { table='dialer_work_cooldowns'; params.set('account_id','eq.'+descriptor.accountId); params.set('stat_date','eq.'+descriptor.date); params.set('device_id','eq.'+descriptor.deviceId); }
     else if (descriptor.kind === 'upload') { table='dialer_upload_logs'; field='log_key'; value=keyName; }
     else if (descriptor.kind === 'operation') { table='dialer_client_operations'; field='operation_key'; value=keyName; }
+    else if (descriptor.kind === 'diet_config') { table='diet_settings'; field='settings_id'; value='primary'; }
+    else if (descriptor.kind === 'diet_date') { table='diet_daily_entries'; field='entry_date'; value=descriptor.date; }
+    else if (descriptor.kind === 'wechat') { table='dialer_wechat_counts'; params.set('account_id','eq.'+descriptor.accountId); params.set('count_date','eq.'+descriptor.date); }
+    else if (descriptor.kind === 'master_pull') { table='dialer_master_pull_daily'; params.set('account_id','eq.'+descriptor.accountId); params.set('pull_date','eq.'+descriptor.date); }
+    else if (descriptor.kind === 'pull_lock') { table='dialer_pull_locks'; field='account_id'; value=descriptor.accountId; }
+    else if (descriptor.kind === 'batch_marker') { table='dialer_batch_delete_markers'; field='marker_key'; value=keyName; }
+    else if (descriptor.kind === 'runtime_cache') { table='app_runtime_cache'; field='cache_key'; value=keyName; }
     else return false;
     if (field) params.set(field, 'eq.' + value);
     await requestTable(table, params.toString(), { method: 'DELETE', headers: headers({ 'Prefer': 'return=minimal' }) });
@@ -202,12 +283,14 @@ export function createSupabaseKV(env) {
     if (prefix && prefix.indexOf('client_ops_all:') === 0) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
     if (prefix && prefix.indexOf('client_ops_dial:') === 0) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
     if (prefix && prefix.indexOf('dialer:bgjob:') === 0) return { kind: 'job', table: 'dialer_background_jobs', field: 'job_id', select: 'job_id,payload,expires_at' };
+    if (prefix && prefix.indexOf('diet:') === 0 && prefix !== 'diet:config') return { kind: 'diet', table: 'diet_daily_entries', field: 'entry_date', select: 'entry_date,data' };
     return null;
   }
   function normalizeListRow(row, descriptor) {
     if (descriptor.kind === 'upload') return { key: row.log_key, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
     if (descriptor.kind === 'operation') return { key: row.operation_key, value: row.value || '1', value_type: row.value_type || 'text', expires_at: row.expires_at || null };
     if (descriptor.kind === 'job') return { key: 'dialer:bgjob:' + row.job_id, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
+    if (descriptor.kind === 'diet') return { key: 'diet:' + row.entry_date, value: JSON.stringify(row.data || {}), value_type: 'text', expires_at: null };
     return null;
   }
   async function get(keyName, type) {
@@ -276,14 +359,26 @@ export function createSupabaseKV(env) {
         if (parts[1]) params.set('account_id', 'eq.' + parts[1]);
         if (parts[2]) params.set('operation_date', 'eq.' + parts[2]);
         params.set('order', 'operation_date.asc,mobile.asc');
+      } else if (mapped.kind === 'diet') {
+        const datePrefix = String(opts.prefix).slice('diet:'.length);
+        if (/^\d{4}-\d{2}$/.test(datePrefix)) {
+          const year = Number(datePrefix.slice(0,4));
+          const month = Number(datePrefix.slice(5,7));
+          const startDate = datePrefix + '-01';
+          const nextDate = new Date(Date.UTC(year, month, 1)).toISOString().slice(0,10);
+          params.set('entry_date', 'gte.' + startDate);
+          params.append('entry_date', 'lt.' + nextDate);
+        } else if (/^\d{4}-\d{2}-\d{2}$/.test(datePrefix)) {
+          params.set('entry_date', 'eq.' + datePrefix);
+        }
       } else {
         params.set(mapped.field, 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
       }
-      if (mapped.kind !== 'upload') params.set('or', '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')');
+      if (mapped.kind !== 'upload' && mapped.kind !== 'diet') params.set('or', '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')');
       const rows = await requestTable(mapped.table, params.toString());
       rows.forEach(row => { const normalized = normalizeListRow(row, mapped); if (normalized) rowCache.set(normalized.key, normalized); });
       return {
-        keys: rows.map(row => ({ name: mapped.kind === 'upload' ? row.log_key : mapped.kind === 'operation' ? row.operation_key : 'dialer:bgjob:' + row.job_id })),
+        keys: rows.map(row => ({ name: mapped.kind === 'upload' ? row.log_key : mapped.kind === 'operation' ? row.operation_key : mapped.kind === 'diet' ? 'diet:' + row.entry_date : 'dialer:bgjob:' + row.job_id })),
         list_complete: rows.length < limit,
         cursor: rows.length < limit ? undefined : String(offset + rows.length)
       };
