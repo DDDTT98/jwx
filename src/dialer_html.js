@@ -11191,7 +11191,7 @@ function updateAutoDialBtn() {
       return changes;
     }
 
-    // 换一批：按 created_at.desc 依次拉取（与数据库看板首页同序），KV游标自动推进实现沉底
+    // 换一批：按 created_at.desc 依次拉取（与数据库看板首页同序），Supabase 分页游标自动推进实现沉底
     window.refreshBatch = function() {
       var btn = document.getElementById('refreshBatchBtn');
       if (!btn || btn.classList.contains('loading')) return;
@@ -12883,7 +12883,7 @@ function updateAutoDialBtn() {
       }).then(function(r) { return r.json(); })
         .then(function(res) {
           if (res && res.week_count !== undefined) {
-            _wechatWriteTs = Date.now() + 8000; // 云端已确认，刷新保护窗口（KV 读旧仍可能短暂回退）
+            _wechatWriteTs = Date.now() + 8000; // 云端已确认，刷新保护窗口（本地缓存读旧仍可能短暂回退）
             _weekWechat = res.week_count || 0;
             _monthWechat = res.month_count || 0;
             renderDrawer();
@@ -13095,7 +13095,7 @@ function updateAutoDialBtn() {
         : 45 * 60 * 1000 + Math.floor(Math.random() * 15 * 60 * 1000);
       info.transferTs = Date.now();
       saveRoundInfo(info); // 先乐观更新本地，弹窗立即显示
-      // 同步到云端 KV（绝对值上报 + max 合并）：失败/并发都不会丢轮次
+      // 同步到 Supabase（绝对值上报 + max 合并）：失败/并发都不会丢轮次
       var token = getSessionToken();
       if (!token) return;
       var getTs = Date.now(); // 快照时刻：其后发生的本地微信计数点击不会出现在此响应中
@@ -13120,7 +13120,7 @@ function updateAutoDialBtn() {
         })
         .catch(function() {});
     }
-    // 拉取云端工作数据（KV，按账号+日期），成功后覆盖本地缓存
+    // 拉取云端工作数据（Supabase，按账号+日期），成功后覆盖本地缓存
     function fetchWorkStats() {
       var today = todayLocalStr();
       var token = getSessionToken();
@@ -13419,7 +13419,7 @@ function updateAutoDialBtn() {
       document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
       // Load dynamic configs
       loadReminderConfig();
-      fetchWorkStats(); // 拉取云端工作数据（KV，按账号，实时同步）
+      fetchWorkStats(); // 拉取云端工作数据（Supabase，按账号，实时同步）
       renderHeaderRoundCd(); // 恢复头部「距离下轮添加」倒计时（无冷却期时自动隐藏）
     }
 
@@ -13428,7 +13428,7 @@ function updateAutoDialBtn() {
       if (shell) shell.style.display = 'none';
 
       // Never leave the page blank while the auth-status request is pending.
-      // Supabase/KV outages or slow mobile networks must not block the login UI.
+      // Supabase errors or slow mobile networks must not block the login UI.
       var settled = false;
       var fallbackTimer = setTimeout(function() {
         if (settled) return;
@@ -13715,7 +13715,7 @@ function updateAutoDialBtn() {
             document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
             renderDialCards();
             loadReminderConfig(); // 解锁后重新拉取微信运营提醒配置（否则弹窗显示默认条目）
-            fetchWorkStats(); // 解锁后拉取云端工作数据（KV，按账号，实时同步）
+            fetchWorkStats(); // 解锁后拉取云端工作数据（Supabase，按账号，实时同步）
           } else {
             var errMsg = res.error || 'PIN 不正确';
             // Parse LOCKOUT:seconds:message prefix from server
