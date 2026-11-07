@@ -2909,8 +2909,17 @@
     </div>
   </div>
 
+  <!-- Auth initialization: keep account login hidden until session state is known -->
+  <div id="authInitOverlay" class="auth-overlay" style="background:#101522;z-index:1000000;">
+    <div style="position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:14px;color:#fff;font-size:14px;">
+      <div style="width:28px;height:28px;border:3px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:bhpAuthSpin .8s linear infinite;"></div>
+      <div>正在验证登录状态…</div>
+    </div>
+  </div>
+  <style>@keyframes bhpAuthSpin{to{transform:rotate(360deg)}}</style>
+
   <!-- Auth: Login Overlay -->
-  <div id="authLoginOverlay" class="auth-overlay">
+  <div id="authLoginOverlay" class="auth-overlay auth-hidden">
     <div class="lock-wallpaper" id="loginWallpaper"></div>
     <div class="lock-wallpaper-overlay"></div>
     <div class="auth-card">
@@ -13412,6 +13421,8 @@ function updateAutoDialBtn() {
     }
 
     function showAppShell() {
+      var initOverlay = document.getElementById('authInitOverlay');
+      if (initOverlay) initOverlay.classList.add('auth-hidden');
       var appShell = document.querySelector('.app-shell');
       if (appShell) appShell.style.display = 'flex';
       document.getElementById('authLoginOverlay').classList.add('auth-hidden');
@@ -13424,6 +13435,11 @@ function updateAutoDialBtn() {
     }
 
     function showAuthScreen() {
+      var initOverlay = document.getElementById('authInitOverlay');
+      if (initOverlay) initOverlay.classList.remove('auth-hidden');
+      document.getElementById('authLoginOverlay').classList.add('auth-hidden');
+      document.getElementById('authSetupOverlay').classList.add('auth-hidden');
+      document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
       var shell = document.querySelector('.app-shell');
       if (shell) shell.style.display = 'none';
 
@@ -13468,6 +13484,8 @@ function updateAutoDialBtn() {
     }
 
     function showLoginOverlay() {
+      var initOverlay = document.getElementById('authInitOverlay');
+      if (initOverlay) initOverlay.classList.add('auth-hidden');
       document.getElementById('authSetupOverlay').classList.add('auth-hidden');
       var overlay = document.getElementById('authLoginOverlay');
       overlay.classList.remove('auth-hidden');
@@ -13572,6 +13590,8 @@ function updateAutoDialBtn() {
     }
 
     function showLockScreen() {
+      var initOverlay = document.getElementById('authInitOverlay');
+      if (initOverlay) initOverlay.classList.add('auth-hidden');
       // 锁屏/刷新解锁后不再显示未完成的提醒倒计时弹窗
       var _ro = document.getElementById('reminderOverlay');
       if (_ro) _ro.classList.remove('active');
@@ -13818,6 +13838,8 @@ function updateAutoDialBtn() {
     }
 
     function showSetupOverlay() {
+      var initOverlay = document.getElementById('authInitOverlay');
+      if (initOverlay) initOverlay.classList.add('auth-hidden');
       document.getElementById('authLoginOverlay').classList.add('auth-hidden');
       var overlay = document.getElementById('authSetupOverlay');
       overlay.classList.remove('auth-hidden');
