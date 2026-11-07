@@ -433,7 +433,7 @@ export function createSupabaseClient(env) {
         '*'
       ];
 
-      // Supabase 默认每次最多返回 1000 行。严格遵守调用方 pageSize，
+      // 按项目 Supabase Max rows=5000 分段；严格遵守调用方 pageSize，
       // 避免旧逻辑无视 pageSize 一直扫描整张表，造成 Worker 子请求超限。
       var SUPABASE_MAX = 5000; // 项目 Max rows 为 5000；大页一次取完，避免 5 次 REST 子请求。
       var allData = [];
