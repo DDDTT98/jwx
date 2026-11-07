@@ -1937,7 +1937,7 @@ export default {
         if (!manifestCheck.ok) throw new Error('读取迁移索引失败 [' + manifestCheck.status + ']');
         var manifestRange = manifestCheck.headers.get('Content-Range') || '';
         var manifestCount = parseInt(manifestRange.split('/').pop(), 10) || 0;
-        var legacyCheck = await fetch(env.SUPABASE_URL + '/rest/v1/app_kv?select=key&or=' + encodeURIComponent('(key.like.tessdata:*,key.like.img:*,key.like.doc:*,key.like.paste:*)'), { method: 'HEAD', headers: verifyHeaders });
+        var legacyCheck = await fetch(env.SUPABASE_URL + '/rest/v1/app_kv_legacy_archive?select=key&or=' + encodeURIComponent('(key.like.tessdata:*,key.like.img:*,key.like.doc:*,key.like.paste:*)'), { method: 'HEAD', headers: verifyHeaders });
         if (!legacyCheck.ok) throw new Error('读取旧文件数量失败 [' + legacyCheck.status + ']');
         var legacyRange = legacyCheck.headers.get('Content-Range') || '';
         var legacyCount = parseInt(legacyRange.split('/').pop(), 10) || 0;
@@ -1959,7 +1959,7 @@ export default {
       }
     }
 
-    // One-time migration of legacy binary files from app_kv to private Supabase Storage.
+    // One-time migration of legacy binary files from the protected legacy archive to private Supabase Storage.
     // Only the master account may run it; source rows are deliberately retained for rollback.
     if (path === '/api/dialer/admin/migrate-storage-assets' && request.method === 'POST') {
       if (_gateRole !== 'master') {
@@ -2012,7 +2012,7 @@ export default {
           }
         }
 
-        var assetUrl = new URL(env.SUPABASE_URL + '/rest/v1/app_kv');
+        var assetUrl = new URL(env.SUPABASE_URL + '/rest/v1/app_kv_legacy_archive');
         assetUrl.searchParams.set('select', 'key,value,value_type,updated_at');
         assetUrl.searchParams.set('or', '(key.like.tessdata:*,key.like.img:*,key.like.doc:*,key.like.paste:*)');
         assetUrl.searchParams.set('order', 'key.asc');
@@ -2028,7 +2028,7 @@ export default {
         if (!Array.isArray(assetRows)) throw new Error('旧文件列表格式不正确');
 
         // Read the small manifests to preserve original filenames and MIME types.
-        var metaUrl = new URL(env.SUPABASE_URL + '/rest/v1/app_kv');
+        var metaUrl = new URL(env.SUPABASE_URL + '/rest/v1/app_kv_legacy_archive');
         metaUrl.searchParams.set('select', 'key,value,value_type');
         metaUrl.searchParams.set('key', 'in.(images:manifest,docs:manifest,pastes:manifest)');
         var metaResp = await fetch(metaUrl.toString(), { headers: storageHeaders });
