@@ -1,12 +1,12 @@
 ﻿// BHP 智能快捷拨号助手 - Cloudflare Worker
-// 部署后绑定 DATA_KV 即可使用
+// 部署时必须配置 SUPABASE_URL 和 SUPABASE_KEY；所有持久化数据统一写入 Supabase。
 
 import { DIALER_HTML } from './dialer_html.js';
 import { DIET_HTML } from './diet_html.js';
 import { LEARN_HTML, LEARN_DEFAULT_CONTENT } from './learn_html.js';
 import { createSupabaseClient, createSupabaseKV } from './supabase.js';
 
-// KV 读取缓存
+// Supabase app_kv 读取缓存
 const kvCache = new Map();
 // 白名单单位映射缓存，避免客户分页时每次重复读取白名单表。
 var dialerWhitelistCache = { data: [], ts: 0 };
@@ -434,13 +434,18 @@ async function processCrmBackgroundJobs(env) {
 
 export default {
   async fetch(request, env, ctx) {
-    // Use the already-migrated app_kv table as the primary KV store.
-    // Keep the Cloudflare binding as a fallback only when Supabase is not configured.
-    if (env.SUPABASE_URL && env.SUPABASE_KEY) {
-      const workerEnv = Object.create(env);
-      workerEnv.DATA_KV = createSupabaseKV(env);
-      env = workerEnv;
+    // Supabase is the only persistent database. Never fall back to Cloudflare KV.
+    if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+      return new Response(JSON.stringify({
+        error: '数据库服务未配置，请检查 Worker 的 SUPABASE_URL 和 SUPABASE_KEY。'
+      }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
+      });
     }
+    const workerEnv = Object.create(env);
+    workerEnv.DATA_KV = createSupabaseKV(env);
+    env = workerEnv;
     const url = new URL(request.url);
     const path = url.pathname;
     const clientIP = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
@@ -3949,11 +3954,13 @@ export default {
     return new Response('Not Found', { status: 404 });
   },
   async scheduled(event, env, ctx) {
-    if (env.SUPABASE_URL && env.SUPABASE_KEY) {
-      const workerEnv = Object.create(env);
-      workerEnv.DATA_KV = createSupabaseKV(env);
-      env = workerEnv;
+    // Scheduled jobs must use the same Supabase-only persistence path as HTTP requests.
+    if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+      throw new Error('Supabase 未配置：定时任务已停止，禁止回退到 Cloudflare KV。');
     }
+    const workerEnv = Object.create(env);
+    workerEnv.DATA_KV = createSupabaseKV(env);
+    env = workerEnv;
     try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
     // The every-minute trigger is only for queued CRM jobs; keep the daily/weekly report on its original cron.
     if (event && event.cron && event.cron !== '0 13 * * *') return;

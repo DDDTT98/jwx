@@ -5,7 +5,7 @@
 ## 项目背景与技术边界
 - BHP 是基于 Cloudflare Workers 的客户管理与快捷拨号工具。
 - Worker 入口：`src/index.js`；拨号器 UI：`src/dialer_html.js`；其他页面按实际路由定位。
-- 保持现有 Cloudflare Workers、KV、Supabase 与前端原生 HTML/CSS/JavaScript 架构；未经用户要求，不迁移框架、不引入构建链、不增加依赖。
+- 保持 Cloudflare Workers 与前端原生 HTML/CSS/JavaScript 架构；Supabase PostgreSQL 是唯一持久化数据库。禁止新增 Cloudflare KV、Durable Objects 等第二套业务数据存储；旧 KV 风格读写只能通过 Supabase `public.app_kv` 兼容层暂存，后续按模块迁移为 PostgreSQL 正规表。未经用户要求，不迁移前端框架、不引入构建链、不增加依赖。
 - BHP 与 megz 是独立项目。禁止把另一个项目的代码、配置、密钥或业务规则混入 BHP。
 
 ## 强制执行的 UI 设计标准：Unslop
