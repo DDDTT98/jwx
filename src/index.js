@@ -2182,10 +2182,15 @@ export default {
         if (!normalizedRows.length) throw new Error('没有有效的单位名称');
         var whitelistSb = createSupabaseClient(env);
         var existingWhitelist = await whitelistSb.getAllCompanies();
-        var existingNames = new Set((existingWhitelist || []).map(function(row) {
-          return String(row.company_name || '').trim().toLowerCase();
-        }).filter(Boolean));
-        var addedCount = normalizedRows.filter(function(row) { return !existingNames.has(row.company_name.toLowerCase()); }).length;
+        var existingPairs = new Set((existingWhitelist || []).map(function(row) {
+          return JSON.stringify([
+            String(row.company_name || '').trim().toLowerCase(),
+            String(row.bank_name || '').trim().toLowerCase()
+          ]);
+        }));
+        var addedCount = normalizedRows.filter(function(row) {
+          return !existingPairs.has(JSON.stringify([row.company_name.toLowerCase(), productName.toLowerCase()]));
+        }).length;
         var updatedCount = normalizedRows.length - addedCount;
         var saveResult = await whitelistSb.upsertCompanies(normalizedRows);
         dialerWhitelistCache = { data: [], ts: 0 };
