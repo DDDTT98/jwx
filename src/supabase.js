@@ -1,7 +1,7 @@
 // Supabase-backed persistence adapter.
 // Structured high-traffic namespaces use dedicated PostgreSQL tables.
-// app_kv remains a temporary compatibility store only for unmigrated/asset keys.
-export function createSupabaseKV(env) {
+// Runtime keys are stored in dedicated Supabase tables. Legacy app_kv is accessed only by the separate one-time asset migration endpoint.
+export function createSupabaseStore(env) {
   const baseUrl = env.SUPABASE_URL;
   const key = env.SUPABASE_KEY;
   if (!baseUrl || !key) throw new Error('Supabase persistence requires SUPABASE_URL and SUPABASE_KEY');
