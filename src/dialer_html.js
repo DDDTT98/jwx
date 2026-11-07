@@ -8032,8 +8032,17 @@
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
-                '<span class="client-card-phone-wrap" style="flex: 0 0 110px; display: inline-flex; align-items: center;">' +
+                '<span class="client-card-phone-wrap" style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0;">' +
                   '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</span>' +
+                  (function() {
+                    if (!showClientInfo || !c.company) return '';
+                    var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
+                    if (!products.length) {
+                      products = matchWhitelistCompanies(c.company).map(function(w) { return w.bank_name || '白名单'; });
+                    }
+                    products = products.filter(function(v, idx, arr) { return arr.indexOf(v) === idx; });
+                    return products.length ? '<span class="xls-dial-badge xls-dial-badge-whitelist" style="font-size:0.62rem;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;" title="' + esc(products.join('、')) + '">' + esc(products.join('、')) + '</span>' : '';
+                  })() +
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
@@ -8056,20 +8065,7 @@
                 }
                 return customHtml;
               })() +
-              (function() {
-                // 正常模式显示后端已匹配的全部白名单产品；兼容旧缓存时再走本地匹配。
-                if (!showClientInfo || !c.company) return '';
-                var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
-                if (!products.length) {
-                  var matched = matchWhitelistCompanies(c.company);
-                  products = matched.map(function(w) { return w.bank_name || '白名单'; });
-                }
-                products = products.filter(function(v, i, arr) { return arr.indexOf(v) === i; });
-                if (!products.length) return '';
-                return products.map(function(name) {
-                  return '<span class="client-card-tag xls-dial-badge-whitelist">' + esc(name) + '</span>';
-                }).join('');
-              })() +
+              
             '</div>' +
             (c.note ? 
               '<div class="client-card-body" style="margin-top: 4px;">' +
