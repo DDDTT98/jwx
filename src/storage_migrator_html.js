@@ -8,7 +8,7 @@ export const STORAGE_MIGRATOR_HTML = String.raw`<!doctype html>
 main{max-width:680px;margin:5vh auto;background:#111c2e;border:1px solid #26364e;border-radius:18px;padding:24px;box-shadow:0 18px 60px #0005}
 h1{font-size:23px;margin:0 0 6px}.sub{color:#9eb0c9;margin:0 0 22px}.field{display:block;margin:14px 0 6px;color:#b9c8dc}input{width:100%;padding:13px 14px;border:1px solid #344761;border-radius:10px;background:#0b1424;color:#fff;font-size:16px;outline:none}button{border:0;border-radius:10px;padding:13px 18px;background:#2673df;color:white;font-weight:700;font-size:15px;margin-top:16px;width:100%;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#26364e}.status{margin-top:18px;padding:14px;border-radius:10px;background:#0a1423;white-space:pre-wrap;overflow-wrap:anywhere;min-height:60px}.bar{height:10px;background:#26364e;border-radius:10px;overflow:hidden;margin-top:16px}.bar>i{display:block;height:100%;width:0;background:#39b982;transition:width .2s}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.stat{padding:12px 8px;background:#18263a;border-radius:10px;text-align:center}.stat b{display:block;font-size:22px}.stat small{color:#9eb0c9}.warning{color:#f6c979;font-size:13px;margin-top:18px}.hidden{display:none!important}
 </style></head><body><main>
-<h1>BHP 旧文件迁移工具</h1><p class="sub">将历史 app_kv 文件安全迁移到私有 Supabase Storage。独立于拨号主界面运行。</p>
+<h1>BHP 旧文件迁移工具</h1><p class="sub">将历史文件安全迁移到私有 Supabase Storage。独立于拨号主界面运行。</p>
 <section id="login">
 <label class="field" for="account">主账号名称</label><input id="account" autocomplete="username" placeholder="输入 BHP 主账号名称">
 <label class="field" for="pin">主账号 PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="输入 PIN">
@@ -21,7 +21,7 @@ h1{font-size:23px;margin:0 0 6px}.sub{color:#9eb0c9;margin:0 0 22px}.field{displ
 <button id="startBtn">开始自动迁移</button>
 <button id="verifyBtn" class="secondary">重新核对迁移结果</button>
 </section>
-<p class="warning">安全说明：只有主账号可以执行。每批最多迁移 3 个文件；迁移失败可重试。原始 app_kv 文件不会被删除。</p>
+<p class="warning">安全说明：只有主账号可以执行。每批最多迁移 3 个文件；迁移失败可重试。原始文件记录不会被删除。</p>
 </main>
 <script>
 (function(){
