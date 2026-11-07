@@ -1,6 +1,6 @@
 // Supabase-backed persistence adapter.
 // Structured high-traffic namespaces use dedicated PostgreSQL tables.
-// Runtime keys are stored in dedicated Supabase tables. Legacy app_kv is accessed only by the separate one-time asset migration endpoint.
+// Runtime keys are stored in dedicated Supabase tables. The protected legacy archive is accessed only by the separate one-time asset migration endpoint.
 export function createSupabaseStore(env) {
   const baseUrl = env.SUPABASE_URL;
   const key = env.SUPABASE_KEY;
