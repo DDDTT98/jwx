@@ -54,6 +54,7 @@ export function createSupabaseKV(env) {
     if (keyName.indexOf('config:') === 0) return { kind: 'setting' };
     if (keyName === 'dialer:accounts') return { kind: 'accounts' };
     if (parts[0] === 'dialer' && parts[1] === 'session' && parts.length >= 3) return { kind: 'session', token: parts.slice(2).join(':') };
+    if (parts[0] === 'dialer' && (parts[1] === 'login' || parts[1] === 'unlock') && parts[2] === 'fail' && parts.length >= 4) return { kind: 'runtime_cache' };
     if (parts[0] === 'dialer' && parts[1] === 'bgjob' && parts.length >= 3) return { kind: 'job', id: parts.slice(2).join(':') };
     if (parts[0] === 'work_stats' && parts.length === 3) return { kind: 'work', accountId: parts[1], date: parts[2] };
     if (parts[0] === 'work_stats_cd' && parts.length >= 4) return { kind: 'cooldown', accountId: parts[1], date: parts[2], deviceId: parts.slice(3).join(':') };
@@ -293,20 +294,43 @@ export function createSupabaseKV(env) {
     if (descriptor.kind === 'diet') return { key: 'diet:' + row.entry_date, value: JSON.stringify(row.data || {}), value_type: 'text', expires_at: null };
     return null;
   }
+  function isExpiredRow(row) {
+    if (!row || !row.expires_at) return false;
+    const expiresAt = Date.parse(row.expires_at);
+    return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+  }
   async function get(keyName, type) {
-    if (rowCache.has(keyName)) return decodeRow(rowCache.get(keyName), type);
+    if (rowCache.has(keyName)) {
+      const cached = rowCache.get(keyName);
+      if (isExpiredRow(cached)) {
+        rowCache.set(keyName, null);
+        return null;
+      }
+      return decodeRow(cached, type);
+    }
     let pending = pendingGets.get(keyName);
     if (!pending) {
       pending = (async function() {
         const descriptor = parseKey(keyName);
+        let row = null;
         if (descriptor) {
-          const row = await getTypedRow(keyName, descriptor);
-          rowCache.set(keyName, row);
-          return row;
+          row = await getTypedRow(keyName, descriptor);
+          if (isExpiredRow(row)) {
+            await deleteTyped(keyName, descriptor);
+            row = null;
+          }
+        } else {
+          const params = new URLSearchParams({ select: 'key,value,value_type,expires_at', key: 'eq.' + keyName, limit: '1' });
+          const rows = await requestTable('app_kv', params.toString());
+          row = rows.length ? rows[0] : null;
+          if (isExpiredRow(row)) {
+            await requestTable('app_kv', 'key=eq.' + encodeURIComponent(keyName), {
+              method: 'DELETE',
+              headers: headers({ 'Prefer': 'return=minimal' })
+            });
+            row = null;
+          }
         }
-        const params = new URLSearchParams({ select: 'key,value,value_type,expires_at', key: 'eq.' + keyName, limit: '1' });
-        const rows = await requestTable('app_kv', params.toString());
-        const row = rows.length ? rows[0] : null;
         rowCache.set(keyName, row);
         return row;
       })();
@@ -1067,7 +1091,7 @@ export function createSupabaseClient(env) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
     try {
-      var lim = Math.min(limit || 50, 200);
+      var lim = Math.max(1, Math.min(parseInt(limit, 10) || 50, 200));
 
       // Build mobile not.in filter for client-side current list
       var notInFilter = '';

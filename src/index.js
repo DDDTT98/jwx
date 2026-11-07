@@ -2116,11 +2116,11 @@ export default {
         if (request.method === 'POST') {
           try {
             const body = await request.json();
-            limit = Math.min(parseInt(body.limit) || 50, 200);
+            limit = Math.max(1, Math.min(parseInt(body.limit) || 50, 200));
             if (Array.isArray(body.exclude) && body.exclude.length > 0) excludeMobiles = body.exclude;
           } catch (parseErr) { /* use defaults */ }
         } else {
-          limit = Math.min(parseInt(new URL(request.url).searchParams.get('limit') || '50'), 200);
+          limit = Math.max(1, Math.min(parseInt(new URL(request.url).searchParams.get('limit') || '50'), 200));
         }
 
         // ======== Per-account pull lock (prevents multi-device duplicate claiming) ========
