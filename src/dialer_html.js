@@ -2863,6 +2863,10 @@
       <div class="drawer-group-card" style="gap:7px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span style="font-size:0.68rem;font-weight:600;color:var(--text-light);letter-spacing:0.02em;">白名单模糊匹配</span>
+          <label for="drawerWhitelistListVisible" style="display:inline-flex;align-items:center;gap:3px;font-size:0.61rem;color:var(--text-light);white-space:nowrap;cursor:pointer;">
+            <input id="drawerWhitelistListVisible" type="checkbox" style="width:12px;height:12px;margin:0;accent-color:#07c160;">
+            列表显示
+          </label>
           <span id="drawerWhitelistMatchCount" style="font-size:0.62rem;color:var(--text-light);"></span>
         </div>
         <input id="drawerWhitelistSearch" type="search" autocomplete="off" placeholder="输入企业名称、简称或产品名称" style="width:100%;height:36px;box-sizing:border-box;padding:0 11px;border:1px solid var(--card-border);border-radius:9px;background:var(--input-bg,var(--bg-main));color:var(--text-main);font-size:0.78rem;outline:none;">
@@ -7988,6 +7992,11 @@
       btn.setAttribute('aria-disabled', (hasCustomers || btn.disabled) ? 'true' : 'false');
     }
 
+    function isWhitelistListVisible() {
+      try { return localStorage.getItem('dialer_whitelist_list_visible:' + getOrCreateAccountId()) === '1'; }
+      catch (e) { return false; }
+    }
+
     function renderDialCards() {
       ensureWhitelistCompaniesLoaded();
       syncRefreshBatchButton();
@@ -8117,7 +8126,7 @@
                 '<span class="client-card-phone-wrap" style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0;">' +
                   '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</span>' +
                   (function() {
-                    if (!showClientInfo || !c.company) return '';
+                    if (!showClientInfo || !c.company || !isWhitelistListVisible()) return '';
                     var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
                     if (!products.length) {
                       products = matchWhitelistCompanies(c.company).map(function(w) { return w.bank_name || '白名单'; });
@@ -8389,7 +8398,7 @@
           }
 
           var wlBadge = '';
-          if (c.company) {
+          if (isWhitelistListVisible() && c.company) {
             var productNames = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
             if (!productNames.length) {
               var matchedWls = matchWhitelistCompanies(c.company);
@@ -12898,6 +12907,14 @@ function updateAutoDialBtn() {
       });
       var closeBtn = document.getElementById('progressDrawerClose');
       if (closeBtn) closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
+      var drawerWlListVisible = document.getElementById('drawerWhitelistListVisible');
+      if (drawerWlListVisible) {
+        try { drawerWlListVisible.checked = localStorage.getItem('dialer_whitelist_list_visible:' + getOrCreateAccountId()) === '1'; } catch (e) { drawerWlListVisible.checked = false; }
+        drawerWlListVisible.addEventListener('change', function() {
+          try { localStorage.setItem('dialer_whitelist_list_visible:' + getOrCreateAccountId(), drawerWlListVisible.checked ? '1' : '0'); } catch (e) {}
+          renderDialCards();
+        });
+      }
       var drawerWlSearch = document.getElementById('drawerWhitelistSearch');
       if (drawerWlSearch) {
         drawerWlSearch.addEventListener('input', renderDrawerWhitelistSearch);
