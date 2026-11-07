@@ -905,9 +905,13 @@ export function createSupabaseClient(env) {
     var verified = {};
     for (var vi = 0; vi < unique.length; vi += chunkSize) {
       var verifyChunk = unique.slice(vi, vi + chunkSize);
+      // PATCH 会把 account_id 设为公海主账户；同时兼容历史 account_id 为 NULL 的公海记录。
+      var verifyOwnershipFilter = poolOwnerAccountId
+        ? '&or=(account_id.is.null,account_id.eq.' + encodeURIComponent(String(poolOwnerAccountId)) + ')'
+        : '&account_id=is.null';
       var verifyFilter = 'select=mobile&mobile=in.(' +
         verifyChunk.map(function(m) { return encodeURIComponent(m); }).join(',') +
-        ')&account_id=is.null&category=eq.' + encodeURIComponent('公海客户');
+        ')' + verifyOwnershipFilter + '&category=eq.' + encodeURIComponent('公海客户');
       var verifyResp = await fetch(baseUrl + '/rest/v1/customers?' + verifyFilter, {
         method: 'GET',
         headers: headers()
