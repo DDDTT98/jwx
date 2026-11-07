@@ -8,7 +8,7 @@ compatibility_flags = [ "nodejs_compat" ]
 crons = ["* * * * *", "0 13 * * *"] # 每天北京时间 21:00；周日同一触发器额外发送周报
 
 [limits]
-subrequest = 1000
+subrequests = 1000
 
 # 邮件备份配置（Resend）
 # 发送者必须是 Resend 已验证域名的邮箱；目前用官方测试地址 onboarding@resend.dev，
