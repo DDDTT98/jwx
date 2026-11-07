@@ -42,12 +42,15 @@ function dialerGenToken() {
 }
 
 async function dialerGetAccounts(env) {
-  var raw = await env.DATA_KV.get('dialer:accounts');
+  // Account roster is read repeatedly during a single request; reuse the isolate cache.
+  var raw = await getKVCached(env, 'dialer:accounts', 30000);
   return raw ? JSON.parse(raw) : [];
 }
 
 async function dialerSaveAccounts(env, accounts) {
   await env.DATA_KV.put('dialer:accounts', JSON.stringify(accounts));
+  // Do not let a write leave the per-isolate account cache stale.
+  kvCache.delete('dialer:accounts');
 }
 
 async function dialerValidateSession(env, token) {
@@ -2136,20 +2139,11 @@ export default {
         await env.DATA_KV.put(lockKey, lockValue, { expirationTtl: 60 });
 
         try {
-          var mergedExclude = (excludeMobiles || []).slice();
-          try {
-            var cooldownPrefix = 'dialer:cooldown:' + (accountId || '') + ':';
-            var cooldownList = await env.DATA_KV.list({ prefix: cooldownPrefix });
-            if (cooldownList && cooldownList.keys) {
-              for (var ci = 0; ci < cooldownList.keys.length; ci++) {
-                var cm = cooldownList.keys[ci].name.replace(cooldownPrefix, '');
-                if (cm && mergedExclude.indexOf(cm) === -1) mergedExclude.push(cm);
-              }
-            }
-          } catch (kvErr) { /* continue */ }
-
+          // pulled_at in Supabase is the single source of truth for the 10-day cooldown.
+          // Do not scan a per-mobile KV namespace here: it duplicates the DB filter and
+          // can fan out into dozens of KV-backed REST requests on every pull.
           const sb = createSupabaseClient(env);
-          const result = await sb.getCustomersForDialer(limit, mergedExclude.length > 0 ? mergedExclude : null, accountId);
+          const result = await sb.getCustomersForDialer(limit, excludeMobiles, accountId);
           const data = result.data || [];
 
           // 子账号自动补充：本账号客户总量不足 600，或本账号当前已无可拉取客户时，
@@ -2270,13 +2264,9 @@ export default {
             try {
               if (data.length > 0) {
                 const mobiles = data.map(function(c) { return c.mobile || ''; }).filter(Boolean);
-                // Parallel: PATCH pulled_at in DB + write all cooldown KV entries
-                var bgTasks = [sb.batchSetPulledAt(mobiles, accountId)];
-                for (var mi = 0; mi < mobiles.length; mi++) {
-                  var ck = 'dialer:cooldown:' + (accountId || '') + ':' + mobiles[mi];
-                  bgTasks.push(env.DATA_KV.put(ck, new Date().toISOString(), { expirationTtl: 10 * 24 * 3600 }));
-                }
-                await Promise.all(bgTasks);
+                // One bulk Supabase PATCH replaces N per-mobile KV writes.
+                // getCustomersForDialer already excludes rows whose pulled_at is within 10 days.
+                await sb.batchSetPulledAt(mobiles, accountId);
               }
             } catch (bgErr) {
               console.error('[pull] background update error:', bgErr.message);
