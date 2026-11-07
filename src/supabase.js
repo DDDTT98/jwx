@@ -312,24 +312,11 @@ export function createSupabaseKV(env) {
     if (!pending) {
       pending = (async function() {
         const descriptor = parseKey(keyName);
-        let row = null;
-        if (descriptor) {
-          row = await getTypedRow(keyName, descriptor);
-          if (isExpiredRow(row)) {
-            await deleteTyped(keyName, descriptor);
-            row = null;
-          }
-        } else {
-          const params = new URLSearchParams({ select: 'key,value,value_type,expires_at', key: 'eq.' + keyName, limit: '1' });
-          const rows = await requestTable('app_kv', params.toString());
-          row = rows.length ? rows[0] : null;
-          if (isExpiredRow(row)) {
-            await requestTable('app_kv', 'key=eq.' + encodeURIComponent(keyName), {
-              method: 'DELETE',
-              headers: headers({ 'Prefer': 'return=minimal' })
-            });
-            row = null;
-          }
+        if (!descriptor) throw new Error('未映射的 Supabase 数据键，已阻止回退到 app_kv：' + keyName);
+        let row = await getTypedRow(keyName, descriptor);
+        if (isExpiredRow(row)) {
+          await deleteTyped(keyName, descriptor);
+          row = null;
         }
         rowCache.set(keyName, row);
         return row;
@@ -351,23 +338,15 @@ export function createSupabaseKV(env) {
       if (bytes) { storedValue = encodeBase64(bytes); valueType = 'base64'; }
     }
     const descriptor = parseKey(keyName);
-    if (descriptor) {
-      const row = await putTyped(keyName, descriptor, storedValue, valueType, options);
-      if (row) { rowCache.set(keyName, row); return; }
-    }
-    const row = { key: keyName, value: storedValue, value_type: valueType, expires_at: getExpiry(options), updated_at: new Date().toISOString() };
-    await requestTable('app_kv', 'on_conflict=key', {
-      method: 'POST',
-      headers: headers({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify([row])
-    });
+    if (!descriptor) throw new Error('未映射的 Supabase 数据键，已阻止写入 app_kv：' + keyName);
+    const row = await putTyped(keyName, descriptor, storedValue, valueType, options);
+    if (!row) throw new Error('Supabase 数据键没有专用表映射：' + keyName);
     rowCache.set(keyName, row);
   }
   async function remove(keyName) {
     const descriptor = parseKey(keyName);
-    if (descriptor && await deleteTyped(keyName, descriptor)) { rowCache.set(keyName, null); return; }
-    const params = new URLSearchParams({ key: 'eq.' + keyName });
-    await requestTable('app_kv', params.toString(), { method: 'DELETE', headers: headers({ 'Prefer': 'return=minimal' }) });
+    if (!descriptor) throw new Error('未映射的 Supabase 数据键，已阻止删除 app_kv：' + keyName);
+    if (!await deleteTyped(keyName, descriptor)) throw new Error('Supabase 数据键没有专用表映射：' + keyName);
     rowCache.set(keyName, null);
   }
   async function list(options) {
@@ -407,19 +386,7 @@ export function createSupabaseKV(env) {
         cursor: rows.length < limit ? undefined : String(offset + rows.length)
       };
     }
-    const now = new Date().toISOString();
-    const params = new URLSearchParams({
-      select: 'key,value,value_type,expires_at', order: 'key.asc', limit: String(limit), offset: String(offset),
-      or: '(expires_at.is.null,expires_at.gt.' + now + ')'
-    });
-    if (opts.prefix) params.set('key', 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
-    const rows = await requestTable('app_kv', params.toString());
-    rows.forEach(row => rowCache.set(row.key, row));
-    return {
-      keys: rows.map(row => ({ name: row.key })),
-      list_complete: rows.length < limit,
-      cursor: rows.length < limit ? undefined : String(offset + rows.length)
-    };
+    throw new Error('未映射的 Supabase 列表前缀，已阻止扫描 app_kv：' + String(opts.prefix || ''));
   }
   return { get: get, put: put, delete: remove, list: list };
 }
