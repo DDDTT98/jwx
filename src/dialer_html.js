@@ -12243,7 +12243,7 @@ function updateAutoDialBtn() {
         storageMigrationBtn.dataset.bound = "1";
         storageMigrationBtn.addEventListener("click", async function() {
           if (!isSessionMaster()) return;
-          if (!confirm("开始迁移旧 OCR 模型、图片、文档和粘贴文件到 Supabase 私有 Storage？\\n\\n原始 app_kv 文件会保留，不会删除。")) return;
+          if (!confirm("开始迁移旧 OCR 模型、图片、文档和粘贴文件到 Supabase 私有 Storage？\\n\\n原始文件备份会保留，不会删除。")) return;
           var status = document.getElementById("dbStorageMigrationStatus");
           storageMigrationBtn.disabled = true;
           storageMigrationBtn.textContent = "迁移中...";
@@ -12268,7 +12268,7 @@ function updateAutoDialBtn() {
             }
             if (status) {
               status.style.color = "#07c160";
-              status.textContent = "迁移完成：共迁移 " + migratedTotal + " 个文件。原始 app_kv 文件仍完整保留。";
+              status.textContent = "迁移完成：共迁移 " + migratedTotal + " 个文件。原始文件备份仍完整保留。";
             }
             storageMigrationBtn.textContent = "重新核对 / 补迁文件";
           } catch (e) {
