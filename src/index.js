@@ -43,7 +43,7 @@ function dialerGenToken() {
 
 async function dialerGetAccounts(env) {
   // Account roster is read repeatedly during a single request; reuse the isolate cache.
-  var raw = await getKVCached(env, 'dialer:accounts', 30000);
+  var raw = await getKVCached(env, 'dialer:accounts', 5000);
   return raw ? JSON.parse(raw) : [];
 }
 
