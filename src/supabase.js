@@ -8,6 +8,7 @@ export function createSupabaseKV(env) {
   // Per-Worker-invocation cache: DATA_KV is rebound to a fresh adapter for each
   // fetch/scheduled event, so this cache never becomes a cross-request stale cache.
   const rowCache = new Map();
+  const pendingGets = new Map();
 
   function headers(extra) {
     return Object.assign({
@@ -44,17 +45,28 @@ export function createSupabaseKV(env) {
   }
   async function get(keyName, type) {
     if (rowCache.has(keyName)) return decodeRow(rowCache.get(keyName), type);
-    const params = new URLSearchParams({
-      select: 'key,value,value_type,expires_at',
-      key: 'eq.' + keyName,
-      limit: '1'
-    });
-    const resp = await fetch(endpoint(params.toString()), { headers: headers() });
-    if (!resp.ok) throw new Error('Supabase KV get failed [' + resp.status + ']: ' + await resp.text());
-    const rows = await resp.json();
-    const row = rows.length ? rows[0] : null;
-    rowCache.set(keyName, row);
-    return decodeRow(row, type);
+    let pending = pendingGets.get(keyName);
+    if (!pending) {
+      pending = (async function() {
+        const params = new URLSearchParams({
+          select: 'key,value,value_type,expires_at',
+          key: 'eq.' + keyName,
+          limit: '1'
+        });
+        const resp = await fetch(endpoint(params.toString()), { headers: headers() });
+        if (!resp.ok) throw new Error('Supabase KV get failed [' + resp.status + ']: ' + await resp.text());
+        const rows = await resp.json();
+        const row = rows.length ? rows[0] : null;
+        rowCache.set(keyName, row);
+        return row;
+      })();
+      pendingGets.set(keyName, pending);
+    }
+    try {
+      return decodeRow(await pending, type);
+    } finally {
+      if (pendingGets.get(keyName) === pending) pendingGets.delete(keyName);
+    }
   }
   async function put(keyName, value, options) {
     let storedValue;
