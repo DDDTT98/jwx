@@ -5,6 +5,10 @@ export function createSupabaseKV(env) {
   const key = env.SUPABASE_KEY;
   if (!baseUrl || !key) throw new Error('Supabase KV requires SUPABASE_URL and SUPABASE_KEY');
 
+  // Per-Worker-invocation cache: DATA_KV is rebound to a fresh adapter for each
+  // fetch/scheduled event, so this cache never becomes a cross-request stale cache.
+  const rowCache = new Map();
+
   function headers(extra) {
     return Object.assign({
       'Content-Type': 'application/json',
@@ -29,27 +33,28 @@ export function createSupabaseKV(env) {
     }
     return btoa(binary);
   }
-  async function get(keyName, type) {
-    const params = new URLSearchParams({
-      select: 'value,value_type,expires_at',
-      key: 'eq.' + keyName,
-      limit: '1'
-    });
-    const resp = await fetch(endpoint(params.toString()), { headers: headers() });
-    if (!resp.ok) throw new Error('Supabase KV get failed [' + resp.status + ']: ' + await resp.text());
-    const rows = await resp.json();
-    if (!rows.length) return null;
-    const row = rows[0];
-    if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) {
-      await remove(keyName);
-      return null;
-    }
+  function decodeRow(row, type) {
+    if (!row || (row.expires_at && new Date(row.expires_at).getTime() <= Date.now())) return null;
     const bytes = row.value_type === 'base64' ? decodeBase64(row.value) : new TextEncoder().encode(row.value || '');
     const requestedType = typeof type === 'string' ? type : (type && type.type) || 'text';
     if (requestedType === 'json') return JSON.parse(new TextDecoder().decode(bytes));
     if (requestedType === 'arrayBuffer') return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     if (requestedType === 'stream') return new Response(bytes).body;
     return new TextDecoder().decode(bytes);
+  }
+  async function get(keyName, type) {
+    if (rowCache.has(keyName)) return decodeRow(rowCache.get(keyName), type);
+    const params = new URLSearchParams({
+      select: 'key,value,value_type,expires_at',
+      key: 'eq.' + keyName,
+      limit: '1'
+    });
+    const resp = await fetch(endpoint(params.toString()), { headers: headers() });
+    if (!resp.ok) throw new Error('Supabase KV get failed [' + resp.status + ']: ' + await resp.text());
+    const rows = await resp.json();
+    const row = rows.length ? rows[0] : null;
+    rowCache.set(keyName, row);
+    return decodeRow(row, type);
   }
   async function put(keyName, value, options) {
     let storedValue;
@@ -74,33 +79,40 @@ export function createSupabaseKV(env) {
     } else if (Number.isFinite(opts.expiration) && opts.expiration > 0) {
       expiresAt = new Date(opts.expiration * 1000).toISOString();
     }
+    const row = { key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt, updated_at: new Date().toISOString() };
     const resp = await fetch(endpoint('on_conflict=key'), {
       method: 'POST',
       headers: headers({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify([{ key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt, updated_at: new Date().toISOString() }])
+      body: JSON.stringify([row])
     });
     if (!resp.ok) throw new Error('Supabase KV put failed [' + resp.status + ']: ' + await resp.text());
+    rowCache.set(keyName, row);
   }
   async function remove(keyName) {
     const params = new URLSearchParams({ key: 'eq.' + keyName });
     const resp = await fetch(endpoint(params.toString()), { method: 'DELETE', headers: headers() });
     if (!resp.ok) throw new Error('Supabase KV delete failed [' + resp.status + ']: ' + await resp.text());
+    rowCache.set(keyName, null);
   }
   async function list(options) {
     const opts = options || {};
-    const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 1000));
+    const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 5000));
     const offset = Math.max(0, parseInt(opts.cursor || '0', 10) || 0);
+    const now = new Date().toISOString();
     const params = new URLSearchParams({
-      select: 'key',
+      select: 'key,value,value_type,expires_at',
       order: 'key.asc',
       limit: String(limit),
       offset: String(offset),
-      or: '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')'
+      or: '(expires_at.is.null,expires_at.gt.' + now + ')'
     });
     if (opts.prefix) params.set('key', 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
     const resp = await fetch(endpoint(params.toString()), { headers: headers() });
     if (!resp.ok) throw new Error('Supabase KV list failed [' + resp.status + ']: ' + await resp.text());
     const rows = await resp.json();
+    // list() now hydrates the request cache, so legacy list-then-get loops
+    // read each value from the same result instead of issuing N extra REST calls.
+    rows.forEach(row => rowCache.set(row.key, row));
     const keys = rows.map(row => ({ name: row.key }));
     const complete = rows.length < limit;
     return { keys: keys, list_complete: complete, cursor: complete ? undefined : String(offset + rows.length) };
