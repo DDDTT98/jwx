@@ -5,20 +5,20 @@ import { DIALER_HTML } from './dialer_html.js';
 import { STORAGE_MIGRATOR_HTML } from './storage_migrator_html.js';
 import { DIET_HTML } from './diet_html.js';
 import { LEARN_HTML, LEARN_DEFAULT_CONTENT } from './learn_html.js';
-import { createSupabaseClient, createSupabaseKV } from './supabase.js';
+import { createSupabaseClient, createSupabaseStore } from './supabase.js';
 
 // Supabase PostgreSQL persistence cache; structured namespaces are routed to dedicated tables.
-const kvCache = new Map();
+const storeCache = new Map();
 // 白名单单位映射缓存，避免客户分页时每次重复读取白名单表。
 var dialerWhitelistCache = { data: [], ts: 0 };
-function getKVCached(env, key, ttlMs = 60000) {
-  const entry = kvCache.get(key);
+function getStoreCached(env, key, ttlMs = 60000) {
+  const entry = storeCache.get(key);
   if (entry && (Date.now() - entry.ts) < ttlMs) return entry.value;
-  const p = env.DATA_KV.get(key).then(v => {
-    kvCache.set(key, { value: Promise.resolve(v), ts: Date.now() });
+  const p = env.DATA_STORE.get(key).then(v => {
+    storeCache.set(key, { value: Promise.resolve(v), ts: Date.now() });
     return v;
   });
-  kvCache.set(key, { value: p, ts: Date.now() });
+  storeCache.set(key, { value: p, ts: Date.now() });
   return p;
 }
 
@@ -44,25 +44,25 @@ function dialerGenToken() {
 
 async function dialerGetAccounts(env) {
   // Account roster is read repeatedly during a single request; reuse the isolate cache.
-  var raw = await getKVCached(env, 'dialer:accounts', 5000);
+  var raw = await getStoreCached(env, 'dialer:accounts', 5000);
   return raw ? JSON.parse(raw) : [];
 }
 
 async function dialerSaveAccounts(env, accounts) {
-  await env.DATA_KV.put('dialer:accounts', JSON.stringify(accounts));
+  await env.DATA_STORE.put('dialer:accounts', JSON.stringify(accounts));
   // Do not let a write leave the per-isolate account cache stale.
-  kvCache.delete('dialer:accounts');
+  storeCache.delete('dialer:accounts');
 }
 
 async function dialerValidateSession(env, token) {
   if (!token) return null;
-  var raw = await env.DATA_KV.get('dialer:session:' + token);
+  var raw = await env.DATA_STORE.get('dialer:session:' + token);
   if (!raw) return null;
   var session = JSON.parse(raw);
   // 12-hour session expiry
   var created = session.created_at ? new Date(session.created_at).getTime() : 0;
   if (Date.now() - created > 12 * 60 * 60 * 1000) {
-    await env.DATA_KV.delete('dialer:session:' + token);
+    await env.DATA_STORE.delete('dialer:session:' + token);
     return null;
   }
   return session;
@@ -95,9 +95,9 @@ async function verifyTurnstile(env, token, remoteIp) {
 
 // 批量 AI 判断公积金/单位/备注字段错位（复用 /api/ocr/correct 的 AI 配置模式）
 async function aiJudgeFundBatch(env, batch) {
-  let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
-  const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
-  const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+  let provider = await env.DATA_STORE.get('config:ai_provider') || 'gemini';
+  const visionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
+  const aiKey = await env.DATA_STORE.get('config:ai_api_key') || await env.DATA_STORE.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
 
   let apiKey = aiKey;
   if (provider === 'gemini' || (visionKey && !aiKey)) {
@@ -106,8 +106,8 @@ async function aiJudgeFundBatch(env, batch) {
   }
   if (!apiKey) throw new Error('未配置 AI Key');
 
-  let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
-  let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+  let apiBase = await env.DATA_STORE.get('config:ai_api_base') || env.AI_API_BASE;
+  let model = await env.DATA_STORE.get('config:ai_model') || env.AI_API_MODEL;
 
   if (provider === 'gemini') {
     if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
@@ -191,20 +191,20 @@ function isSuspiciousFundEntry(c, INST_RE) {
   return false;
 }
 
-// 工作数据（轮数/通过微信数量）按账号存 KV：work_stats:{account_id}:{date}
+// 工作数据（轮数/通过微信数量）按账号存入 Supabase：work_stats:{account_id}:{date}
 // 同账号多设备共享（实时同步由前端轮询+上报完成）
 async function fetchWorkRow(env, accountId, date) {
-  var raw = await env.DATA_KV.get('work_stats:' + accountId + ':' + date);
+  var raw = await env.DATA_STORE.get('work_stats:' + accountId + ':' + date);
   return raw ? JSON.parse(raw) : null;
 }
 async function upsertWorkRow(env, accountId, date, stats) {
-  await env.DATA_KV.put('work_stats:' + accountId + ':' + date, JSON.stringify(stats));
+  await env.DATA_STORE.put('work_stats:' + accountId + ':' + date, JSON.stringify(stats));
 }
-async function countKvPrefix(env, prefix) {
+async function countStorePrefix(env, prefix) {
   var total = 0;
   var cursor;
   do {
-    var page = await env.DATA_KV.list({ prefix: prefix, limit: 1000, cursor: cursor });
+    var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
     total += (page.keys || []).length;
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
@@ -225,7 +225,7 @@ async function clientOperationRangeCounts(env, accountId, startDate, endDate) {
     var monthMobiles = new Set();
     var cursor;
     do {
-      var page = await env.DATA_KV.list({ prefix: prefix, limit: 1000, cursor: cursor });
+      var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
       (page.keys || []).forEach(function(item) {
         var rest = item.name.slice(prefix.length);
         var sep = rest.indexOf(':');
@@ -254,13 +254,13 @@ function cooldownKey(accountId, date, deviceId) {
   return 'work_stats_cd:' + accountId + ':' + date + ':' + deviceId;
 }
 async function fetchCooldownRow(env, accountId, date, deviceId) {
-  var raw = await env.DATA_KV.get(cooldownKey(accountId, date, deviceId));
+  var raw = await env.DATA_STORE.get(cooldownKey(accountId, date, deviceId));
   return raw ? JSON.parse(raw) : null;
 }
 async function upsertCooldownRow(env, accountId, date, deviceId, row) {
-  await env.DATA_KV.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
+  await env.DATA_STORE.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
 }
-// device_id 只允许安全字符，防止拼接进 KV key
+// device_id 只允许安全字符，防止拼接进数据键
 function validDeviceId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(id);
 }
@@ -297,7 +297,7 @@ async function weekMonthCounts(env, accountId, dateStr) {
 function beijingDateKey(date) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date || new Date()); }
 function shiftDateKey(dateKey, days) { var d = new Date(dateKey + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
 function wecomEscape(value) { return String(value == null ? '' : value).replace(/[|]/g, '\\|').replace(/\r?\n/g, ' '); }
-async function getWecomWebhook(env) { return (await env.DATA_KV.get('config:wework_webhook_url')) || env.WEWORK_WEBHOOK_URL || ''; }
+async function getWecomWebhook(env) { return (await env.DATA_STORE.get('config:wework_webhook_url')) || env.WEWORK_WEBHOOK_URL || ''; }
 async function sendWecomText(env, content) {
   var webhookUrl = await getWecomWebhook(env);
   if (!webhookUrl) { console.warn('[wecom] webhook not configured'); return false; }
@@ -317,8 +317,8 @@ async function notifyNewCustomers(env, accountName, customers) {
 async function collectUploadLogs(env, startMs, endMs) {
   var rows=[], cursor;
   do {
-    var page=await env.DATA_KV.list({prefix:'upload_log:',limit:1000,cursor:cursor});
-    for(var i=0;i<(page.keys||[]).length;i++){var key=page.keys[i].name,ts=parseInt(key.split(':')[1]||'0',10);if(ts<startMs||ts>=endMs)continue;var raw=await env.DATA_KV.get(key);if(raw){try{rows.push(JSON.parse(raw));}catch(_){}}}
+    var page=await env.DATA_STORE.list({prefix:'upload_log:',limit:1000,cursor:cursor});
+    for(var i=0;i<(page.keys||[]).length;i++){var key=page.keys[i].name,ts=parseInt(key.split(':')[1]||'0',10);if(ts<startMs||ts>=endMs)continue;var raw=await env.DATA_STORE.get(key);if(raw){try{rows.push(JSON.parse(raw));}catch(_){}}}
     cursor=page.list_complete?undefined:page.cursor;
   } while(cursor);
   return rows;
@@ -339,18 +339,18 @@ async function createCrmBackgroundJob(env, job) {
     id: id, status: 'queued', total: 0, processed: 0, succeeded: 0, failed: 0,
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   }, job);
-  await env.DATA_KV.put('dialer:bgjob:' + id, JSON.stringify(record));
+  await env.DATA_STORE.put('dialer:bgjob:' + id, JSON.stringify(record));
   return record;
 }
 async function processCrmBackgroundJobs(env) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.DATA_KV || !env.DATA_KV.list) return;
-  var listed = await env.DATA_KV.list({ prefix: 'dialer:bgjob:', limit: 100 });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.DATA_STORE || !env.DATA_STORE.list) return;
+  var listed = await env.DATA_STORE.list({ prefix: 'dialer:bgjob:', limit: 100 });
   var keys = listed && listed.keys ? listed.keys : [];
   var hdr = { apikey: env.SUPABASE_KEY, Authorization: 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
   var processedJobs = 0;
   for (var ji = 0; ji < keys.length && processedJobs < 10; ji++) {
     var key = keys[ji].name;
-    var job = await env.DATA_KV.get(key, 'json');
+    var job = await env.DATA_STORE.get(key, 'json');
     if (!job || job.status !== 'queued' && job.status !== 'running') continue;
     processedJobs++;
     try {
@@ -423,10 +423,10 @@ async function processCrmBackgroundJobs(env) {
       } else { job.status = 'failed'; job.error = '未知后台任务类型'; }
       if (done && job.status !== 'failed') job.status = job.failed ? 'completed_with_errors' : 'completed';
       job.updated_at = new Date().toISOString();
-      await env.DATA_KV.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
+      await env.DATA_STORE.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
     } catch (err) {
       job.status = 'failed'; job.error = err.message || String(err); job.updated_at = new Date().toISOString();
-      await env.DATA_KV.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
+      await env.DATA_STORE.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
     }
   }
 }
@@ -445,7 +445,7 @@ export default {
       });
     }
     const workerEnv = Object.create(env);
-    workerEnv.DATA_KV = createSupabaseKV(env);
+    workerEnv.DATA_STORE = createSupabaseStore(env);
     env = workerEnv;
     const url = new URL(request.url);
     const path = url.pathname;
@@ -496,7 +496,7 @@ export default {
         }
         var accounts = await dialerGetAccounts(env);
         var count = accounts.length;
-        await env.DATA_KV.put('dialer:accounts', JSON.stringify([]));
+        await env.DATA_STORE.put('dialer:accounts', JSON.stringify([]));
         return new Response(JSON.stringify({ success: true, cleared: count }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -537,7 +537,7 @@ export default {
         await dialerSaveAccounts(env, accounts);
 
         var token = dialerGenToken();
-        await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
+        await env.DATA_STORE.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
 
         return new Response(JSON.stringify({ success: true, account_id: accountId, is_master: true, role: 'master', label: label, session_token: token }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -559,7 +559,7 @@ export default {
         if (!accountName || pin.length < 4) throw new Error('请输入账户名和 PIN 码');
 
         var loginFailKey = 'dialer:login:fail:' + accountName;
-        var loginFailRaw = await env.DATA_KV.get(loginFailKey);
+        var loginFailRaw = await env.DATA_STORE.get(loginFailKey);
         var loginFailState = loginFailRaw ? JSON.parse(loginFailRaw) : { count: 0, lastAttempt: 0 };
         if (loginFailState.count >= 2) {
           var lcd = loginFailState.count >= 4 ? 600 : (loginFailState.count === 3 ? 300 : 60);
@@ -580,7 +580,7 @@ export default {
         if (!account) {
           loginFailState.count = (loginFailState.count || 0) + 1;
           loginFailState.lastAttempt = Date.now();
-          await env.DATA_KV.put(loginFailKey, JSON.stringify(loginFailState), { expirationTtl: 1800 });
+          await env.DATA_STORE.put(loginFailKey, JSON.stringify(loginFailState), { expirationTtl: 1800 });
           throw new Error('账户不存在');
         }
         if (!account.active) throw new Error('该账户已被禁用');
@@ -588,7 +588,7 @@ export default {
           loginFailState.count = (loginFailState.count || 0) + 1;
           loginFailState.lastAttempt = Date.now();
           var lttl = loginFailState.count >= 4 ? 1800 : 3600;
-          await env.DATA_KV.put(loginFailKey, JSON.stringify(loginFailState), { expirationTtl: lttl });
+          await env.DATA_STORE.put(loginFailKey, JSON.stringify(loginFailState), { expirationTtl: lttl });
           var lcd2 = loginFailState.count >= 4 ? 600 : (loginFailState.count >= 3 ? 300 : (loginFailState.count >= 2 ? 60 : 0));
           if (lcd2 > 0) {
             return new Response(JSON.stringify({ success: false, error: 'LOCKOUT:' + lcd2 + ':PIN 码错误，请 ' + lcd2 + ' 秒后重试' }), {
@@ -599,11 +599,11 @@ export default {
         }
 
         // 登录成功 — 清除失败计数
-        await env.DATA_KV.delete(loginFailKey);
+        await env.DATA_STORE.delete(loginFailKey);
 
         var accountId = account.account_id;
         var token = dialerGenToken();
-        await env.DATA_KV.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
+        await env.DATA_STORE.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
 
         return new Response(JSON.stringify({
           success: true, account_id: accountId, is_master: account.is_master !== false,
@@ -640,7 +640,7 @@ export default {
 
         // Cooldown check
         var failKey = 'dialer:unlock:fail:' + found.account_id;
-        var failRaw = await env.DATA_KV.get(failKey);
+        var failRaw = await env.DATA_STORE.get(failKey);
         var failState = failRaw ? JSON.parse(failRaw) : { count: 0, lastAttempt: 0 };
         if (failState.count >= 2) {
           var cd = failState.count >= 4 ? 600 : (failState.count === 3 ? 300 : 60);
@@ -657,7 +657,7 @@ export default {
           failState.count = (failState.count || 0) + 1;
           failState.lastAttempt = Date.now();
           var ttl = failState.count >= 4 ? 1800 : 3600;
-          await env.DATA_KV.put(failKey, JSON.stringify(failState), { expirationTtl: ttl });
+          await env.DATA_STORE.put(failKey, JSON.stringify(failState), { expirationTtl: ttl });
           var cd2 = failState.count >= 4 ? 600 : (failState.count >= 3 ? 300 : (failState.count >= 2 ? 60 : 0));
           if (cd2 > 0) {
             return new Response(JSON.stringify({ error: 'LOCKOUT:' + cd2 + ':PIN 不正确，请 ' + cd2 + ' 秒后重试' }), {
@@ -670,7 +670,7 @@ export default {
         }
 
         // Success — clear fail state
-        await env.DATA_KV.delete(failKey);
+        await env.DATA_STORE.delete(failKey);
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -931,15 +931,15 @@ export default {
         }
         var ulStartMs = ulStart.getTime();
 
-        // KV list 分页读取上传日志（key 前缀时间戳递增，天然时间序）
+        // Supabase 表分页读取上传日志（key 前缀时间戳递增，天然时间序）
         var ulRecords = [];
         var ulCursor = undefined;
         while (true) {
-          var ulList = await env.DATA_KV.list({ prefix: 'upload_log:', cursor: ulCursor, limit: 1000 });
+          var ulList = await env.DATA_STORE.list({ prefix: 'upload_log:', cursor: ulCursor, limit: 1000 });
           for (var ui = 0; ui < ulList.keys.length; ui++) {
             var ulKeyTs = parseInt(String(ulList.keys[ui].name).split(':')[1] || '', 10) || 0;
             if (ulKeyTs < ulStartMs) continue; // 时间过滤
-            var ulRow = JSON.parse((await env.DATA_KV.get(ulList.keys[ui].name)) || 'null');
+            var ulRow = JSON.parse((await env.DATA_STORE.get(ulList.keys[ui].name)) || 'null');
             if (!ulRow) continue;
             if (!ulIsMaster && ulRow.account_id !== ulSession.account_id) continue; // 子账号只看自己的
             ulRecords.push(ulRow);
@@ -1046,13 +1046,13 @@ export default {
 
         var body = await request.json();
         if (body.resendApiKey !== undefined) {
-          await env.DATA_KV.put('config:resend_api_key', body.resendApiKey || '');
+          await env.DATA_STORE.put('config:resend_api_key', body.resendApiKey || '');
         }
         if (body.backupFromEmail !== undefined) {
-          await env.DATA_KV.put('config:backup_from_email', body.backupFromEmail || '');
+          await env.DATA_STORE.put('config:backup_from_email', body.backupFromEmail || '');
         }
         if (body.backupTargetEmail !== undefined) {
-          await env.DATA_KV.put('config:backup_target_email', body.backupTargetEmail || '');
+          await env.DATA_STORE.put('config:backup_target_email', body.backupTargetEmail || '');
         }
 
         return new Response(JSON.stringify({ success: true }), {
@@ -1081,9 +1081,9 @@ export default {
         }
         if (!master) throw new Error('仅主账户可操作');
 
-        var key = env.RESEND_API_KEY || await env.DATA_KV.get('config:resend_api_key') || '';
+        var key = env.RESEND_API_KEY || await env.DATA_STORE.get('config:resend_api_key') || '';
         var fromEmail = env.BHP_FROM_EMAIL || '';
-        var targetEmail = env.BACKUP_TARGET_EMAIL || await env.DATA_KV.get('config:backup_target_email') || '';
+        var targetEmail = env.BACKUP_TARGET_EMAIL || await env.DATA_STORE.get('config:backup_target_email') || '';
 
         return new Response(JSON.stringify({ hasKey: !!key, fromEmail: fromEmail, targetEmail: targetEmail }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1096,7 +1096,7 @@ export default {
       }
     }
 
-    // GET /api/dialer/work-stats?date=YYYY-MM-DD&device_id=xxx — 工作数据（轮数/通过微信数量按账号存 KV，
+    // GET /api/dialer/work-stats?date=YYYY-MM-DD&device_id=xxx — 工作数据（轮数/通过微信数量按账号存入 Supabase，
     // 冷却倒计时按设备存，各设备各走各的；旧版账号级 transfer_ts 在设备键不存在时回退兼容一次）
     if (path === '/api/dialer/work-stats' && request.method === 'GET') {
       try {
@@ -1126,8 +1126,8 @@ export default {
         wsResp.cooldown_ms = rawCdMs === 0 ? 0 : Math.max(rawCdMs, 15 * 60 * 1000);
         wsResp.week_count = wm.week_count;
         wsResp.month_count = wm.month_count;
-        wsResp.operated_count = await countKvPrefix(env, 'client_ops_all:' + wsSession.account_id + ':' + wsDate + ':');
-        wsResp.dialed_count = await countKvPrefix(env, 'client_ops_dial:' + wsSession.account_id + ':' + wsDate + ':');
+        wsResp.operated_count = await countStorePrefix(env, 'client_ops_all:' + wsSession.account_id + ':' + wsDate + ':');
+        wsResp.dialed_count = await countStorePrefix(env, 'client_ops_dial:' + wsSession.account_id + ':' + wsDate + ':');
         wsResp.week_operated_count = wsOps.week_operated_count;
         wsResp.month_operated_count = wsOps.month_operated_count;
         wsResp.week_dialed_count = wsOps.week_dialed_count;
@@ -1246,7 +1246,7 @@ export default {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
-        var kvRaw = await env.DATA_KV.get('config:' + configKey);
+        var kvRaw = await env.DATA_STORE.get('config:' + configKey);
         if (kvRaw) {
           return new Response(kvRaw, {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1306,7 +1306,7 @@ export default {
         if (!body.data || typeof body.data !== 'object') {
           throw new Error('缺少 data 字段');
         }
-        await env.DATA_KV.put('config:' + cfgKey, JSON.stringify(body.data));
+        await env.DATA_STORE.put('config:' + cfgKey, JSON.stringify(body.data));
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1335,13 +1335,13 @@ export default {
         if (!master) throw new Error('仅主账户可操作');
 
         var body = await request.json();
-        // 接收邮箱：前端传入优先，未填时用 Worker 环境变量 BACKUP_TARGET_EMAIL / KV 兜底
-        var targetEmail = (body.email || '').trim() || env.BACKUP_TARGET_EMAIL || await env.DATA_KV.get('config:backup_target_email') || '';
+        // 接收邮箱：前端传入优先，未填时用 Worker 环境变量 BACKUP_TARGET_EMAIL / Supabase 配置表兜底
+        var targetEmail = (body.email || '').trim() || env.BACKUP_TARGET_EMAIL || await env.DATA_STORE.get('config:backup_target_email') || '';
         if (!targetEmail || targetEmail.indexOf('@') === -1) throw new Error('请输入有效的邮箱地址');
-        if (body.email) await env.DATA_KV.put('config:backup_target_email', targetEmail);
+        if (body.email) await env.DATA_STORE.put('config:backup_target_email', targetEmail);
 
-        // Get Resend config (Worker 密钥优先，KV 兜底)
-        var resendKey = env.RESEND_API_KEY || await env.DATA_KV.get('config:resend_api_key') || '';
+        // Get Resend config (Worker 密钥优先，Supabase 配置表兜底)
+        var resendKey = env.RESEND_API_KEY || await env.DATA_STORE.get('config:resend_api_key') || '';
         if (!resendKey) throw new Error('请先在数据备份页面配置 Resend API Key');
 
         var fromEmail = env.BHP_FROM_EMAIL || 'onboarding@resend.dev';
@@ -1415,7 +1415,7 @@ export default {
       }
     }
 
-    // 主账号专用：企业微信通知配置，Webhook 只保存在服务端 KV，不回传前端
+    // 主账号专用：企业微信通知配置，Webhook 只保存在服务端 Supabase 配置表，不回传前端
     if (path === '/api/admin/wecom-config' && request.method === 'POST') {
       try {
         var authHeader = request.headers.get('Authorization') || '';
@@ -1427,11 +1427,11 @@ export default {
         if (!master) throw new Error('仅主账号可操作');
         var body = await request.json();
         var action = body.action || 'save';
-        var savedUrl = await env.DATA_KV.get('config:wework_webhook_url') || '';
+        var savedUrl = await env.DATA_STORE.get('config:wework_webhook_url') || '';
         if (action === 'save') {
           var webhookInputUrl = String(body.webhook_url || '').trim();
           if (!/^https:\/\/qyapi\.weixin\.qq\.com\/cgi-bin\/webhook\/send\?key=[A-Za-z0-9-]{20,}$/i.test(webhookInputUrl)) throw new Error('Webhook 地址格式不正确');
-          await env.DATA_KV.put('config:wework_webhook_url', webhookInputUrl);
+          await env.DATA_STORE.put('config:wework_webhook_url', webhookInputUrl);
           return new Response(JSON.stringify({ success: true, configured: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
         }
         if (action === 'test') {
@@ -1623,10 +1623,10 @@ export default {
         if (!btMaster) throw new Error('仅主账户可操作');
 
         var btBody = await request.json();
-        var btEmail = (btBody.email || '').trim() || env.BACKUP_TARGET_EMAIL || await env.DATA_KV.get('config:backup_target_email') || '';
+        var btEmail = (btBody.email || '').trim() || env.BACKUP_TARGET_EMAIL || await env.DATA_STORE.get('config:backup_target_email') || '';
         if (!btEmail || btEmail.indexOf('@') === -1) throw new Error('请输入有效的邮箱地址');
 
-        var btKey = env.RESEND_API_KEY || await env.DATA_KV.get('config:resend_api_key') || '';
+        var btKey = env.RESEND_API_KEY || await env.DATA_STORE.get('config:resend_api_key') || '';
         if (!btKey) throw new Error('请先配置 Resend API Key（Worker 环境变量 RESEND_API_KEY 或数据备份页面保存）');
         var btFrom = env.BHP_FROM_EMAIL || 'onboarding@resend.dev';
 
@@ -1760,8 +1760,8 @@ export default {
         }
 
         // 接收邮箱：优先环境变量 DESTRUCT_EMAIL / BACKUP_TARGET_EMAIL，兜底用保存的接收邮箱
-        var destructEmail = env.DESTRUCT_EMAIL || env.BACKUP_TARGET_EMAIL || await env.DATA_KV.get('config:backup_target_email') || '';
-        var resendKey = env.RESEND_API_KEY || await env.DATA_KV.get('config:resend_api_key') || '';
+        var destructEmail = env.DESTRUCT_EMAIL || env.BACKUP_TARGET_EMAIL || await env.DATA_STORE.get('config:backup_target_email') || '';
+        var resendKey = env.RESEND_API_KEY || await env.DATA_STORE.get('config:resend_api_key') || '';
         var fromEmail = env.BHP_FROM_EMAIL || 'onboarding@resend.dev';
 
         // Step 1: Export all customers
@@ -1852,7 +1852,7 @@ export default {
       }
     }
 
-    // ==================== WeChat Count API (KV-synced per account) ====================
+    // ==================== WeChat Count API (Supabase-synced per account) ====================
 
     if (path === '/api/dialer/wechat/count' && request.method === 'GET') {
       var wcAuth = (request.headers.get('Authorization') || '').replace('Bearer ', '');
@@ -1865,7 +1865,7 @@ export default {
       var d = new Date();
       var today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
       var dateParam = new URL(request.url).searchParams.get('date') || today;
-      var raw = await env.DATA_KV.get('dialer:wc:' + wcSession.account_id + ':' + dateParam);
+      var raw = await env.DATA_STORE.get('dialer:wc:' + wcSession.account_id + ':' + dateParam);
       var count = raw ? parseInt(raw, 10) : 0;
       return new Response(JSON.stringify({ count: count, date: dateParam }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -1889,9 +1889,9 @@ export default {
           wcDate = wcNow.getFullYear() + '-' + String(wcNow.getMonth() + 1).padStart(2, '0') + '-' + String(wcNow.getDate()).padStart(2, '0');
         }
         var wcKey = 'dialer:wc:' + wcPostSession.account_id + ':' + wcDate;
-        var wcCurrent = parseInt(await env.DATA_KV.get(wcKey) || '0', 10);
+        var wcCurrent = parseInt(await env.DATA_STORE.get(wcKey) || '0', 10);
         var wcNew = Math.max(wcCurrent + wcDelta, 0);
-        await env.DATA_KV.put(wcKey, String(wcNew));
+        await env.DATA_STORE.put(wcKey, String(wcNew));
         return new Response(JSON.stringify({ count: wcNew, date: wcDate }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -2216,7 +2216,7 @@ export default {
         const autoDeleteAfterDial = body.auto_delete_after_dial === true;
         const accountId = _dialerAccountId;
         const markerKey = 'auto_delete_batch:' + accountId + ':' + encodeURIComponent(batchLabel);
-        if (await env.DATA_KV.get(markerKey)) throw new Error('该批次标签已有自动删除任务，请更换唯一批次标签');
+        if (await env.DATA_STORE.get(markerKey)) throw new Error('该批次标签已有自动删除任务，请更换唯一批次标签');
         if (autoDeleteAfterDial) {
           if (!batchLabel) throw new Error('自动删除批次必须设置批次标签');
           const existingBatch = await createSupabaseClient(env).getBatchDialStatus(batchLabel, accountId, false);
@@ -2237,7 +2237,7 @@ export default {
           await sb.resetBatchDialStatus(batchLabel, accountId);
           const batchState = await sb.getBatchDialStatus(batchLabel, accountId, false);
           if (batchState.total > 0) {
-            await env.DATA_KV.put(markerKey, JSON.stringify({ batch_label: batchLabel, account_id: accountId, created_at: Date.now() }));
+            await env.DATA_STORE.put(markerKey, JSON.stringify({ batch_label: batchLabel, account_id: accountId, created_at: Date.now() }));
           }
         }
         var newCustomers = Array.isArray(result.new_customers) ? result.new_customers : [];
@@ -2245,7 +2245,7 @@ export default {
           var ulAcctName = '', ulAccts = await dialerGetAccounts(env);
           for (var ua = 0; ua < ulAccts.length; ua++) { if (ulAccts[ua].account_id === accountId) { ulAcctName = ulAccts[ua].account_name || ulAccts[ua].label || ''; break; } }
           var ulNow = Date.now();
-          try { await env.DATA_KV.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,metric_version:2,batch_label:batchLabel,created_at:ulNow})); }
+          try { await env.DATA_STORE.put('upload_log:' + ulNow + ':' + Math.random().toString(36).slice(2,6), JSON.stringify({account_id:accountId,account_name:ulAcctName,count:newCustomers.length,metric_version:2,batch_label:batchLabel,created_at:ulNow})); }
           catch(e2) { console.error('upload log write failed:',e2.message); }
           try { await notifyNewCustomers(env,ulAcctName,newCustomers); } catch(notifyErr) { console.error('[wecom] detail notification failed:',notifyErr.message); }
         }
@@ -2350,10 +2350,10 @@ export default {
         // 多设备友好：锁被占用时服务端等待释放（最多 ~4s）而不是直接失败，
         // 保证每台设备的换一批都能被处理并记录到上传记录（避免"只记录一个设备"）
         var lockWaitDeadline = Date.now() + 4000;
-        var existingLock = await env.DATA_KV.get(lockKey);
+        var existingLock = await env.DATA_STORE.get(lockKey);
         while (existingLock && Date.now() < lockWaitDeadline) {
           await new Promise(function(r) { setTimeout(r, 300); });
-          existingLock = await env.DATA_KV.get(lockKey);
+          existingLock = await env.DATA_STORE.get(lockKey);
         }
         if (existingLock) {
           // Another pull is in-flight for this account — return empty to avoid duplicates
@@ -2362,12 +2362,12 @@ export default {
           });
         }
         // Acquire lock with short TTL (auto-release if worker crashes)
-        await env.DATA_KV.put(lockKey, lockValue, { expirationTtl: 60 });
+        await env.DATA_STORE.put(lockKey, lockValue, { expirationTtl: 60 });
 
         try {
           // pulled_at in Supabase is the single source of truth for the 10-day cooldown.
-          // Do not scan a per-mobile KV namespace here: it duplicates the DB filter and
-          // can fan out into dozens of KV-backed REST requests on every pull.
+          // Do not scan a per-mobile 数据表扫描 here: it duplicates the DB filter and
+          // can fan out into 大量逐条数据库请求 on every pull.
           const sb = createSupabaseClient(env);
           const result = await sb.getCustomersForDialer(limit, excludeMobiles, accountId);
           const data = result.data || [];
@@ -2394,7 +2394,7 @@ export default {
             if (childCustomerCount < 600 || data.length === 0) {
               masterPullReason = childCustomerCount < 600 && data.length === 0 ? 'low_inventory_and_empty_dialer' : (childCustomerCount < 600 ? 'low_inventory' : 'empty_dialer');
               var masterDailyKey = 'dialer:master-pull:day:' + accountId + ':' + beijingDateKey(new Date());
-              var masterDailyRaw = await env.DATA_KV.get(masterDailyKey);
+              var masterDailyRaw = await env.DATA_STORE.get(masterDailyKey);
               var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
               var masterDailyCount = Math.max(0, parseInt(masterDailyState.count, 10) || 0);
               masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
@@ -2437,7 +2437,7 @@ export default {
                     movedRows = movedRows.concat(moved);
                     masterLoadedCount += moved.length;
                     masterDailyCount += moved.length;
-                    await env.DATA_KV.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
+                    await env.DATA_STORE.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
                     masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
                   }
                   if (masterDailyRemaining <= 0 || data.length + movedRows.length >= limit) break;
@@ -2476,7 +2476,7 @@ export default {
               if (pullAccts[pa].account_id === accountId) { pullAcctName = pullAccts[pa].account_name || pullAccts[pa].label || ''; break; }
             }
             var pullNow = Date.now();
-            await env.DATA_KV.put(
+            await env.DATA_STORE.put(
               'upload_log:' + pullNow + ':' + Math.random().toString(36).slice(2, 6),
               JSON.stringify({ account_id: accountId, account_name: pullAcctName, count: data.length, batch_label: '换一批', type: 'pull', created_at: pullNow })
             );
@@ -2484,20 +2484,20 @@ export default {
             console.error('pull log write failed:', pullLogErr.message); // 日志写入失败不影响拉取主流程
           }
 
-          // Background: update pulled_at + write KV cooldowns + release lock
+          // Background: update pulled_at + write Supabase cooldown rows + release lock
           // Fire-and-forget after response so the client gets instant feedback.
           ctx.waitUntil((async function() {
             try {
               if (data.length > 0) {
                 const mobiles = data.map(function(c) { return c.mobile || ''; }).filter(Boolean);
-                // One bulk Supabase PATCH replaces N per-mobile KV writes.
+                // One bulk Supabase PATCH replaces N per-mobile 数据库写入.
                 // getCustomersForDialer already excludes rows whose pulled_at is within 10 days.
                 await sb.batchSetPulledAt(mobiles, accountId);
               }
             } catch (bgErr) {
               console.error('[pull] background update error:', bgErr.message);
             } finally {
-              try { await env.DATA_KV.delete(lockKey); } catch (_) {}
+              try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
             }
           })());
 
@@ -2534,7 +2534,7 @@ export default {
           });
         } catch (innerErr) {
           // Always release lock on error
-          try { await env.DATA_KV.delete(lockKey); } catch (_) { }
+          try { await env.DATA_STORE.delete(lockKey); } catch (_) { }
           throw innerErr;
         }
       } catch (e) {
@@ -2613,7 +2613,7 @@ export default {
         const accountId = _dialerAccountId;
         if (!batchLabel) throw new Error('缺少批次标签');
         const markerKey = 'auto_delete_batch:' + accountId + ':' + encodeURIComponent(batchLabel);
-        const marker = await env.DATA_KV.get(markerKey);
+        const marker = await env.DATA_STORE.get(markerKey);
         if (!marker) {
           return new Response(JSON.stringify({ success: true, enabled: false, deleted: false }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
@@ -2621,7 +2621,7 @@ export default {
         }
         const sb = createSupabaseClient(env);
         const result = await sb.getBatchDialStatus(batchLabel, accountId, true);
-        if (result.deleted) await env.DATA_KV.delete(markerKey);
+        if (result.deleted) await env.DATA_STORE.delete(markerKey);
         return new Response(JSON.stringify({
           success: true, enabled: true, deleted: !!result.deleted,
           completed: !!result.completed, count: result.count || 0,
@@ -2657,13 +2657,13 @@ export default {
         await sb.updateCustomerTimeline(mobile, entry, accountId);
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
-          await env.DATA_KV.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
+          await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
           if (['dial', 'call_success', 'call_failed'].indexOf(entry.type) >= 0) {
-            await env.DATA_KV.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
+            await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
           }
         }
-        const operatedCount = await countKvPrefix(env, 'client_ops_all:' + accountId + ':' + opDate + ':');
-        const dialedCount = await countKvPrefix(env, 'client_ops_dial:' + accountId + ':' + opDate + ':');
+        const operatedCount = await countStorePrefix(env, 'client_ops_all:' + accountId + ':' + opDate + ':');
+        const dialedCount = await countStorePrefix(env, 'client_ops_dial:' + accountId + ':' + opDate + ':');
         return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
@@ -2755,7 +2755,7 @@ export default {
         if (!jobSession) throw new Error('未登录');
         var jobId = path.slice('/api/dialer/background-jobs/'.length);
         if (!/^crm_[a-z0-9_]+$/i.test(jobId)) throw new Error('任务编号无效');
-        var jobRecord = await env.DATA_KV.get('dialer:bgjob:' + jobId, 'json');
+        var jobRecord = await env.DATA_STORE.get('dialer:bgjob:' + jobId, 'json');
         if (!jobRecord) throw new Error('任务不存在或已过期');
         var jobAccounts = await dialerGetAccounts(env);
         var jobCaller = jobAccounts.find(function(a){return a.account_id===jobSession.account_id;});
@@ -2852,7 +2852,7 @@ export default {
           }
         }
 
-        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const visionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
         let text = '';
 
         const fullVisionPrompt = "请识别并提取这张表格截图中的所有文字内容，保持行对齐。\n" +
@@ -2965,7 +2965,7 @@ export default {
           }
         }
 
-        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
+        const visionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
         let text = '';
 
         const visionPrompt = "Please extract the original Chinese character (usually a single surname, e.g., 温, 刘, 朱) from this image. You MUST output ONLY the original Chinese character itself. DO NOT translate to pinyin, DO NOT output English letters, and DO NOT write any explanation. If no Chinese character is found, output nothing. \n请提取图片中的中文字符（通常是单个姓氏，例如：温、刘、朱）。你必须**只输出原中文字符本身**。**严禁输出任何英文字母、拼音或解释说明**。如果没有中文字符，请输出空。";
@@ -3234,10 +3234,10 @@ export default {
         const { saveOnly, visionApiKey, visionApiBase } = body;
         
         if (visionApiKey !== undefined) {
-          await env.DATA_KV.put('config:vision_api_key', visionApiKey || '');
+          await env.DATA_STORE.put('config:vision_api_key', visionApiKey || '');
         }
         if (visionApiBase !== undefined) {
-          await env.DATA_KV.put('config:vision_api_base', visionApiBase || '');
+          await env.DATA_STORE.put('config:vision_api_base', visionApiBase || '');
         }
         
         if (saveOnly) {
@@ -3247,14 +3247,14 @@ export default {
         }
         
         // Connectivity test
-        const apiKey = visionApiKey || await env.DATA_KV.get('config:vision_api_key') || '';
+        const apiKey = visionApiKey || await env.DATA_STORE.get('config:vision_api_key') || '';
         if (!apiKey) {
           return new Response(JSON.stringify({ success: false, error: 'API Key 不能为空' }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
         
-        let apiBase = visionApiBase || await env.DATA_KV.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        let apiBase = visionApiBase || await env.DATA_STORE.get('config:vision_api_base') || 'https://generativelanguage.googleapis.com/v1beta/openai/';
         if (!apiBase.endsWith('/')) apiBase += '/';
         const url = apiBase + 'chat/completions';
         
@@ -3298,9 +3298,9 @@ export default {
         const fileName = body.fileName || '';
 
         // Get the regular AI config
-        let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
-        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
-        const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        let provider = await env.DATA_STORE.get('config:ai_provider') || 'gemini';
+        const visionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
+        const aiKey = await env.DATA_STORE.get('config:ai_api_key') || await env.DATA_STORE.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
         
         let apiKey = aiKey;
         if (provider === 'gemini' || (visionKey && !aiKey)) {
@@ -3308,8 +3308,8 @@ export default {
           apiKey = visionKey || aiKey;
         }
 
-        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
-        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+        let apiBase = await env.DATA_STORE.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_STORE.get('config:ai_model') || env.AI_API_MODEL;
 
         if (provider === 'gemini') {
           if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
@@ -3593,9 +3593,9 @@ export default {
           });
         }
 
-        let provider = await env.DATA_KV.get('config:ai_provider') || 'gemini';
-        const visionKey = await env.DATA_KV.get('config:vision_api_key') || '';
-        const aiKey = await env.DATA_KV.get('config:ai_api_key') || await env.DATA_KV.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+        let provider = await env.DATA_STORE.get('config:ai_provider') || 'gemini';
+        const visionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
+        const aiKey = await env.DATA_STORE.get('config:ai_api_key') || await env.DATA_STORE.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
         
         let apiKey = aiKey;
         if (provider === 'gemini' || (visionKey && !aiKey)) {
@@ -3603,8 +3603,8 @@ export default {
           apiKey = visionKey || aiKey;
         }
 
-        let apiBase = await env.DATA_KV.get('config:ai_api_base') || env.AI_API_BASE;
-        let model = await env.DATA_KV.get('config:ai_model') || env.AI_API_MODEL;
+        let apiBase = await env.DATA_STORE.get('config:ai_api_base') || env.AI_API_BASE;
+        let model = await env.DATA_STORE.get('config:ai_model') || env.AI_API_MODEL;
 
         if (provider === 'gemini') {
           if (!apiBase) apiBase = 'https://generativelanguage.googleapis.com/v1beta/openai/';
@@ -3815,18 +3815,18 @@ export default {
           metadata: metadata || {}
         });
 
-        // Update KV caches
+        // Update Supabase runtime caches
         try {
-          var countStr = await env.DATA_KV.get('correction:count');
+          var countStr = await env.DATA_STORE.get('correction:count');
           var count = parseInt(countStr || '0', 10) + 1;
-          await env.DATA_KV.put('correction:count', String(count), { expirationTtl: 3600 });
-          await env.DATA_KV.put('correction:last_sync', new Date().toISOString());
+          await env.DATA_STORE.put('correction:count', String(count), { expirationTtl: 3600 });
+          await env.DATA_STORE.put('correction:last_sync', new Date().toISOString());
 
           // Update few_shot_examples ring buffer if user made edits
           if (editCount > 0 && originalContacts && correctedContacts) {
             var examples = [];
             try {
-              var cached = await env.DATA_KV.get('config:few_shot_examples');
+              var cached = await env.DATA_STORE.get('config:few_shot_examples');
               if (cached) examples = JSON.parse(cached);
             } catch(e) {}
             examples.unshift({
@@ -3839,10 +3839,10 @@ export default {
               })
             });
             if (examples.length > 20) examples.length = 20;
-            await env.DATA_KV.put('config:few_shot_examples', JSON.stringify(examples), { expirationTtl: 86400 });
+            await env.DATA_STORE.put('config:few_shot_examples', JSON.stringify(examples), { expirationTtl: 86400 });
           }
         } catch (kvErr) {
-          console.error('[OCR correction] KV update failed:', kvErr.message);
+          console.error('[OCR correction] Supabase store update failed:', kvErr.message);
         }
 
         return new Response(JSON.stringify({ success: true, id: saved ? saved.id : null }), {
@@ -3926,12 +3926,12 @@ export default {
         var count = 0;
         var lastSync = '';
         try {
-          var cachedCount = await env.DATA_KV.get('correction:count');
+          var cachedCount = await env.DATA_STORE.get('correction:count');
           if (cachedCount) count = parseInt(cachedCount, 10) || 0;
-          lastSync = await env.DATA_KV.get('correction:last_sync') || '';
+          lastSync = await env.DATA_STORE.get('correction:last_sync') || '';
         } catch (kvErr) {}
 
-        // Fallback: query Supabase directly if KV is empty
+        // Fallback: query Supabase directly if the local cache is empty
         if (count === 0) {
           const sb = createSupabaseClient(env);
           count = await sb.getCorrectionsCount();
@@ -4049,13 +4049,13 @@ export default {
       try {
         const url2 = new URL(request.url);
         const date = url2.searchParams.get('date') || new Date().toISOString().slice(0,10);
-        const raw = await env.DATA_KV.get('diet:' + date);
-        const rawCfg = await env.DATA_KV.get('diet:config');
+        const raw = await env.DATA_STORE.get('diet:' + date);
+        const rawCfg = await env.DATA_STORE.get('diet:config');
         let config = {}; try { config = JSON.parse(rawCfg); } catch(e) {}
         let data = {}; try { data = JSON.parse(raw); } catch(e) {}
         if (!data.yesterdayWeight) {
           const yd = yesterdayKey(date);
-          const rawY = await env.DATA_KV.get('diet:' + yd);
+          const rawY = await env.DATA_STORE.get('diet:' + yd);
           if (rawY) { try { const yD = JSON.parse(rawY); if (yD.weight) data.yesterdayWeight = yD.weight; } catch(e) {} }
         }
         return new Response(JSON.stringify({ data, config }), {
@@ -4073,7 +4073,7 @@ export default {
         const body = await request.json();
         const date = body.date || new Date().toISOString().slice(0,10);
         const data = body.data || {};
-        await env.DATA_KV.put('diet:' + date, JSON.stringify(data));
+        await env.DATA_STORE.put('diet:' + date, JSON.stringify(data));
         return new Response(JSON.stringify({ success: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -4087,7 +4087,7 @@ export default {
     if (path === '/api/diet/config' && request.method === 'POST') {
       try {
         const cfg = await request.json();
-        await env.DATA_KV.put('diet:config', JSON.stringify(cfg));
+        await env.DATA_STORE.put('diet:config', JSON.stringify(cfg));
         return new Response(JSON.stringify({ success: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -4104,12 +4104,12 @@ export default {
         const url2 = new URL(request.url);
         const month = url2.searchParams.get('month') || new Date().toISOString().slice(0, 7);
         const prefix = 'diet:' + month;
-        const list = await env.DATA_KV.list({ prefix });
+        const list = await env.DATA_STORE.list({ prefix });
         const days = {};
         for (const k of list.keys) {
           const dateKey = k.name.replace('diet:', '');
           try {
-            const raw = await env.DATA_KV.get(k.name);
+            const raw = await env.DATA_STORE.get(k.name);
             const d = JSON.parse(raw);
             if (d && d.completed) {
               days[dateKey] = true;
@@ -4131,7 +4131,7 @@ export default {
     // 学习中心页面（支持自定义内容）
     if (path === '/learn' || path === '/learn/') {
       try {
-        var learnRaw = await env.DATA_KV.get('config:learn');
+        var learnRaw = await env.DATA_STORE.get('config:learn');
         var learnContent = LEARN_DEFAULT_CONTENT;
         if (learnRaw) {
           try {
@@ -4180,7 +4180,7 @@ export default {
       throw new Error('Supabase 未配置：定时任务已停止，禁止回退到 Cloudflare KV。');
     }
     const workerEnv = Object.create(env);
-    workerEnv.DATA_KV = createSupabaseKV(env);
+    workerEnv.DATA_STORE = createSupabaseStore(env);
     env = workerEnv;
     try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
     // The every-minute trigger is only for queued CRM jobs; keep the daily/weekly report on its original cron.
