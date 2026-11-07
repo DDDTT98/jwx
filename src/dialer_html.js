@@ -3536,6 +3536,12 @@
         <button id="dbChangePinBtn" class="btn-secondary" style="padding:0 12px; height:32px; font-size:0.72rem;">修改</button>
       </div>
       <div id="dbChangePinError" style="font-size:0.62rem; min-height:16px;"></div>
+      <div id="dbLegacyStorageMigration" style="display:none;flex-direction:column;gap:6px;border-top:0.5px solid var(--card-border);padding-top:12px;">
+        <div style="font-size:0.78rem;font-weight:800;color:var(--text-main);">旧文件迁移</div>
+        <div style="font-size:0.68rem;line-height:1.5;color:var(--text-light);">将旧 OCR 模型、图片、文档和粘贴文件迁移到 Supabase 私有 Storage。原始数据会保留，不会删除。</div>
+        <button id="dbMigrateStorageAssetsBtn" type="button" class="btn-secondary" style="height:34px;font-size:0.72rem;">迁移旧文件到 Storage</button>
+        <div id="dbStorageMigrationStatus" style="font-size:0.66rem;line-height:1.5;color:var(--text-soft);min-height:16px;"></div>
+      </div>
       <div style="display:flex; gap:8px; border-top:0.5px solid var(--card-border); padding-top:12px;">
         <button id="dbLogoutBtn" class="btn-secondary" style="flex:1; height:34px; font-size:0.75rem;">退出登录</button>
         <button id="dbResetAccountsBtn" style="flex:1; height:34px; background:rgba(231,76,60,0.08); border:none; box-shadow:var(--shadow-card); color:#e74c3c; border-radius:var(--radius-xs); font-size:0.72rem; font-weight:700; cursor:pointer;">重置所有账户</button>
@@ -12230,6 +12236,52 @@ function updateAutoDialBtn() {
       if (subsSection) subsSection.style.display = canManageTeam() ? "block" : "none";
       var resetBtn = document.getElementById("dbResetAccountsBtn");
       if (resetBtn) resetBtn.style.display = isSessionMaster() ? "block" : "none";
+      var storageMigrationPanel = document.getElementById("dbLegacyStorageMigration");
+      if (storageMigrationPanel) storageMigrationPanel.style.display = isSessionMaster() ? "flex" : "none";
+      var storageMigrationBtn = document.getElementById("dbMigrateStorageAssetsBtn");
+      if (storageMigrationBtn && !storageMigrationBtn.dataset.bound) {
+        storageMigrationBtn.dataset.bound = "1";
+        storageMigrationBtn.addEventListener("click", async function() {
+          if (!isSessionMaster()) return;
+          if (!confirm("开始迁移旧 OCR 模型、图片、文档和粘贴文件到 Supabase 私有 Storage？\\n\\n原始 app_kv 文件会保留，不会删除。")) return;
+          var status = document.getElementById("dbStorageMigrationStatus");
+          storageMigrationBtn.disabled = true;
+          storageMigrationBtn.textContent = "迁移中...";
+          if (status) status.textContent = "正在准备私有存储空间...";
+          var cursor = 0;
+          var migratedTotal = 0;
+          var totalAssets = 0;
+          try {
+            while (true) {
+              var response = await fetch("/api/dialer/admin/migrate-storage-assets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getSessionToken() },
+                body: JSON.stringify({ cursor: cursor, limit: 3 })
+              });
+              var result = await response.json().catch(function() { return {}; });
+              if (!response.ok || !result.success) throw new Error((result && result.error) || ("HTTP " + response.status));
+              migratedTotal += Number(result.migrated || 0);
+              totalAssets = Number(result.total || totalAssets || 0);
+              if (status) status.textContent = "已迁移 " + migratedTotal + (totalAssets ? " / " + totalAssets : "") + " 个文件...";
+              if (result.next_cursor === null || result.next_cursor === undefined) break;
+              cursor = Number(result.next_cursor) || 0;
+            }
+            if (status) {
+              status.style.color = "#07c160";
+              status.textContent = "迁移完成：共迁移 " + migratedTotal + " 个文件。原始 app_kv 文件仍完整保留。";
+            }
+            storageMigrationBtn.textContent = "重新核对 / 补迁文件";
+          } catch (e) {
+            if (status) {
+              status.style.color = "#e74c3c";
+              status.textContent = "迁移中断：" + (e.message || "未知错误") + "。可再次点击继续，已上传文件会安全覆盖。";
+            }
+            storageMigrationBtn.textContent = "重试迁移";
+          } finally {
+            storageMigrationBtn.disabled = false;
+          }
+        });
+      }
 
       // Two explicit workflows: create a group/leader, or create a member with optional leader assignment.
       var createParentSelect = document.getElementById("dbSubAccountParentInput");

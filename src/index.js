@@ -1921,6 +1921,165 @@ export default {
       }
     }
 
+    // One-time migration of legacy binary files from app_kv to private Supabase Storage.
+    // Only the master account may run it; source rows are deliberately retained for rollback.
+    if (path === '/api/dialer/admin/migrate-storage-assets' && request.method === 'POST') {
+      if (_gateRole !== 'master') {
+        return new Response(JSON.stringify({ success: false, error: '只有主账号可以迁移旧文件' }), {
+          status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+      try {
+        var migrationBody = await request.json().catch(function() { return {}; });
+        var assetCursor = Math.max(0, parseInt(migrationBody.cursor, 10) || 0);
+        var assetLimit = Math.max(1, Math.min(parseInt(migrationBody.limit, 10) || 3, 5));
+        var bucketName = 'bhp-assets';
+        var storageHeaders = {
+          'apikey': env.SUPABASE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_KEY
+        };
+
+        if (assetCursor === 0) {
+          var bucketResp = await fetch(env.SUPABASE_URL + '/storage/v1/bucket', {
+            method: 'POST',
+            headers: Object.assign({}, storageHeaders, { 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ id: bucketName, name: bucketName, public: false, file_size_limit: 26214400 })
+          });
+          if (!bucketResp.ok && bucketResp.status !== 409) {
+            throw new Error('创建私有 Storage bucket 失败 [' + bucketResp.status + ']: ' + (await bucketResp.text()).slice(0, 240));
+          }
+        }
+
+        var assetUrl = new URL(env.SUPABASE_URL + '/rest/v1/app_kv');
+        assetUrl.searchParams.set('select', 'key,value,value_type,updated_at');
+        assetUrl.searchParams.set('or', '(key.like.tessdata:*,key.like.img:*,key.like.doc:*,key.like.paste:*)');
+        assetUrl.searchParams.set('order', 'key.asc');
+        assetUrl.searchParams.set('limit', String(assetLimit));
+        assetUrl.searchParams.set('offset', String(assetCursor));
+        var assetResp = await fetch(assetUrl.toString(), {
+          headers: Object.assign({}, storageHeaders, { 'Prefer': 'count=exact' })
+        });
+        if (!assetResp.ok) {
+          throw new Error('读取旧文件列表失败 [' + assetResp.status + ']: ' + (await assetResp.text()).slice(0, 240));
+        }
+        var assetRows = await assetResp.json();
+        if (!Array.isArray(assetRows)) throw new Error('旧文件列表格式不正确');
+
+        // Read the small manifests to preserve original filenames and MIME types.
+        var metaUrl = new URL(env.SUPABASE_URL + '/rest/v1/app_kv');
+        metaUrl.searchParams.set('select', 'key,value,value_type');
+        metaUrl.searchParams.set('key', 'in.(images:manifest,docs:manifest,pastes:manifest)');
+        var metaResp = await fetch(metaUrl.toString(), { headers: storageHeaders });
+        if (!metaResp.ok) throw new Error('读取文件名称清单失败 [' + metaResp.status + ']');
+        var metaRows = await metaResp.json();
+        var assetMeta = {};
+        (metaRows || []).forEach(function(metaRow) {
+          try {
+            var manifestText = metaRow.value_type === 'base64'
+              ? new TextDecoder().decode(Uint8Array.from(atob(metaRow.value), function(ch) { return ch.charCodeAt(0); }))
+              : metaRow.value;
+            var entries = JSON.parse(manifestText || '[]');
+            var prefix = metaRow.key === 'images:manifest' ? 'img:' : (metaRow.key === 'docs:manifest' ? 'doc:' : 'paste:');
+            (Array.isArray(entries) ? entries : []).forEach(function(entry) {
+              if (entry && entry.id) assetMeta[prefix + entry.id] = entry;
+            });
+          } catch (_) {}
+        });
+
+        var migratedAssets = [];
+        for (var ai = 0; ai < assetRows.length; ai++) {
+          var asset = assetRows[ai];
+          if (!asset || !asset.key) continue;
+          var bytes;
+          if (asset.value_type === 'base64') {
+            var binary = atob(asset.value || '');
+            bytes = new Uint8Array(binary.length);
+            for (var bi = 0; bi < binary.length; bi++) bytes[bi] = binary.charCodeAt(bi);
+          } else {
+            bytes = new TextEncoder().encode(asset.value || '');
+          }
+
+          var meta = assetMeta[asset.key] || {};
+          var originalName = meta.name || asset.key;
+          var lowerName = String(originalName).toLowerCase();
+          var contentType = typeof meta.type === 'string' && /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(meta.type)
+            ? meta.type
+            : (lowerName.endsWith('.js') ? 'application/javascript'
+              : (lowerName.endsWith('.gz') ? 'application/gzip'
+                : (lowerName.endsWith('.png') ? 'image/png'
+                  : (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') ? 'image/jpeg'
+                    : (lowerName.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream')))));
+
+          var keyBytes = new TextEncoder().encode(asset.key);
+          var keyBinary = '';
+          for (var ki = 0; ki < keyBytes.length; ki++) keyBinary += String.fromCharCode(keyBytes[ki]);
+          var safeKey = btoa(keyBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+          var objectPath = 'legacy/' + safeKey;
+          var uploadResp = await fetch(env.SUPABASE_URL + '/storage/v1/object/' + bucketName + '/' + objectPath, {
+            method: 'POST',
+            headers: Object.assign({}, storageHeaders, {
+              'Content-Type': contentType,
+              'x-upsert': 'true',
+              'Cache-Control': '3600'
+            }),
+            body: bytes
+          });
+          if (!uploadResp.ok) {
+            throw new Error('上传旧文件失败 [' + uploadResp.status + '] ' + asset.key + ': ' + (await uploadResp.text()).slice(0, 240));
+          }
+
+          var digest = await crypto.subtle.digest('SHA-256', bytes);
+          var hashBytes = new Uint8Array(digest);
+          var hashHex = Array.from(hashBytes).map(function(v) { return v.toString(16).padStart(2, '0'); }).join('');
+          migratedAssets.push({
+            source_key: asset.key,
+            object_path: objectPath,
+            original_name: originalName,
+            content_type: contentType,
+            byte_size: bytes.byteLength,
+            sha256: hashHex,
+            source_updated_at: asset.updated_at || null,
+            migrated_at: new Date().toISOString()
+          });
+        }
+
+        if (migratedAssets.length) {
+          var manifestResp = await fetch(env.SUPABASE_URL + '/rest/v1/app_storage_asset_manifest?on_conflict=source_key', {
+            method: 'POST',
+            headers: Object.assign({}, storageHeaders, {
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates,return=minimal'
+            }),
+            body: JSON.stringify(migratedAssets)
+          });
+          if (!manifestResp.ok) {
+            throw new Error('保存 Storage 文件索引失败 [' + manifestResp.status + ']: ' + (await manifestResp.text()).slice(0, 240));
+          }
+        }
+
+        var contentRange = assetResp.headers.get('Content-Range') || '';
+        var rangeParts = contentRange.split('/');
+        var totalAssets = rangeParts.length === 2 ? (parseInt(rangeParts[1], 10) || 0) : null;
+        // If the final page happens to be exactly full, one harmless empty request confirms completion.
+        var nextCursor = assetRows.length === assetLimit ? assetCursor + assetRows.length : null;
+        return new Response(JSON.stringify({
+          success: true,
+          migrated: migratedAssets.length,
+          total: totalAssets,
+          cursor: assetCursor,
+          next_cursor: nextCursor,
+          assets: migratedAssets.map(function(item) { return { key: item.source_key, size: item.byte_size, name: item.original_name }; })
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+        });
+      } catch (migrationError) {
+        console.error('[Storage asset migration] Failed:', migrationError.message);
+        return new Response(JSON.stringify({ success: false, error: migrationError.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // Read shared whitelist products for client-side matching on locally imported dial lists.
     if (path === '/api/dialer/whitelist' && request.method === 'GET') {
       try {
