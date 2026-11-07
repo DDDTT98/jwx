@@ -2,6 +2,7 @@
 // 部署时必须配置 SUPABASE_URL 和 SUPABASE_KEY；所有持久化数据统一写入 Supabase。
 
 import { DIALER_HTML } from './dialer_html.js';
+import { STORAGE_MIGRATOR_HTML } from './storage_migrator_html.js';
 import { DIET_HTML } from './diet_html.js';
 import { LEARN_HTML, LEARN_DEFAULT_CONTENT } from './learn_html.js';
 import { createSupabaseClient, createSupabaseKV } from './supabase.js';
@@ -448,6 +449,12 @@ export default {
     env = workerEnv;
     const url = new URL(request.url);
     const path = url.pathname;
+    // Standalone master-only file migration console (login happens inside the page).
+    if (path === '/storage-migrate' && request.method === 'GET') {
+      return new Response(STORAGE_MIGRATOR_HTML, {
+        headers: { 'Content-Type': 'text/html; charset=UTF-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+      });
+    }
     const clientIP = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
 
     // CORS preflight
@@ -1918,6 +1925,37 @@ export default {
         var _viewAllowed=_gateRole==='master'||(_gateRole==='manager'&&(_viewId===_session.account_id||(_viewTarget&&_viewTarget.parent_account_id===_session.account_id)));
         if(_viewAllowed&&_viewTarget)_dialerAccountId=_viewId;
         else return new Response(JSON.stringify({error:'无权查看该账户数据'}),{status:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
+      }
+    }
+
+    // Read-only migration verification endpoint; master session required by the shared auth gate above.
+    if (path === '/api/dialer/admin/storage-migration-status' && request.method === 'POST') {
+      if (_gateRole !== 'master') return new Response(JSON.stringify({ success: false, error: '只有主账号可以查看迁移状态' }), { status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
+      try {
+        var verifyHeaders = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Prefer': 'count=exact' };
+        var manifestCheck = await fetch(env.SUPABASE_URL + '/rest/v1/app_storage_asset_manifest?select=source_key', { method: 'HEAD', headers: verifyHeaders });
+        if (!manifestCheck.ok) throw new Error('读取迁移索引失败 [' + manifestCheck.status + ']');
+        var manifestRange = manifestCheck.headers.get('Content-Range') || '';
+        var manifestCount = parseInt(manifestRange.split('/').pop(), 10) || 0;
+        var legacyCheck = await fetch(env.SUPABASE_URL + '/rest/v1/app_kv?select=key&or=' + encodeURIComponent('(key.like.tessdata:*,key.like.img:*,key.like.doc:*,key.like.paste:*)'), { method: 'HEAD', headers: verifyHeaders });
+        if (!legacyCheck.ok) throw new Error('读取旧文件数量失败 [' + legacyCheck.status + ']');
+        var legacyRange = legacyCheck.headers.get('Content-Range') || '';
+        var legacyCount = parseInt(legacyRange.split('/').pop(), 10) || 0;
+        var objectResp = await fetch(env.SUPABASE_URL + '/storage/v1/object/list/bhp-assets', {
+          method: 'POST', headers: Object.assign({}, verifyHeaders, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ prefix: 'legacy/', limit: 1000, offset: 0, sortBy: { column: 'name', order: 'asc' } })
+        });
+        var storageCount = 0;
+        if (objectResp.status !== 404) {
+          if (!objectResp.ok) throw new Error('读取 Storage 对象失败 [' + objectResp.status + ']: ' + (await objectResp.text()).slice(0, 180));
+          var objectRows = await objectResp.json();
+          storageCount = Array.isArray(objectRows) ? objectRows.length : 0;
+        }
+        return new Response(JSON.stringify({ success: true, legacy_count: legacyCount, manifest_count: manifestCount, storage_count: storageCount, complete: legacyCount > 0 && manifestCount === legacyCount && storageCount === legacyCount }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
+        });
+      } catch (verifyError) {
+        return new Response(JSON.stringify({ success: false, error: verifyError.message }), { status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
       }
     }
 
