@@ -11703,42 +11703,59 @@ function updateAutoDialBtn() {
       // Toolbar action: 转入公海
       var movePublicBtn = document.getElementById('crmMovePublicBtn');
       if (movePublicBtn) {
-          movePublicBtn.onclick = function() {
-            var mobiles = Object.keys(DB.selectedIds);
-            if (mobiles.length === 0) { alert('请先勾选要转入公海的数据'); return; }
+        movePublicBtn.onclick = async function() {
+          var mobiles = Object.keys(DB.selectedIds);
+          if (mobiles.length === 0) { alert('请先勾选要转入公海的数据'); return; }
 
-            if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「公海」？\\n\\n转入后该批数据将从当前账户移除，所有账户均无法再添加这些号码。')) return;
+          if (!confirm('确认将选中的 ' + mobiles.length + ' 个客户转入「公海」？\\n\\n转入后该批数据将从当前账户移除，所有账户均无法再添加这些号码。')) return;
 
-            movePublicBtn.disabled = true;
-            movePublicBtn.textContent = '处理中...';
+          var originalText = movePublicBtn.textContent;
+          movePublicBtn.disabled = true;
+          movePublicBtn.textContent = '处理中...';
+          try {
+            var token = getSessionToken();
+            if (!token) throw new Error('登录状态已失效，请重新登录后再试。');
+            var requestHeaders = {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            };
+            if (_viewAccountId) requestHeaders['X-View-Account-Id'] = _viewAccountId;
 
-            fetch('/api/dialer/customers/transfer-to-pool', {
+            var response = await fetch('/api/dialer/customers/transfer-to-pool', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: requestHeaders,
               body: JSON.stringify({ mobiles: mobiles })
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(result) {
-              if (result.success) {
-                alert('操作完成，成功转入公海 ' + (result.transferred || 0) + ' / ' + mobiles.length + ' 条');
-              } else {
-                alert('转入失败: ' + (result.error || '未知错误'));
-              }
-              DB.selectedIds = {};
-              var selectAllCb = document.getElementById('crmSelectAll');
-              if (selectAllCb) selectAllCb.checked = false;
-              dbFetch();
-              loadAccountStats();
-              refreshAccountDataCount(); // 「更多」菜单账户数量同步
-            })
-            .catch(function(err) {
-              alert('批量转入公海出错: ' + err.message);
-            })
-            .then(function() {
-              movePublicBtn.disabled = false;
-              movePublicBtn.textContent = '转入公海';
             });
-          };
+            var result = await response.json().catch(function() { return null; });
+            if (!response.ok) {
+              var message = result && (result.error || result.message);
+              if (response.status === 401) message = '登录已过期，请重新登录后再执行。';
+              throw new Error(message || ('服务器请求失败（HTTP ' + response.status + '）'));
+            }
+            if (!result || result.success !== true) {
+              throw new Error((result && result.error) || '服务器没有确认转移成功。');
+            }
+            var transferred = Number(result.transferred);
+            if (!Number.isFinite(transferred) || transferred < mobiles.length) {
+              throw new Error('云端只确认转移 ' + (Number.isFinite(transferred) ? transferred : 0) +
+                '/' + mobiles.length + ' 个号码。为防止数据丢失，当前选择已保留，请核对公海数据后再试。');
+            }
+
+            alert('操作完成，成功转入公海 ' + transferred + ' / ' + mobiles.length + ' 条');
+            DB.selectedIds = {};
+            var selectAllCb = document.getElementById('crmSelectAll');
+            if (selectAllCb) selectAllCb.checked = false;
+            dbFetch();
+            loadAccountStats();
+            refreshAccountDataCount();
+          } catch (err) {
+            alert('转入失败: ' + (err && err.message ? err.message : '未知错误') +
+              '\\n\\n当前勾选记录已保留，没有清空。');
+          } finally {
+            movePublicBtn.disabled = false;
+            movePublicBtn.textContent = originalText || '转入公海';
+          }
+        };
       }
 
       // #db 自动打开逻辑移至全局初始化完成后，避免本函数前段任一初始化异常导致深链接失效。
