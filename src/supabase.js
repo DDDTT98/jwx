@@ -1556,7 +1556,7 @@ export function createSupabaseClient(env) {
       };
     } catch (e) {
       console.error('[supabase] getCorrections error:', e.message);
-      return { data: [], total: 0, page: page || 1, pageSize: pageSize || 20 };
+      throw e;
     }
   }
 
@@ -1595,17 +1595,20 @@ export function createSupabaseClient(env) {
         }
       );
 
-      if (!resp.ok) return 0;
+      if (!resp.ok) {
+        var errorText = await resp.text();
+        throw new Error('Supabase getCorrectionsCount failed [' + resp.status + ']: ' + errorText);
+      }
 
       var contentRange = resp.headers.get('Content-Range');
       if (contentRange) {
         var parts = contentRange.split('/');
         if (parts.length === 2) return parseInt(parts[1], 10) || 0;
       }
-      return 0;
+      throw new Error('Supabase getCorrectionsCount failed: missing Content-Range');
     } catch (e) {
       console.error('[supabase] getCorrectionsCount error:', e.message);
-      return 0;
+      throw e;
     }
   }
 
