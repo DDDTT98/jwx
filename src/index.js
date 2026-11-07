@@ -6,7 +6,7 @@ import { DIET_HTML } from './diet_html.js';
 import { LEARN_HTML, LEARN_DEFAULT_CONTENT } from './learn_html.js';
 import { createSupabaseClient, createSupabaseKV } from './supabase.js';
 
-// Supabase app_kv 读取缓存
+// Supabase PostgreSQL persistence cache; structured namespaces are routed to dedicated tables.
 const kvCache = new Map();
 // 白名单单位映射缓存，避免客户分页时每次重复读取白名单表。
 var dialerWhitelistCache = { data: [], ts: 0 };

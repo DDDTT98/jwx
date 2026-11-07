@@ -1,12 +1,11 @@
-// Cloudflare KV-compatible adapter backed by Supabase public.app_kv.
-// Values are stored as UTF-8 text or base64-encoded bytes; TTL is preserved in expires_at.
+// Supabase-backed persistence adapter.
+// Structured high-traffic namespaces use dedicated PostgreSQL tables.
+// app_kv remains a temporary compatibility store only for unmigrated/asset keys.
 export function createSupabaseKV(env) {
   const baseUrl = env.SUPABASE_URL;
   const key = env.SUPABASE_KEY;
-  if (!baseUrl || !key) throw new Error('Supabase KV requires SUPABASE_URL and SUPABASE_KEY');
+  if (!baseUrl || !key) throw new Error('Supabase persistence requires SUPABASE_URL and SUPABASE_KEY');
 
-  // Per-Worker-invocation cache: DATA_KV is rebound to a fresh adapter for each
-  // fetch/scheduled event, so this cache never becomes a cross-request stale cache.
   const rowCache = new Map();
   const pendingGets = new Map();
 
@@ -17,8 +16,15 @@ export function createSupabaseKV(env) {
       'Authorization': 'Bearer ' + key
     }, extra || {});
   }
-  function endpoint(params) {
-    return baseUrl.replace(/\/$/, '') + '/rest/v1/app_kv?' + params;
+  function endpoint(table, params) {
+    return baseUrl.replace(/\/$/, '') + '/rest/v1/' + table + (params ? '?' + params : '');
+  }
+  async function requestTable(table, params, init) {
+    const resp = await fetch(endpoint(table, params), Object.assign({ headers: headers() }, init || {}));
+    if (!resp.ok) throw new Error('Supabase ' + table + ' request failed [' + resp.status + ']: ' + await resp.text());
+    if (resp.status === 204) return [];
+    const body = await resp.text();
+    return body ? JSON.parse(body) : [];
   }
   function decodeBase64(value) {
     const binary = atob(value || '');
@@ -43,91 +49,258 @@ export function createSupabaseKV(env) {
     if (requestedType === 'stream') return new Response(bytes).body;
     return new TextDecoder().decode(bytes);
   }
+  function parseKey(keyName) {
+    const parts = String(keyName).split(':');
+    if (keyName.indexOf('config:') === 0) return { kind: 'setting' };
+    if (keyName === 'dialer:accounts') return { kind: 'accounts' };
+    if (parts[0] === 'dialer' && parts[1] === 'session' && parts.length >= 3) return { kind: 'session', token: parts.slice(2).join(':') };
+    if (parts[0] === 'dialer' && parts[1] === 'bgjob' && parts.length >= 3) return { kind: 'job', id: parts.slice(2).join(':') };
+    if (parts[0] === 'work_stats' && parts.length === 3) return { kind: 'work', accountId: parts[1], date: parts[2] };
+    if (parts[0] === 'work_stats_cd' && parts.length >= 4) return { kind: 'cooldown', accountId: parts[1], date: parts[2], deviceId: parts.slice(3).join(':') };
+    if (parts[0] === 'upload_log' && parts.length >= 3) return { kind: 'upload' };
+    if ((parts[0] === 'client_ops_all' || parts[0] === 'client_ops_dial') && parts.length >= 4) {
+      return { kind: 'operation', operationType: parts[0] === 'client_ops_dial' ? 'dial' : 'all', accountId: parts[1], date: parts[2] };
+    }
+    return null;
+  }
+  function normalizeTypedRow(keyName, kind, row) {
+    if (!row) return null;
+    if (kind === 'setting') return { key: keyName, value: row.value, value_type: row.value_type || 'text', expires_at: row.expires_at || null };
+    if (kind === 'accounts') return { key: keyName, value: JSON.stringify(row.accounts || []), value_type: 'text', expires_at: null };
+    if (kind === 'session' || kind === 'work' || kind === 'cooldown' || kind === 'upload' || kind === 'job') {
+      return { key: keyName, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
+    }
+    if (kind === 'operation') return { key: keyName, value: row.value || '1', value_type: row.value_type || 'text', expires_at: row.expires_at || null };
+    return null;
+  }
+  async function getTypedRow(keyName, descriptor) {
+    const params = new URLSearchParams();
+    let table, kind = descriptor.kind;
+    if (kind === 'setting') {
+      table = 'app_settings'; params.set('select', 'value,value_type,expires_at'); params.set('setting_key', 'eq.' + keyName);
+    } else if (kind === 'accounts') {
+      table = 'dialer_account_registry'; params.set('select', 'accounts'); params.set('registry_id', 'eq.primary');
+    } else if (kind === 'session') {
+      table = 'dialer_sessions'; params.set('select', 'payload,expires_at'); params.set('session_token', 'eq.' + descriptor.token);
+    } else if (kind === 'job') {
+      table = 'dialer_background_jobs'; params.set('select', 'payload,expires_at'); params.set('job_id', 'eq.' + descriptor.id);
+    } else if (kind === 'work') {
+      table = 'dialer_work_stats'; params.set('select', 'payload'); params.set('account_id', 'eq.' + descriptor.accountId); params.set('stat_date', 'eq.' + descriptor.date);
+    } else if (kind === 'cooldown') {
+      table = 'dialer_work_cooldowns'; params.set('select', 'payload'); params.set('account_id', 'eq.' + descriptor.accountId); params.set('stat_date', 'eq.' + descriptor.date); params.set('device_id', 'eq.' + descriptor.deviceId);
+    } else if (kind === 'upload') {
+      table = 'dialer_upload_logs'; params.set('select', 'payload'); params.set('log_key', 'eq.' + keyName);
+    } else if (kind === 'operation') {
+      table = 'dialer_client_operations'; params.set('select', 'value,value_type,expires_at'); params.set('operation_key', 'eq.' + keyName);
+    } else return null;
+    params.set('limit', '1');
+    const rows = await requestTable(table, params.toString());
+    return normalizeTypedRow(keyName, kind, rows[0] || null);
+  }
+  function getExpiry(options) {
+    const opts = options || {};
+    if (Number.isFinite(opts.expirationTtl) && opts.expirationTtl > 0) return new Date(Date.now() + opts.expirationTtl * 1000).toISOString();
+    if (Number.isFinite(opts.expiration) && opts.expiration > 0) return new Date(opts.expiration * 1000).toISOString();
+    return null;
+  }
+  async function upsertTable(table, conflict, row) {
+    await requestTable(table, 'on_conflict=' + encodeURIComponent(conflict), {
+      method: 'POST',
+      headers: headers({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      body: JSON.stringify([row])
+    });
+  }
+  async function putTyped(keyName, descriptor, storedValue, valueType, options) {
+    const expiresAt = getExpiry(options);
+    const now = new Date().toISOString();
+    if (descriptor.kind === 'setting') {
+      await upsertTable('app_settings', 'setting_key', { setting_key: keyName, value: storedValue, value_type: valueType, updated_at: now, expires_at: expiresAt });
+      return { key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt };
+    }
+    if (descriptor.kind === 'accounts') {
+      const accounts = JSON.parse(storedValue || '[]');
+      await upsertTable('dialer_account_registry', 'registry_id', { registry_id: 'primary', accounts: accounts, updated_at: now });
+      return { key: keyName, value: JSON.stringify(accounts), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'session') {
+      const payload = JSON.parse(storedValue || '{}');
+      await upsertTable('dialer_sessions', 'session_token', { session_token: descriptor.token, payload: payload, created_at: payload.created_at || null, updated_at: now, expires_at: expiresAt });
+      return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: expiresAt };
+    }
+    if (descriptor.kind === 'work') {
+      const payload = JSON.parse(storedValue || '{}');
+      await upsertTable('dialer_work_stats', 'account_id,stat_date', {
+        account_id: descriptor.accountId, stat_date: descriptor.date,
+        rounds: Number(payload.rounds || 0), wechat_count: Number(payload.wechat_count || 0),
+        payload: payload, updated_at: now
+      });
+      return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'cooldown') {
+      const payload = JSON.parse(storedValue || '{}');
+      await upsertTable('dialer_work_cooldowns', 'account_id,stat_date,device_id', {
+        account_id: descriptor.accountId, stat_date: descriptor.date, device_id: descriptor.deviceId,
+        payload: payload, updated_at: now
+      });
+      return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'upload') {
+      const payload = JSON.parse(storedValue || '{}');
+      const parts = keyName.split(':');
+      const keyTime = Number(parts[1]);
+      const payloadTime = Number(payload.created_at);
+      const occurredAt = Number.isFinite(payloadTime) && payloadTime > 0
+        ? new Date(payloadTime < 100000000000 ? payloadTime * 1000 : payloadTime).toISOString()
+        : (Number.isFinite(keyTime) && keyTime > 0 ? new Date(keyTime).toISOString() : now);
+      await upsertTable('dialer_upload_logs', 'log_key', {
+        log_key: keyName, occurred_at: occurredAt, account_id: payload.account_id || null,
+        account_name: payload.account_name || null, batch_label: payload.batch_label || null,
+        customer_count: Number.isFinite(Number(payload.count)) ? Number(payload.count) : null,
+        metric_version: Number.isFinite(Number(payload.metric_version)) ? Number(payload.metric_version) : null,
+        log_type: payload.type || null, payload: payload, created_at: now
+      });
+      return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: null };
+    }
+    if (descriptor.kind === 'operation') {
+      const parts = keyName.split(':');
+      const mobile = parts.slice(3).join(':');
+      await upsertTable('dialer_client_operations', 'operation_key', {
+        operation_key: keyName, operation_type: descriptor.operationType,
+        account_id: descriptor.accountId, operation_date: descriptor.date,
+        mobile: mobile, value: storedValue, value_type: valueType, expires_at: expiresAt, created_at: now
+      });
+      return { key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt };
+    }
+    if (descriptor.kind === 'job') {
+      const payload = JSON.parse(storedValue || '{}');
+      await upsertTable('dialer_background_jobs', 'job_id', {
+        job_id: descriptor.id, status: payload.status || 'queued', job_kind: payload.kind || null,
+        payload: payload, updated_at: now, expires_at: expiresAt
+      });
+      return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: expiresAt };
+    }
+    return null;
+  }
+  async function deleteTyped(keyName, descriptor) {
+    const params = new URLSearchParams();
+    let table, field, value;
+    if (descriptor.kind === 'setting') { table='app_settings'; field='setting_key'; value=keyName; }
+    else if (descriptor.kind === 'accounts') { table='dialer_account_registry'; field='registry_id'; value='primary'; }
+    else if (descriptor.kind === 'session') { table='dialer_sessions'; field='session_token'; value=descriptor.token; }
+    else if (descriptor.kind === 'job') { table='dialer_background_jobs'; field='job_id'; value=descriptor.id; }
+    else if (descriptor.kind === 'work') { table='dialer_work_stats'; params.set('account_id','eq.'+descriptor.accountId); params.set('stat_date','eq.'+descriptor.date); }
+    else if (descriptor.kind === 'cooldown') { table='dialer_work_cooldowns'; params.set('account_id','eq.'+descriptor.accountId); params.set('stat_date','eq.'+descriptor.date); params.set('device_id','eq.'+descriptor.deviceId); }
+    else if (descriptor.kind === 'upload') { table='dialer_upload_logs'; field='log_key'; value=keyName; }
+    else if (descriptor.kind === 'operation') { table='dialer_client_operations'; field='operation_key'; value=keyName; }
+    else return false;
+    if (field) params.set(field, 'eq.' + value);
+    await requestTable(table, params.toString(), { method: 'DELETE', headers: headers({ 'Prefer': 'return=minimal' }) });
+    return true;
+  }
+  function listDescriptor(prefix) {
+    if (prefix && prefix.indexOf('upload_log:') === 0) return { kind: 'upload', table: 'dialer_upload_logs', field: 'log_key', select: 'log_key,payload' };
+    if (prefix && prefix.indexOf('client_ops_all:') === 0) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
+    if (prefix && prefix.indexOf('client_ops_dial:') === 0) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
+    if (prefix && prefix.indexOf('dialer:bgjob:') === 0) return { kind: 'job', table: 'dialer_background_jobs', field: 'job_id', select: 'job_id,payload,expires_at' };
+    return null;
+  }
+  function normalizeListRow(row, descriptor) {
+    if (descriptor.kind === 'upload') return { key: row.log_key, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
+    if (descriptor.kind === 'operation') return { key: row.operation_key, value: row.value || '1', value_type: row.value_type || 'text', expires_at: row.expires_at || null };
+    if (descriptor.kind === 'job') return { key: 'dialer:bgjob:' + row.job_id, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
+    return null;
+  }
   async function get(keyName, type) {
     if (rowCache.has(keyName)) return decodeRow(rowCache.get(keyName), type);
     let pending = pendingGets.get(keyName);
     if (!pending) {
       pending = (async function() {
-        const params = new URLSearchParams({
-          select: 'key,value,value_type,expires_at',
-          key: 'eq.' + keyName,
-          limit: '1'
-        });
-        const resp = await fetch(endpoint(params.toString()), { headers: headers() });
-        if (!resp.ok) throw new Error('Supabase KV get failed [' + resp.status + ']: ' + await resp.text());
-        const rows = await resp.json();
+        const descriptor = parseKey(keyName);
+        if (descriptor) {
+          const row = await getTypedRow(keyName, descriptor);
+          rowCache.set(keyName, row);
+          return row;
+        }
+        const params = new URLSearchParams({ select: 'key,value,value_type,expires_at', key: 'eq.' + keyName, limit: '1' });
+        const rows = await requestTable('app_kv', params.toString());
         const row = rows.length ? rows[0] : null;
         rowCache.set(keyName, row);
         return row;
       })();
       pendingGets.set(keyName, pending);
     }
-    try {
-      return decodeRow(await pending, type);
-    } finally {
-      if (pendingGets.get(keyName) === pending) pendingGets.delete(keyName);
-    }
+    try { return decodeRow(await pending, type); }
+    finally { if (pendingGets.get(keyName) === pending) pendingGets.delete(keyName); }
   }
   async function put(keyName, value, options) {
-    let storedValue;
-    let valueType = 'text';
-    if (typeof value === 'string') {
-      storedValue = value;
-    } else {
+    let storedValue, valueType = 'text';
+    if (typeof value === 'string') storedValue = value;
+    else {
       let bytes;
       if (value instanceof ArrayBuffer) bytes = new Uint8Array(value);
       else if (ArrayBuffer.isView(value)) bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
       else if (value && typeof value.arrayBuffer === 'function') bytes = new Uint8Array(await value.arrayBuffer());
       else storedValue = String(value);
-      if (bytes) {
-        storedValue = encodeBase64(bytes);
-        valueType = 'base64';
-      }
+      if (bytes) { storedValue = encodeBase64(bytes); valueType = 'base64'; }
     }
-    const opts = options || {};
-    let expiresAt = null;
-    if (Number.isFinite(opts.expirationTtl) && opts.expirationTtl > 0) {
-      expiresAt = new Date(Date.now() + opts.expirationTtl * 1000).toISOString();
-    } else if (Number.isFinite(opts.expiration) && opts.expiration > 0) {
-      expiresAt = new Date(opts.expiration * 1000).toISOString();
+    const descriptor = parseKey(keyName);
+    if (descriptor) {
+      const row = await putTyped(keyName, descriptor, storedValue, valueType, options);
+      if (row) { rowCache.set(keyName, row); return; }
     }
-    const row = { key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt, updated_at: new Date().toISOString() };
-    const resp = await fetch(endpoint('on_conflict=key'), {
+    const row = { key: keyName, value: storedValue, value_type: valueType, expires_at: getExpiry(options), updated_at: new Date().toISOString() };
+    await requestTable('app_kv', 'on_conflict=key', {
       method: 'POST',
       headers: headers({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify([row])
     });
-    if (!resp.ok) throw new Error('Supabase KV put failed [' + resp.status + ']: ' + await resp.text());
     rowCache.set(keyName, row);
   }
   async function remove(keyName) {
+    const descriptor = parseKey(keyName);
+    if (descriptor && await deleteTyped(keyName, descriptor)) { rowCache.set(keyName, null); return; }
     const params = new URLSearchParams({ key: 'eq.' + keyName });
-    const resp = await fetch(endpoint(params.toString()), { method: 'DELETE', headers: headers() });
-    if (!resp.ok) throw new Error('Supabase KV delete failed [' + resp.status + ']: ' + await resp.text());
+    await requestTable('app_kv', params.toString(), { method: 'DELETE', headers: headers({ 'Prefer': 'return=minimal' }) });
     rowCache.set(keyName, null);
   }
   async function list(options) {
     const opts = options || {};
     const limit = Math.max(1, Math.min(Number(opts.limit) || 1000, 5000));
     const offset = Math.max(0, parseInt(opts.cursor || '0', 10) || 0);
+    const mapped = listDescriptor(opts.prefix || '');
+    if (mapped) {
+      const params = new URLSearchParams({ select: mapped.select, order: mapped.field + '.asc', limit: String(limit), offset: String(offset) });
+      if (mapped.kind === 'operation') {
+        const parts = String(opts.prefix).split(':');
+        params.set('operation_type', 'eq.' + (parts[0] === 'client_ops_dial' ? 'dial' : 'all'));
+        if (parts[1]) params.set('account_id', 'eq.' + parts[1]);
+        if (parts[2]) params.set('operation_date', 'eq.' + parts[2]);
+        params.set('order', 'operation_date.asc,mobile.asc');
+      } else {
+        params.set(mapped.field, 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
+      }
+      if (mapped.kind !== 'upload') params.set('or', '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')');
+      const rows = await requestTable(mapped.table, params.toString());
+      rows.forEach(row => { const normalized = normalizeListRow(row, mapped); if (normalized) rowCache.set(normalized.key, normalized); });
+      return {
+        keys: rows.map(row => ({ name: mapped.kind === 'upload' ? row.log_key : mapped.kind === 'operation' ? row.operation_key : 'dialer:bgjob:' + row.job_id })),
+        list_complete: rows.length < limit,
+        cursor: rows.length < limit ? undefined : String(offset + rows.length)
+      };
+    }
     const now = new Date().toISOString();
     const params = new URLSearchParams({
-      select: 'key,value,value_type,expires_at',
-      order: 'key.asc',
-      limit: String(limit),
-      offset: String(offset),
+      select: 'key,value,value_type,expires_at', order: 'key.asc', limit: String(limit), offset: String(offset),
       or: '(expires_at.is.null,expires_at.gt.' + now + ')'
     });
     if (opts.prefix) params.set('key', 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
-    const resp = await fetch(endpoint(params.toString()), { headers: headers() });
-    if (!resp.ok) throw new Error('Supabase KV list failed [' + resp.status + ']: ' + await resp.text());
-    const rows = await resp.json();
-    // list() now hydrates the request cache, so legacy list-then-get loops
-    // read each value from the same result instead of issuing N extra REST calls.
+    const rows = await requestTable('app_kv', params.toString());
     rows.forEach(row => rowCache.set(row.key, row));
-    const keys = rows.map(row => ({ name: row.key }));
-    const complete = rows.length < limit;
-    return { keys: keys, list_complete: complete, cursor: complete ? undefined : String(offset + rows.length) };
+    return {
+      keys: rows.map(row => ({ name: row.key })),
+      list_complete: rows.length < limit,
+      cursor: rows.length < limit ? undefined : String(offset + rows.length)
+    };
   }
   return { get: get, put: put, delete: remove, list: list };
 }
