@@ -422,28 +422,28 @@ export function createSupabaseClient(env) {
       return { count: 0 };
     }
 
-    // Normalize: accept both string[] and object[]
-    const rows = companies.map(function(c) {
-      if (typeof c === 'string') {
-        return { company_name: c.trim(), bank_name: '建行建易贷', status: '正常' };
-      }
-      return {
-        company_name: (c.company_name || '').trim(),
-        alias: c.alias || null,
-        bank_name: c.bank_name || '建行建易贷',
-        status: c.status || '正常'
-      };
-    }).filter(function(r) {
-      return r.company_name.length > 0;
+    // Normalize and deduplicate by company + product. One company may belong to multiple products.
+    const rowMap = new Map();
+    companies.forEach(function(c) {
+      const row = typeof c === 'string'
+        ? { company_name: c.trim(), bank_name: '建行建易贷', status: '正常' }
+        : {
+            company_name: (c.company_name || '').trim(),
+            alias: c.alias || null,
+            bank_name: String(c.bank_name || '建行建易贷').trim(),
+            status: c.status || '正常'
+          };
+      if (!row.company_name || !row.bank_name) return;
+      rowMap.set(row.company_name.toLowerCase() + '\\u0000' + row.bank_name.toLowerCase(), row);
     });
-
+    const rows = Array.from(rowMap.values());
     if (rows.length === 0) return { count: 0 };
 
     let count = 0;
     const batchSize = 1000;
     for (let i = 0; i < rows.length; i += batchSize) {
       const chunk = rows.slice(i, i + batchSize);
-      const resp = await fetch(baseUrl + '/rest/v1/whitelist_companies?on_conflict=company_name', {
+      const resp = await fetch(baseUrl + '/rest/v1/whitelist_companies?on_conflict=company_name,bank_name', {
         method: 'POST',
         headers: Object.assign({}, headers(), {
           'Prefer': 'resolution=merge-duplicates'
@@ -516,34 +516,31 @@ export function createSupabaseClient(env) {
     // Fetch the full whitelist (efficient for typical sizes <10000 entries)
     const whitelist = await getAllCompanies();
 
-    // Build a Set of lowercased company names for O(1) lookup
+    // Group all active product rows under both company name and alias.
     var lookup = {};
     whitelist.forEach(function(entry) {
-      if (entry.status === '已失效' || entry.status === '已删除') {
-        return;
-      }
-      var name = (entry.company_name || '').toLowerCase().trim();
-      if (name) {
-        lookup[name] = entry;
-      }
-      var alias = (entry.alias || '').toLowerCase().trim();
-      if (alias) {
-        lookup[alias] = entry;
-      }
+      if (entry.status === '已失效' || entry.status === '已删除') return;
+      [entry.company_name, entry.alias].forEach(function(value) {
+        var key = String(value || '').toLowerCase().trim();
+        if (!key) return;
+        if (!lookup[key]) lookup[key] = [];
+        lookup[key].push(entry);
+      });
     });
 
     return (companyNames || []).map(function(name) {
-      if (!name || !name.trim()) {
-        return { company: name, isMatch: false, matchedName: null, bank_name: null, status: null };
+      if (!name || !String(name).trim()) {
+        return { company: name, isMatch: false, matchedName: null, bank_name: null, bank_names: [], status: null };
       }
-      var key = name.toLowerCase().trim();
-      var match = lookup[key] || null;
+      var matches = lookup[String(name).toLowerCase().trim()] || [];
+      var products = Array.from(new Set(matches.map(function(row) { return row.bank_name; }).filter(Boolean)));
       return {
         company: name,
-        isMatch: !!match,
-        matchedName: match ? match.company_name : null,
-        bank_name: match ? match.bank_name : null,
-        status: match ? match.status : null
+        isMatch: matches.length > 0,
+        matchedName: matches.length ? matches[0].company_name : null,
+        bank_name: products[0] || null,
+        bank_names: products,
+        status: matches.length ? matches[0].status : null
       };
     });
   }
