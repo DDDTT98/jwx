@@ -7835,6 +7835,24 @@
       reader.readAsText(file, 'utf-8');
     }
 
+    // 首次进入拨号列表时加载共享白名单；本地导入的客户也能即时匹配产品标签。
+    function ensureWhitelistCompaniesLoaded() {
+      if (whitelistLoaded || window._whitelistLoading) return;
+      if (!getSessionToken()) return;
+      window._whitelistLoading = true;
+      fetch('/api/dialer/whitelist', { headers: { 'Authorization': 'Bearer ' + getSessionToken() } })
+        .then(function(r) { if (!r.ok) throw new Error('白名单加载失败'); return r.json(); })
+        .then(function(res) {
+          var rows = Array.isArray(res) ? res : (Array.isArray(res.data) ? res.data : []);
+          whitelistCompanies = rows;
+          whitelistLoaded = true;
+          if (typeof renderDrawerWhitelistSearch === 'function') renderDrawerWhitelistSearch();
+          if (typeof renderDialCards === 'function') renderDialCards();
+        })
+        .catch(function(err) { console.warn('[whitelist] load failed:', err); })
+        .finally(function() { window._whitelistLoading = false; });
+    }
+
     // 同一单位可能对应多个白名单产品；精确匹配时全部返回并去重。
     function matchWhitelistCompanies(company) {
       if (!company || !whitelistCompanies || whitelistCompanies.length === 0) return [];
@@ -7971,6 +7989,7 @@
     }
 
     function renderDialCards() {
+      ensureWhitelistCompaniesLoaded();
       syncRefreshBatchButton();
       var container = document.getElementById('cardsContainer');
       if (!container) return;
