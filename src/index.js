@@ -1913,6 +1913,20 @@ export default {
       }
     }
 
+    // Read shared whitelist products for client-side matching on locally imported dial lists.
+    if (path === '/api/dialer/whitelist' && request.method === 'GET') {
+      try {
+        var readWhitelist = await createSupabaseClient(env).getAllCompanies();
+        return new Response(JSON.stringify({ success: true, data: Array.isArray(readWhitelist) ? readWhitelist : [] }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message, data: [] }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // Import/update shared whitelist products. Only master and manager accounts may change the global whitelist.
     if (path === '/api/dialer/whitelist/import' && request.method === 'POST') {
       try {
