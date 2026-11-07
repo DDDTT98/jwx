@@ -2811,8 +2811,8 @@
           </div>
         </div>
       </div>
-      <!-- 隐私操作：统一设置行布局 -->
-      <div class="drawer-group-card drawer-setting-card">
+      <!-- 隐私操作 + 本机新号：合并为一个紧凑模块 -->
+      <div class="drawer-group-card drawer-setting-card" style="padding:10px 14px;gap:8px;">
         <div class="drawer-setting-row">
           <div class="drawer-setting-title">
             <span>隐私操作</span>
@@ -2823,9 +2823,7 @@
             <input type="checkbox" id="showClientInfoToggle" class="drawer-setting-checkbox">
           </label>
         </div>
-      </div>
-      <!-- 本机新号：与隐私操作保持一致的布局 -->
-      <div class="drawer-group-card drawer-setting-card">
+        <div style="height:1px;background:var(--card-border);opacity:.65;"></div>
         <div class="drawer-setting-row">
           <div class="drawer-setting-title">
             <span>本机新号</span>
@@ -2860,6 +2858,15 @@
             <span class="drawer-wc-value" id="drawerMonthWechatVal">0</span>
           </div>
         </div>
+      </div>
+      <!-- 白名单模糊匹配：输入企业名称/简称/产品名，实时检索 -->
+      <div class="drawer-group-card" style="gap:7px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="font-size:0.68rem;font-weight:600;color:var(--text-light);letter-spacing:0.02em;">白名单模糊匹配</span>
+          <span id="drawerWhitelistMatchCount" style="font-size:0.62rem;color:var(--text-light);"></span>
+        </div>
+        <input id="drawerWhitelistSearch" type="search" autocomplete="off" placeholder="输入企业名称、简称或产品名称" style="width:100%;height:36px;box-sizing:border-box;padding:0 11px;border:1px solid var(--card-border);border-radius:9px;background:var(--input-bg,var(--bg-main));color:var(--text-main);font-size:0.78rem;outline:none;">
+        <div id="drawerWhitelistSearchResults" style="display:none;max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
       </div>
       <div style="height:0.5px;background:var(--card-border);margin-top:auto;"></div>
       <p class="drawer-slogan">增加广度，多加微信。<br>保持深度，全部触达。<br>增强粘性，经常群发。</p>
@@ -7852,6 +7859,62 @@
       return matches;
     }
 
+    // 抽屉白名单搜索：企业全称、简称、产品名均支持模糊匹配。
+    function renderDrawerWhitelistSearch() {
+      var input = document.getElementById('drawerWhitelistSearch');
+      var results = document.getElementById('drawerWhitelistSearchResults');
+      var count = document.getElementById('drawerWhitelistMatchCount');
+      if (!input || !results) return;
+      var query = String(input.value || '').trim().toLowerCase();
+      if (!query) {
+        results.style.display = 'none';
+        results.innerHTML = '';
+        if (count) count.textContent = '';
+        return;
+      }
+      if (!Array.isArray(whitelistCompanies) || !whitelistCompanies.length) {
+        results.style.display = 'block';
+        results.innerHTML = '<div style="padding:9px 4px;font-size:0.72rem;color:var(--text-light);">白名单数据尚未加载</div>';
+        if (count) count.textContent = '0 条';
+        return;
+      }
+      function normalize(value) {
+        return String(value || '').toLowerCase().replace(/(有限责任公司|股份有限公司|有限公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').replace(/[\s\-()（）]/g, '');
+      }
+      var needle = normalize(query);
+      var matches = whitelistCompanies.filter(function(w) {
+        return w && w.status !== '已失效' && w.status !== '已删除';
+      }).map(function(w) {
+        var company = String(w.company_name || '').trim();
+        var alias = String(w.alias || '').trim();
+        var product = String(w.bank_name || '白名单').trim();
+        var fields = [company, alias, product];
+        var score = 0;
+        fields.forEach(function(value) {
+          var raw = String(value || '').toLowerCase();
+          var clean = normalize(value);
+          if (raw === query || clean === needle) score = Math.max(score, 100);
+          else if (raw.indexOf(query) !== -1 || (needle && clean.indexOf(needle) !== -1)) score = Math.max(score, 80);
+          else if (needle.length >= 2 && clean && (needle.indexOf(clean) !== -1 || clean.indexOf(needle) !== -1)) score = Math.max(score, 60);
+        });
+        return { item: w, score: score, company: company, alias: alias, product: product };
+      }).filter(function(x) { return x.score > 0; }).sort(function(a,b) { return b.score-a.score; });
+      if (count) count.textContent = matches.length + ' 条';
+      if (!matches.length) {
+        results.innerHTML = '<div style="padding:9px 4px;font-size:0.72rem;color:var(--text-light);">没有找到匹配的白名单</div>';
+      } else {
+        results.innerHTML = matches.slice(0, 12).map(function(x) {
+          return '<div style="padding:8px 4px;border-top:1px solid var(--card-border);display:flex;flex-direction:column;gap:3px;">' +
+            '<div style="font-size:0.76rem;font-weight:700;color:var(--text-main);">' + esc(x.company || '未填写企业名称') + '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;">' +
+              '<span style="font-size:0.66rem;color:var(--accent-wechat);">' + esc(x.product) + '</span>' +
+              (x.alias ? '<span style="font-size:0.64rem;color:var(--text-light);">简称：' + esc(x.alias) + '</span>' : '') +
+            '</div></div>';
+        }).join('') + (matches.length > 12 ? '<div style="padding:6px 4px;font-size:0.64rem;color:var(--text-light);">仅显示前 12 条，共 ' + matches.length + ' 条匹配</div>' : '');
+      }
+      results.style.display = 'block';
+    }
+
     // Fuzzy/partial match whitelist company
     function matchWhitelistCompany(company) {
       if (!company) return null;
@@ -12816,6 +12879,17 @@ function updateAutoDialBtn() {
       });
       var closeBtn = document.getElementById('progressDrawerClose');
       if (closeBtn) closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
+      var drawerWlSearch = document.getElementById('drawerWhitelistSearch');
+      if (drawerWlSearch) {
+        drawerWlSearch.addEventListener('input', renderDrawerWhitelistSearch);
+        drawerWlSearch.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') {
+            drawerWlSearch.value = '';
+            renderDrawerWhitelistSearch();
+            drawerWlSearch.blur();
+          }
+        });
+      }
       var minusBtn = document.getElementById('drawerWechatMinus');
       var plusBtn = document.getElementById('drawerWechatPlus');
       if (minusBtn) minusBtn.addEventListener('click', function() { adjustWechatCount(-1); });
