@@ -186,7 +186,7 @@ export function createSupabaseClient(env) {
 
     var all = [];
     var page = 0;
-    var pageSize = 1000;
+    var pageSize = 5000; // Supabase 项目 Max rows 已按 5000 配置，减少白名单分页请求。
 
     while (true) {
       var from = page * pageSize;
@@ -435,7 +435,7 @@ export function createSupabaseClient(env) {
 
       // Supabase 默认每次最多返回 1000 行。严格遵守调用方 pageSize，
       // 避免旧逻辑无视 pageSize 一直扫描整张表，造成 Worker 子请求超限。
-      var SUPABASE_MAX = 1000;
+      var SUPABASE_MAX = 5000; // 项目 Max rows 为 5000；大页一次取完，避免 5 次 REST 子请求。
       var allData = [];
       var totalCount = 0;
       var currentFrom = (p - 1) * ps;
