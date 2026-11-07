@@ -1978,13 +1978,37 @@ export default {
         };
 
         if (assetCursor === 0) {
-          var bucketResp = await fetch(env.SUPABASE_URL + '/storage/v1/bucket', {
-            method: 'POST',
-            headers: Object.assign({}, storageHeaders, { 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ id: bucketName, name: bucketName, public: false, file_size_limit: 26214400 })
+          // Idempotently ensure the private bucket exists. Supabase may encode
+          // BucketAlreadyExists as HTTP 400 with statusCode 409, not HTTP 409.
+          var bucketCheck = await fetch(env.SUPABASE_URL + '/storage/v1/bucket/' + bucketName, {
+            method: 'GET',
+            headers: storageHeaders
           });
-          if (!bucketResp.ok && bucketResp.status !== 409) {
-            throw new Error('创建私有 Storage bucket 失败 [' + bucketResp.status + ']: ' + (await bucketResp.text()).slice(0, 240));
+          if (bucketCheck.status === 404) {
+            var bucketResp = await fetch(env.SUPABASE_URL + '/storage/v1/bucket', {
+              method: 'POST',
+              headers: Object.assign({}, storageHeaders, { 'Content-Type': 'application/json' }),
+              body: JSON.stringify({ id: bucketName, name: bucketName, public: false, file_size_limit: 26214400 })
+            });
+            if (!bucketResp.ok) {
+              var bucketErrorText = await bucketResp.text();
+              var bucketError = {};
+              try { bucketError = JSON.parse(bucketErrorText); } catch (_) {}
+              var duplicateBucket = bucketResp.status === 409 ||
+                bucketError.statusCode === '409' || bucketError.statusCode === 409 ||
+                bucketError.code === 'BucketAlreadyExists' ||
+                bucketError.message === 'The resource already exists';
+              if (!duplicateBucket) {
+                throw new Error('创建私有 Storage bucket 失败 [' + bucketResp.status + ']: ' + bucketErrorText.slice(0, 240));
+              }
+            }
+          } else if (!bucketCheck.ok) {
+            throw new Error('检查私有 Storage bucket 失败 [' + bucketCheck.status + ']: ' + (await bucketCheck.text()).slice(0, 240));
+          } else {
+            var existingBucket = await bucketCheck.json().catch(function() { return {}; });
+            if (existingBucket.public === true) {
+              throw new Error('检测到同名 Storage bucket 为公开状态，已停止迁移以保护文件隐私');
+            }
           }
         }
 
