@@ -7897,7 +7897,7 @@
         return;
       }
       function normalize(value) {
-        return String(value || '').toLowerCase().replace(/(有限责任公司|股份有限公司|有限公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').replace(/[\s\-()（）]/g, '');
+        return String(value || '').toLowerCase().replace(/(有限责任公司|股份有限公司|有限公司|公司|集团|深圳市|广州市|北京市|上海市|深圳|广州|北京|上海)/g, '').replace(/[\\s\\-()（）]/g, '');
       }
       var needle = normalize(query);
       var matches = whitelistCompanies.filter(function(w) {
