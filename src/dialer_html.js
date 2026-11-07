@@ -2910,7 +2910,7 @@
   </div>
 
   <!-- Auth initialization: keep account login hidden until session state is known -->
-  <div id="authInitOverlay" class="auth-overlay" style="background:#101522;z-index:1000000;">
+  <div id="authInitOverlay" class="auth-overlay auth-hidden" style="background:#101522;z-index:1000000;">
     <div style="position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;gap:14px;color:#fff;font-size:14px;">
       <div style="width:28px;height:28px;border:3px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:bhpAuthSpin .8s linear infinite;"></div>
       <div>正在验证登录状态…</div>
@@ -13436,7 +13436,7 @@ function updateAutoDialBtn() {
 
     function showAuthScreen() {
       var initOverlay = document.getElementById('authInitOverlay');
-      if (initOverlay) initOverlay.classList.remove('auth-hidden');
+      if (initOverlay) initOverlay.classList.add('auth-hidden');
       document.getElementById('authLoginOverlay').classList.add('auth-hidden');
       document.getElementById('authSetupOverlay').classList.add('auth-hidden');
       document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
