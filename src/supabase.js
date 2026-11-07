@@ -1052,7 +1052,7 @@ export function createSupabaseClient(env) {
   /**
    * Get customers for dialer batch pull using pulled_at ordering.
    * Never-pulled customers come first (newest first), then oldest-pulled come back.
-   * This naturally implements "沉底" (sink to bottom) without KV cursors.
+   * This naturally implements "沉底" (sink to bottom) without key-value database cursors.
    */
   async function getCustomersForDialer(limit, excludeMobiles, accountId) {
     if (!baseUrl || !key) return { data: [], total: 0 };
