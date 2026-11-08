@@ -3800,14 +3800,14 @@
       var dateKey = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
       if (day >= 1 && day <= 6) {
         for (var i = 0; i < ranges.length; i++) {
-          if (mins >= ranges[i][0] && mins < ranges[i][1]) return { key: dateKey + ':' + ranges[i][2], visible: false };
+          if (mins >= ranges[i][0] && mins < ranges[i][1]) return { key: dateKey + ':' + ranges[i][2], visible: true };
         }
       }
       var boundaries = [0,540,720,840,1080,1140,1200,1440], start = 0, end = 1440;
       for (var j = 0; j < boundaries.length - 1; j++) {
         if (mins >= boundaries[j] && mins < boundaries[j+1]) { start = boundaries[j]; end = boundaries[j+1]; break; }
       }
-      return { key: dateKey + ':' + start + '-' + end, visible: true };
+      return { key: dateKey + ':' + start + '-' + end, visible: false };
     }
     function isClientInfoVisible() {
       try {
