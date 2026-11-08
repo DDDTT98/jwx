@@ -3791,7 +3791,7 @@
       try { return localStorage.getItem(newModeKey()) === '1'; } catch (e) { return false; }
     }
 
-    // 隐私操作按设备本地时间自动切换：周一至周六 09:00-12:00、14:00-18:00、19:00-20:00 关闭，其余时间开启。
+    // 隐私操作按设备本地时间自动切换：周一至周六 09:00-12:00、14:00-18:00、19:00-20:00 关闭，其余时间（含周日全天）开启。
     function clientInfoVisibleKey() { return 'dialer_client_info_visible:' + getOrCreateAccountId(); }
     function privacyScheduleBlock(now) {
       now = now || new Date();
@@ -3800,14 +3800,14 @@
       var dateKey = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
       if (day >= 1 && day <= 6) {
         for (var i = 0; i < ranges.length; i++) {
-          if (mins >= ranges[i][0] && mins < ranges[i][1]) return { key: dateKey + ':' + ranges[i][2], visible: true };
+          if (mins >= ranges[i][0] && mins < ranges[i][1]) return { key: dateKey + ':' + ranges[i][2], visible: false };
         }
       }
       var boundaries = [0,540,720,840,1080,1140,1200,1440], start = 0, end = 1440;
       for (var j = 0; j < boundaries.length - 1; j++) {
         if (mins >= boundaries[j] && mins < boundaries[j+1]) { start = boundaries[j]; end = boundaries[j+1]; break; }
       }
-      return { key: dateKey + ':' + start + '-' + end, visible: false };
+      return { key: dateKey + ':' + start + '-' + end, visible: true };
     }
     function isClientInfoVisible() {
       try {
