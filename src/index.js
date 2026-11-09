@@ -326,8 +326,23 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
   var accounts=await dialerGetAccounts(env), children=accounts.filter(function(a){return a&&a.active!==false&&a.is_master===false;});
   var startMs=new Date(startDate+'T00:00:00+08:00').getTime(), endMs=new Date(shiftDateKey(endDate,1)+'T00:00:00+08:00').getTime();
   var logs=await collectUploadLogs(env,startMs,endMs), addedTotal=0, passedTotal=0, lines=['### '+title,startDate+' 至 '+endDate,''];
-  for(var i=0;i<children.length;i++){var a=children[i],added=0,passed=0;logs.forEach(function(x){if(x.account_id===a.account_id&&x.metric_version===2)added+=Number(x.count||0);});var d=startDate;while(d<=endDate){var w=await fetchWorkRow(env,a.account_id,d);if(w)passed+=Number(w.wechat_count||0);d=shiftDateKey(d,1);}addedTotal+=added;passedTotal+=passed;lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜通过微信 '+passed+' 人');}
-  lines.push('','**总计：新增 '+addedTotal+' 人｜通过微信 '+passedTotal+' 人**');await sendWecomText(env,lines.join('\n'));
+  var operatedTotal=0;
+  for(var i=0;i<children.length;i++){
+    var a=children[i],added=0,operated=0,passed=0;
+    // 新增：只统计批量导入后真正新增入库的客户；操作客户：统计当天通过客户时间线产生的去重客户数。
+    logs.forEach(function(x){if(x.account_id===a.account_id&&x.metric_version===2)added+=Number(x.count||0);});
+    var d=startDate;
+    while(d<=endDate){
+      var w=await fetchWorkRow(env,a.account_id,d);
+      if(w)passed+=Number(w.wechat_count||0);
+      operated+=await countStorePrefix(env,'client_ops_all:'+a.account_id+':'+d+':');
+      d=shiftDateKey(d,1);
+    }
+    addedTotal+=added;operatedTotal+=operated;passedTotal+=passed;
+    lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜操作客户 '+operated+' 人｜通过微信 '+passed+' 人');
+  }
+  lines.push('','**总计：新增 '+addedTotal+' 人｜操作客户 '+operatedTotal+' 人｜通过微信 '+passedTotal+' 人**');
+  await sendWecomText(env,lines.join('\\n'));
 }
 
 
