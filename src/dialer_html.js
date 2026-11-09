@@ -4997,7 +4997,6 @@
         if (log4) { log4.innerHTML = 'AI 智能映射匹配成功'; log4.style.opacity = '1'; }
       }, 1100);
     }
-
     function runAIColumnMapping(json) {
       var headerRowIdx = -1;
       var maxHeaderMatches = 0;
@@ -9997,8 +9996,7 @@ function updateAutoDialBtn() {
                 '<span class="cust-cat-tag set cat-' + esc(cat) + '" data-m="' + esc(c.mobile) + '" data-c="' + esc(cat) + '" style="margin-top: 3px; font-size:10px; padding: 0 6px;">' + esc(cat || '未分类') + '</span>' +
               '</div>' +
             '</div>' +
-          '</td>' +
-          '<td>' +
+          '</td>' +          '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
               '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>' +
@@ -14063,12 +14061,12 @@ function updateAutoDialBtn() {
           e.preventDefault();
           var wb = XLSX.utils.book_new();
           var data = [
-            ['姓名', '电话', '单位', '公积金', '备注', '跟进情况'],
-            ['示例：张三', '13800138000', '示例科技有限公司', '月缴2000', '意向客户，需跟进', '已电话沟通'],
-            ['示例：李四', '13900139000', '测试企业集团', '月缴3000', '对公积金贷款感兴趣', '待回访'],
+            ['姓名', '电话', '单位', '在库机构', '公积金', '备注', '跟进情况'],
+            ['示例：张三', '13800138000', '示例科技有限公司', '示例银行A', '月缴2000', '意向客户，需跟进', '已电话沟通'],
+            ['示例：李四', '13900139000', '测试企业集团', '示例银行B', '月缴3000', '对公积金贷款感兴趣', '待回访'],
           ];
           var ws = XLSX.utils.aoa_to_sheet(data);
-          ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 20 }];
+          ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 20 }];
           XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
           XLSX.writeFile(wb, '客户导入模板.xlsx');
         });
