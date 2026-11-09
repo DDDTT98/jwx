@@ -4663,12 +4663,36 @@
     }
 
     // Persist and load state
+    // 刷新时修复旧版 OCR 将「单位/机构名称」误放进备注的情况。
+    // 仅处理单位字段为空、备注整体符合机构名称格式且尾部没有自然语言说明的记录，避免误改普通备注。
+    function repairLegacyNoteCompanyFields(clients) {
+      if (!Array.isArray(clients)) return 0;
+      var repaired = 0;
+      var orgSuffix = /(?:公司|有限公司|股份有限公司|集团|企业|工厂|医院|银行|学校|大学|学院|幼儿园|小学|中学|公署|工务署|文化宫|文化馆|工会|委员会|管理局|管理处|办事处|街道办|政务服务中心|服务中心|事务中心|公共服务中心|派出所|分局|税务局|公安局|财政局|人社局|研究院|研究所|实验室|局|院|所|部|中心|厂|处|会|队|站)$/;
+      clients.forEach(function(c) {
+        if (!c || String(c.company || c.company_name || '').trim()) return;
+        var note = String(c.note || '').trim();
+        if (!note || note.length > 50) return;
+        // 允许 OCR 常见的括号备注标记，如「（养）」；单位主体必须以明确机构后缀结尾。
+        var candidate = note.replace(/[（(][^）)]{1,8}[）)]$/, '').trim();
+        if (!candidate || !/[\u4e00-\u9fff]/.test(candidate) || !orgSuffix.test(candidate)) return;
+        c.company = candidate;
+        c.company_name = candidate;
+        c.note = '';
+        repaired++;
+      });
+      return repaired;
+    }
+
     function loadPersistedState() {
       try {
         var saved = localStorage.getItem(CLIENTS_K);
         if (saved) {
           importedClients = JSON.parse(saved);
           if (importedClients.length > 0) {
+            // 自动纠正历史 OCR 把完整单位名称误放入备注的记录；仅本地规则高置信命中才修改。
+            var repairedNoteCompanies = repairLegacyNoteCompanyFields(importedClients);
+            if (repairedNoteCompanies > 0) saveState();
             updateDashboardVisibility(true);
             renderDialCards();
           }
