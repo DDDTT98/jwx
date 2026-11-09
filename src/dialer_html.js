@@ -4674,11 +4674,14 @@
         var note = String(c.note || '').trim();
         if (!note || note.length > 50) return;
         // 允许 OCR 常见的括号备注标记，如「（养）」；单位主体必须以明确机构后缀结尾。
-        var candidate = note.replace(/[（(][^）)]{1,8}[）)]$/, '').trim();
+        var markerMatch = note.match(/([（(][^）)]{1,8}[）)])$/);
+        var marker = markerMatch ? markerMatch[1] : '';
+        var candidate = marker ? note.slice(0, -marker.length).trim() : note;
         if (!candidate || !/[\u4e00-\u9fff]/.test(candidate) || !orgSuffix.test(candidate)) return;
         c.company = candidate;
         c.company_name = candidate;
-        c.note = '';
+        // 保留原备注中的括号标记，不把「（养）」等附加信息丢掉。
+        c.note = marker;
         repaired++;
       });
       return repaired;
