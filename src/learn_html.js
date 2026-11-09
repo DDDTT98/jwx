@@ -28,7 +28,6 @@ export const LEARN_TIME_MATRIX_HTML = `
   <section class="time-matrix" aria-label="贷款客户开发四象限时间管理图">
     <div class="time-matrix-head">
       <div><div class="time-matrix-title">🎯 客户开发 · 四象限时间管理</div><div class="time-matrix-sub">先判断事情的重要程度和紧急程度，再决定时间怎么分配</div></div>
-      <span class="time-matrix-focus">重点：Q2</span>
     </div>
     <div class="time-matrix-grid">
       <section class="time-quadrant">
