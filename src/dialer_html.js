@@ -8242,7 +8242,7 @@
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
             copyTextToClipboard(phone);
-            recordTimeline(phone, 'copy_phone');
+            recordTimeline(phone, 'add_wechat');
             var client = importedClients[idx];
             if (client) {
               client.copied = true;
@@ -8769,7 +8769,7 @@ function updateAutoDialBtn() {
  copyTextToClipboard(phone);
 
  var client = importedClients[currentCallIdx];
- if (client) recordTimeline(client.phone || client.mobile, 'copy_phone');
+ if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
 
  phoneDisp.textContent = '已复制，正在打开微信...';
 
