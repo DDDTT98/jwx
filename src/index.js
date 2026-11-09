@@ -342,7 +342,7 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
     lines.push('**'+wecomEscape(a.account_name||a.label||a.account_id)+'**：新增 '+added+' 人｜操作客户 '+operated+' 人｜通过微信 '+passed+' 人');
   }
   lines.push('','**总计：新增 '+addedTotal+' 人｜操作客户 '+operatedTotal+' 人｜通过微信 '+passedTotal+' 人**');
-  await sendWecomText(env,lines.join('\\n'));
+  await sendWecomText(env,lines.join('\n'));
 }
 
 
