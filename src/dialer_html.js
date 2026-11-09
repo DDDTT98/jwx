@@ -5026,14 +5026,15 @@
         }
       }
 
-      var nameIdx = -1, phoneIdx = -1, companyIdx = -1, noteIdx = -1;
+      var nameIdx = -1, phoneIdx = -1, companyIdx = -1, noteIdx = -1, storageInstitutionIdx = -1;
       var hasHeaders = (headerRowIdx !== -1);
 
       if (hasHeaders) {
         var headers = json[headerRowIdx];
         for (var i = 0; i < headers.length; i++) {
           var h = String(headers[i] || '').trim();
-          if (/姓名|客户|name/i.test(h)) nameIdx = i;
+          if (/在库机构|入库机构|存储机构|在库单位|在库银行|合作机构/i.test(h)) storageInstitutionIdx = i;
+          else if (/姓名|客户|name/i.test(h)) nameIdx = i;
           else if (/电话|手机|号码|phone|tel|mobile/i.test(h)) phoneIdx = i;
           else if (/单位|公司|企业|company|firm|work/i.test(h)) companyIdx = i;
           else if (/备注|沟通|记录|跟进|说明|介绍|详情|note|remark/i.test(h)) noteIdx = i;
@@ -5172,6 +5173,7 @@
         nameIdx: nameIdx,
         phoneIdx: phoneIdx,
         companyIdx: companyIdx,
+        storageInstitutionIdx: storageInstitutionIdx,
         noteIdx: noteIdx
       };
     }
@@ -5267,6 +5269,7 @@
       var nameCol = parseInt(document.getElementById('aiSelName').value);
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
+      var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       
       var customMappings = [];
@@ -5284,7 +5287,8 @@
         var headHtml = '<tr style="border-bottom: 0.5px solid var(--card-border); font-weight: 600; color: var(--text-soft); background: rgba(0,0,0,0.01);">' +
           '<th style="padding: 4px 8px;">姓名</th>' +
           '<th style="padding: 4px 8px;">电话</th>' +
-          '<th style="padding: 4px 8px;">公司</th>';
+          '<th style="padding: 4px 8px;">公司</th>' +
+          '<th style="padding: 4px 8px;">在库机构</th>';
         customMappings.forEach(function(m) {
           headHtml += '<th style="padding: 4px 8px;">' + esc(m.name) + '</th>';
         });
@@ -5314,6 +5318,7 @@
 
         var nameVal = nameCol !== -1 ? String(row[nameCol] || '').trim() : '客户';
         var compVal = compCol !== -1 ? String(row[compCol] || '').trim() : '';
+        var storageInstitutionVal = storageInstitutionCol !== -1 ? String(row[storageInstitutionCol] || '').trim() : '';
 
         var customTds = '';
         customMappings.forEach(function(m) {
@@ -5326,12 +5331,13 @@
         tr.innerHTML = '<td style="padding: 6px 8px; font-weight: 600; color: var(--text-main);">' + esc(nameVal || '未知姓名') + '</td>' +
                        '<td style="padding: 6px 8px; font-family: monospace; color: var(--accent-wechat); font-weight: 600;">' + esc(phoneVal) + '</td>' +
                        '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(compVal || '(空)') + '</td>' +
+                       '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(storageInstitutionVal || '(空)') + '</td>' +
                        customTds;
         tableBody.appendChild(tr);
         previewCount++;
       }
 
-      var colspanVal = 3 + customMappings.length;
+      var colspanVal = 4 + customMappings.length;
       if (previewCount === 0) {
         tableBody.innerHTML = '<tr><td colspan="' + colspanVal + '" style="padding: 12px; text-align: center; color: var(--text-light);">当前列映射无法提取有效客户电话号码，请手动调整电话数据列。</td></tr>';
       }
@@ -5365,6 +5371,7 @@
       var nameCol = parseInt(document.getElementById('aiSelName').value);
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
+      var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
@@ -5402,6 +5409,7 @@
 
         var nameVal = nameCol !== -1 ? String(row[nameCol] || '').trim() : '客户';
         var companyVal = compCol !== -1 ? String(row[compCol] || '').trim() : '';
+        var storageInstitutionVal = storageInstitutionCol !== -1 ? String(row[storageInstitutionCol] || '').trim() : '';
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
         var fundVal = '';
@@ -5429,6 +5437,7 @@
           phone: phoneVal,
           mobile: phoneVal,
           company: companyVal,
+          storage_institution: storageInstitutionVal,
           note: finalNote,
           fund: fundVal,
           dialedStatus: 'todo',
@@ -9554,6 +9563,19 @@ function updateAutoDialBtn() {
       return { time: dateText, method: method, account: accountName };
     }
 
+
+    // 在客户列表中直接编辑独立的“在库机构”字段。
+    function editStorageInstitution(mobile, currentValue) {
+      var nextValue = window.prompt('请输入在库机构（留空可清除）', currentValue || '');
+      if (nextValue === null) return;
+      nextValue = String(nextValue).trim();
+      fetch('/api/dialer/customers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mobile: mobile, fields: { storage_institution: nextValue } }) })
+        .then(function(r) { return r.json(); }).then(function(res) {
+          if (!res || !res.success) throw new Error(res && res.error ? res.error : '保存失败');
+          showCopyLimitToast('在库机构已保存'); dbFetch();
+        }).catch(function(err) { alert('保存在库机构失败：' + err.message); });
+    }
+
     function renderCRMHeaders() {
       var headerRow = document.getElementById('dbHeaderRow');
       if (!headerRow) return;
@@ -9568,6 +9590,7 @@ function updateAutoDialBtn() {
         html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + '<span class="sort-arrow"></span></th>';
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="storage_institution" style="min-width: 160px; cursor: pointer;">在库机构 <span class="sort-arrow"></span></th>' +
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
         '<th style="min-width:145px;cursor:default;">操作时间</th>' +
         '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -9686,6 +9709,10 @@ function updateAutoDialBtn() {
         '<select id="aiSelCompany" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);"></select>' +
         '</div>' +
         '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">在库机构数据列 (可选)</label>' +
+        '<select id="aiSelStorageInstitution" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>' +
+        '<div style="display: flex; flex-direction: column; gap: 2px;">' +
         '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">备注数据列 (可选)</label>' +
         '<select id="aiSelNote" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);"></select>' +
         '</div>';
@@ -9700,6 +9727,7 @@ function updateAutoDialBtn() {
       populateMappingSelect('aiSelName', headersList, detected.nameIdx);
       populateMappingSelect('aiSelPhone', headersList, detected.phoneIdx);
       populateMappingSelect('aiSelCompany', headersList, detected.companyIdx, true);
+      populateMappingSelect('aiSelStorageInstitution', headersList, detected.storageInstitutionIdx === undefined ? -1 : detected.storageInstitutionIdx, true);
       populateMappingSelect('aiSelNote', headersList, detected.noteIdx, true);
       var customSelects = container.querySelectorAll('.aiSelCustom');
       customSelects.forEach(function(sel) {
@@ -9717,6 +9745,7 @@ function updateAutoDialBtn() {
       document.getElementById('aiSelName').addEventListener('change', updateAIPreviewTable);
       document.getElementById('aiSelPhone').addEventListener('change', updateAIPreviewTable);
       document.getElementById('aiSelCompany').addEventListener('change', updateAIPreviewTable);
+      document.getElementById('aiSelStorageInstitution').addEventListener('change', updateAIPreviewTable);
       document.getElementById('aiSelNote').addEventListener('change', updateAIPreviewTable);
     }
 
@@ -9836,7 +9865,7 @@ function updateAutoDialBtn() {
       if (DB.sortBy) url += '&sortBy=' + encodeURIComponent(DB.sortBy) + '&sortDir=' + DB.sortDir;
       if (cooldownMobiles.length > 0) url += '&exclude=' + encodeURIComponent(cooldownMobiles.join(','));
 
-      var colCount = 11 + (DB.customColumns || []).length;
+      var colCount = 12 + (DB.customColumns || []).length;
       var tbody = document.getElementById('dbTbody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="db-loading">数据加载中...</td></tr>';
 
@@ -9979,6 +10008,7 @@ function updateAutoDialBtn() {
           batchTypeTd +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
+          '<td style="white-space: normal; min-width:160px;"><a href="javascript:void(0)" class="crm-storage-edit" data-mobile="' + esc(c.mobile || '') + '" data-value="' + esc(c.storage_institution || '') + '" title="点击编辑在库机构">' + esc(c.storage_institution || '＋设置') + '</a></td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
@@ -9991,6 +10021,7 @@ function updateAutoDialBtn() {
       renderRoot.innerHTML = h;
 
       // Wire individual row checkboxes
+      renderRoot.querySelectorAll('.crm-storage-edit').forEach(function(el) { el.onclick = function(e) { e.preventDefault(); e.stopPropagation(); editStorageInstitution(el.getAttribute('data-mobile'), el.getAttribute('data-value')); }; });
       var rowCbs = renderRoot.querySelectorAll('.crm-row-select');
       rowCbs.forEach(function(cb) {
         cb.onchange = function() {
@@ -10814,6 +10845,7 @@ function updateAutoDialBtn() {
         headHtml += '<th style="min-width: 100px; cursor: default;">' + esc(col) + '</th>';
       });
       headHtml += '<th style="min-width: 200px; cursor: default;">单位</th>' +
+         '<th style="min-width: 160px; cursor: default;">在库机构</th>' +
          '<th style="width: 100px; cursor: default;">分类</th>' +
          '<th style="min-width:145px;cursor:default;">操作时间</th>' +
          '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -10871,6 +10903,7 @@ function updateAutoDialBtn() {
           '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
+          '<td style="white-space: normal; min-width:160px;"><a href="javascript:void(0)" class="crm-storage-edit" data-mobile="' + esc(c.mobile || '') + '" data-value="' + esc(c.storage_institution || '') + '" title="点击编辑在库机构">' + esc(c.storage_institution || '＋设置') + '</a></td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
@@ -10881,6 +10914,8 @@ function updateAutoDialBtn() {
       h += '</tbody></table>';
       list.innerHTML = h;
 
+      // 绑定在库机构编辑
+      list.querySelectorAll('.crm-storage-edit').forEach(function(el) { el.onclick = function(e) { e.preventDefault(); e.stopPropagation(); editStorageInstitution(el.getAttribute('data-mobile'), el.getAttribute('data-value')); }; });
       // 绑定勾选
       list.querySelectorAll('.crm-row-select').forEach(function(cb) {
         cb.onchange = function() {

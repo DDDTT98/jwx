@@ -705,10 +705,10 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,account_id',
-        'name,mobile,company_name,category,note,fund,created_at,last_operation,account_id',
-        'name,mobile,company_name,category,note,batch_label,created_at,account_id',
-        'name,mobile,company_name,category,note,created_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,category,note,fund,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,category,note,batch_label,created_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,created_at,account_id',
         'name,mobile,company_name,created_at,account_id',
         '*'
       ];
@@ -817,6 +817,8 @@ export function createSupabaseClient(env) {
         batch_label: (c.batch_label || '').trim(),
         account_id: c.account_id || acctId
       };
+      var storageInstitution = String(c.storage_institution || c.storageInstitution || '').trim();
+      if (storageInstitution) row.storage_institution = storageInstitution;
       if (c.last_operation) row.last_operation = c.last_operation;
       return row;
     }).filter(function(r) {
@@ -1626,8 +1628,8 @@ export function createSupabaseClient(env) {
     while (true) {
       var to = from + pageSize - 1;
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,account_id',
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,account_id',
         'name,mobile,company_name,category,note,created_at,account_id',
         '*'
       ];
