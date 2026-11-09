@@ -3,7 +3,7 @@
 
 import { DIALER_HTML } from './dialer_html.js';
 import { DIET_HTML } from './diet_html.js';
-import { LEARN_HTML, LEARN_DEFAULT_CONTENT } from './learn_html.js';
+import { LEARN_HTML, LEARN_DEFAULT_CONTENT, LEARN_TIME_MATRIX_HTML } from './learn_html.js';
 import { createSupabaseClient, createSupabaseStore } from './supabase.js';
 
 // Supabase PostgreSQL persistence cache; structured namespaces are routed to dedicated tables.
@@ -3944,13 +3944,13 @@ export default {
             }
           } catch (parseErr) { /* use default */ }
         }
-        var learnPage = LEARN_HTML.replace('<!--LEARN_CONTENT-->', learnContent);
+        var learnPage = LEARN_HTML.replace('<!--LEARN_CONTENT-->', LEARN_TIME_MATRIX_HTML + learnContent);
         return new Response(learnPage, {
           headers: { 'Content-Type': 'text/html; charset=UTF-8' }
         });
       } catch (e) {
         // Fallback to default
-        return new Response(LEARN_HTML.replace('<!--LEARN_CONTENT-->', LEARN_DEFAULT_CONTENT), {
+        return new Response(LEARN_HTML.replace('<!--LEARN_CONTENT-->', LEARN_TIME_MATRIX_HTML + LEARN_DEFAULT_CONTENT), {
           headers: { 'Content-Type': 'text/html; charset=UTF-8' }
         });
       }
