@@ -1,3 +1,85 @@
+// 学习中心首页：贷款客户开发四象限时间管理图
+export const LEARN_TIME_MATRIX_HTML = `
+  <style>
+    .time-matrix{margin:0 0 26px;padding:18px;background:linear-gradient(145deg,#f8faff,#eef3ff);border:1px solid #dfe7fb;border-radius:18px;color:#202938}
+    .time-matrix *{box-sizing:border-box}
+    .time-matrix-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px}
+    .time-matrix-title{font-size:1.12rem;font-weight:900;letter-spacing:-.02em}
+    .time-matrix-sub{font-size:.72rem;color:#64748b;margin-top:4px;line-height:1.5}
+    .time-matrix-focus{font-size:.68rem;font-weight:800;color:#166534;background:#dcfce7;border-radius:999px;padding:5px 9px;white-space:nowrap}
+    .time-matrix-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    .time-quadrant{min-width:0;padding:13px 12px;border-radius:13px;background:#fff;border:1px solid #e5eaf2;box-shadow:0 2px 8px rgba(30,50,90,.04)}
+    .time-quadrant.q2{background:#effaf3;border:1.5px solid #86d6a4;box-shadow:0 4px 14px rgba(22,163,74,.09)}
+    .time-q-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+    .time-q-no{font-size:.66rem;font-weight:900;padding:3px 7px;border-radius:6px;background:#e8edf5;color:#475569}
+    .q2 .time-q-no{background:#16a34a;color:white}
+    .time-q-name{font-size:.8rem;font-weight:900;line-height:1.35}
+    .time-q-strategy{font-size:.68rem;font-weight:800;color:#2563eb;margin:0 0 8px}
+    .q2 .time-q-strategy{color:#15803d}
+    .time-quadrant ul{padding-left:16px;margin:0 0 9px;font-size:.72rem;line-height:1.65;color:#475569}
+    .time-quadrant li{margin:0 0 3px}
+    .time-q-goal{border-top:1px solid rgba(100,116,139,.18);padding-top:7px;font-size:.68rem;line-height:1.55;color:#64748b}
+    .time-q-goal b{color:#334155}
+    .time-matrix-axes{display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-size:.65rem;color:#64748b;font-weight:700}
+    .time-matrix-foot{font-size:.7rem;color:#64748b;line-height:1.6;margin-top:10px}
+    @media(max-width:420px){.time-matrix{padding:13px}.time-matrix-grid{gap:7px}.time-quadrant{padding:10px 9px}.time-q-name{font-size:.74rem}.time-quadrant ul{font-size:.68rem;padding-left:14px}.time-q-goal{font-size:.64rem}.time-matrix-focus{font-size:.62rem;padding:4px 7px}}
+    @media(prefers-color-scheme:dark){.time-matrix{background:linear-gradient(145deg,#202b3c,#1d2938);border-color:#35445a;color:#f1f5f9}.time-quadrant{background:#273244;border-color:#3b4a60}.time-quadrant.q2{background:#1d382d;border-color:#347b51}.time-q-no{background:#39475b;color:#dbeafe}.time-q-name{color:#f1f5f9}.time-quadrant ul,.time-q-goal,.time-matrix-sub,.time-matrix-foot,.time-matrix-axes{color:#bdc9d8}.time-q-goal{border-color:#435168}.time-q-goal b{color:#e2e8f0}.q2 .time-q-strategy{color:#86efac}}
+  </style>
+  <section class="time-matrix" aria-label="贷款客户开发四象限时间管理图">
+    <div class="time-matrix-head">
+      <div><div class="time-matrix-title">🎯 客户开发 · 四象限时间管理</div><div class="time-matrix-sub">先判断事情的重要程度和紧急程度，再决定时间怎么分配</div></div>
+      <span class="time-matrix-focus">重点：Q2</span>
+    </div>
+    <div class="time-matrix-grid">
+      <section class="time-quadrant">
+        <div class="time-q-head"><span class="time-q-no">Q1</span><span class="time-q-name">重要且紧急</span></div>
+        <div class="time-q-strategy">立即处理｜优先完成</div>
+        <ul>
+          <li>邀约要上门办理的客户</li>
+          <li>回放落实上门客户行程安排</li>
+          <li>解决要上门客户的重点疑虑</li>
+          <li>处理在库待回款客户的落实</li>
+        </ul>
+        <div class="time-q-goal"><b>核心目标：</b>抓住成交窗口，推进上门办理和回款落地</div>
+      </section>
+      <section class="time-quadrant q2">
+        <div class="time-q-head"><span class="time-q-no">Q2</span><span class="time-q-name">重要但不紧急</span></div>
+        <div class="time-q-strategy">每天重点投入｜提前规划</div>
+        <ul>
+          <li>利用重点时间开发有意向的客户</li>
+          <li>持续不断地增加微信好友数量</li>
+          <li>定期触达，推动微信意向客户转化</li>
+          <li>多渠道开发社交软件客户，例如小红书</li>
+          <li>学习新的沟通话术、客户开发和邀约技巧</li>
+        </ul>
+        <div class="time-q-goal"><b>核心目标：</b>持续扩大客户池，提高意向客户数量和转化率</div>
+      </section>
+      <section class="time-quadrant">
+        <div class="time-q-head"><span class="time-q-no">Q3</span><span class="time-q-name">不重要但紧急</span></div>
+        <div class="time-q-strategy">尽量压缩时间｜减少打断</div>
+        <ul>
+          <li>及时屏蔽无关消息打扰</li>
+          <li>尽快解决不必要的琐事</li>
+          <li>多利用工具和方法提高工作效率</li>
+        </ul>
+        <div class="time-q-goal"><b>核心目标：</b>减少被动打断，避免琐事占用开发客户的时间</div>
+      </section>
+      <section class="time-quadrant">
+        <div class="time-q-head"><span class="time-q-no">Q4</span><span class="time-q-name">不重要且不紧急</span></div>
+        <div class="time-q-strategy">尽量减少｜主动舍弃</div>
+        <ul>
+          <li>减少无效刷视频</li>
+          <li>屏蔽无效的社交沟通</li>
+          <li>减少反复做无价值的事情</li>
+        </ul>
+        <div class="time-q-goal"><b>核心目标：</b>减少时间浪费，把精力留给真正能产生业绩的事情</div>
+      </section>
+    </div>
+    <div class="time-matrix-axes"><span>↑ 重要程度：高在上，低在下</span><span>紧急程度：低 ← → 高</span></div>
+    <p class="time-matrix-foot">工作原则：Q1 及时处理，Q2 持续投入，Q3 压缩处理，Q4 尽量舍弃。不要让紧急琐事挤占每天开发客户的黄金时间。</p>
+  </section>
+`;
+
 export const LEARN_DEFAULT_CONTENT = `<h1>微信营销与账号运营完全手册</h1>
       <p class="learn-subtitle">加人策略 \\u00b7 账号养号 \\u00b7 朋友圈运营 \\u00b7 客户转化 \\u00b7 风控合规</p>
 
