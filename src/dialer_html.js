@@ -3359,7 +3359,7 @@
         <button id="closeNoteModalBtn" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-soft); padding:0;">关闭</button>
       </div>
       <div style="border-top:1px dashed var(--border-light); padding-top:8px;">
-        <p id="noteModalContent" style="font-size:0.8rem; color:var(--text-soft); line-height:1.5; white-space:pre-wrap; font-weight:700; word-break:break-all;"></p>
+        <p id="noteModalContent" role="button" aria-label="点击复制全部客户资料备注" title="点击复制备注" style="font-size:0.85rem; color:var(--text-soft); line-height:1.65; white-space:pre-wrap; font-weight:700; word-break:break-all; cursor:pointer; padding:8px; margin:0; border-radius:8px; -webkit-tap-highlight-color:transparent;">点击此处复制备注</p><div style="font-size:0.68rem;color:var(--text-light);text-align:center;margin-top:6px;">点击备注内容即可复制全部文字</div>
       </div>
     </div>
   </div>
@@ -12226,6 +12226,17 @@ function updateAutoDialBtn() {
     function initNoteModal() {
       var modal = document.getElementById('noteModal');
       var closeBtn = document.getElementById('closeNoteModalBtn');
+      var content = document.getElementById('noteModalContent');
+      if (content && !content.dataset.copyBound) {
+        content.dataset.copyBound = '1';
+        content.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var note = content.textContent || '';
+          if (!note || note === '点击此处复制备注') return;
+          copyTextToClipboard(note);
+          showCopyLimitToast('备注已复制', false);
+        });
+      }
       if (modal && closeBtn) {
         closeBtn.addEventListener('click', function() {
           modal.classList.remove('active');
