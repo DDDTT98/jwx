@@ -2458,7 +2458,7 @@ export default {
         if (cleanMobile) {
           await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
           // 日报只统计点击添加VX并跳转微信的操作。
-          if (entry.type === 'add_wechat' || entry.type === 'copy_phone') {
+          if (entry.type === 'add_wechat') {
             await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'wechat'), '1');
           }
           if (['dial', 'call_success', 'call_failed'].indexOf(entry.type) >= 0) {
