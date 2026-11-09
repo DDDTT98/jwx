@@ -335,7 +335,7 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
     while(d<=endDate){
       var w=await fetchWorkRow(env,a.account_id,d);
       if(w)passed+=Number(w.wechat_count||0);
-      operated+=await countStorePrefix(env,'client_ops_wechat:'+a.account_id+':'+d+':');
+      operated+=await countStorePrefix(env,'client_ops_copy:'+a.account_id+':'+d+':');
       d=shiftDateKey(d,1);
     }
     addedTotal+=added;operatedTotal+=operated;passedTotal+=passed;
@@ -2457,9 +2457,9 @@ export default {
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
           await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
-          // 日报只统计点击添加VX并跳转微信的操作。
-          if (entry.type === 'add_wechat') {
-            await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'wechat'), '1');
+          // 日报统计所有复制客户资料的操作（号码/姓名/单位/备注/公积金及添加VX），不统计单纯拨打。
+          if (entry.type === 'add_wechat' || /^copy_/.test(entry.type)) {
+            await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'copy'), '1');
           }
           if (['dial', 'call_success', 'call_failed'].indexOf(entry.type) >= 0) {
             await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
