@@ -2340,7 +2340,7 @@ export default {
               var masterNeed = Math.min(Math.max(0, limit - data.length), masterDailyRemaining, 200);
 
               if (masterNeed > 0) {
-                var masterExclude = mergedExclude.slice();
+                var masterExclude = Array.isArray(excludeMobiles) ? excludeMobiles.slice() : [];
                 data.forEach(function(c) {
                   var mobile = (c.mobile || '').trim();
                   if (mobile && masterExclude.indexOf(mobile) === -1) masterExclude.push(mobile);
