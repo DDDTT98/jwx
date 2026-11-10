@@ -3447,9 +3447,7 @@
       <div style="font-size:.76rem;font-weight:900;color:var(--text-main);margin-bottom:8px;">壁纸抓取类型</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:.74rem;color:var(--text-main);">
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="landscape" style="accent-color:var(--accent-wechat);width:16px;height:16px;">风景</label>
-        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="space" style="accent-color:var(--accent-wechat);width:16px;height:16px;">宇宙星空</label>
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="people" style="accent-color:var(--accent-wechat);width:16px;height:16px;">人物</label>
-        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="plants" style="accent-color:var(--accent-wechat);width:16px;height:16px;">花朵</label>
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="anime" style="accent-color:var(--accent-wechat);width:16px;height:16px;">二次元</label>
       </div>
       <div style="font-size:.6rem;color:var(--text-soft);margin-top:8px;line-height:1.5;">可同时勾选多个类型；壁纸只从已选类型中随机抓取，抓取内容限定为安全级别（SFW）。</div>
@@ -3957,7 +3955,7 @@
           fund: saved.fund !== false,
           institution: saved.institution !== false,
           wallpaperCategories: Array.isArray(saved.wallpaperCategories) && saved.wallpaperCategories.length
-            ? saved.wallpaperCategories.filter(function(v) { return ['landscape','space','people','plants','anime'].indexOf(v) >= 0; })
+            ? saved.wallpaperCategories.filter(function(v) { return ['landscape','people','anime'].indexOf(v) >= 0; })
             : defaults.wallpaperCategories
         };
       } catch (e) { return defaults; }
@@ -13997,7 +13995,7 @@ function updateAutoDialBtn() {
       var cached = localStorage.getItem('bhp_wp_url_v2');
       if (cached && !forceRefresh) applyWallpaper(cached);
       var settings = getDbCustomSettings();
-      var allowed = ['landscape', 'space', 'people', 'plants', 'anime'];
+      var allowed = ['landscape', 'people', 'anime'];
       var categories = (settings.wallpaperCategories || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
       if (!categories.length) categories = ['landscape'];
       var queries = {
