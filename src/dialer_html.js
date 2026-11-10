@@ -2975,7 +2975,6 @@
         </div>
 
         <!-- Auto Dial Toggle -->
-        <button id="autoDialBtn" title="自动拨打" style="font-size: 0.78rem; padding: 4px 8px; border: none; background: transparent; color: var(--accent-wechat); cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-sm); white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
         <button id="refreshBatchBtn" title="换一批 — 按最新导入顺序拉取，拉过的自动沉底" onclick="if(window.refreshBatch)window.refreshBatch()" style="font-size: 0.78rem; padding: 4px 8px; border: none; background: transparent; color: #e67e22; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-sm); white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
         <button id="learnBtn" title="学习" onclick="window.location.href='/learn'" style="font-size: 0.78rem; padding: 4px 8px; border: none; background: transparent; color: #4a6cf7; cursor: pointer; outline: none; font-weight: 700; border-radius: var(--radius-sm); white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></button>
         <button id="lockScreenBtn" title="锁定屏幕" style="font-size:0.68rem;padding:3px 6px;border:none;background:transparent;color:var(--text-soft);cursor:pointer;outline:none;font-weight:700;border-radius:3px;white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
@@ -3256,48 +3255,6 @@
     </div>
   </div>
   
-  <!-- Call Assistant Modal -->
-  <div id="callAssistOverlay" class="modal-overlay" style="z-index:3000;">
-    <div class="modal-card" style="text-align:center;gap:12px;">
-      <div style="font-size:0.75rem;color:var(--text-soft);font-weight:800;letter-spacing:1px;text-transform:uppercase;">快捷呼叫助理</div>
-      <div style="display:none;" id="callAssistName">-</div>
-      <div style="display:flex;align-items:center;justify-content:center;margin-top:2px;">
-        <div id="callAssistNameDisplay" class="client-card-name-btn" title="点击复制姓名" style="font-size:1.25rem;font-weight:900;color:var(--text-main);">-</div>
-      </div>
-      <div id="callAssistPhone" style="display:none;">-</div>
-      <div style="display:flex;align-items:center;justify-content:center;margin-top:-2px;">
-        <div id="callAssistPhoneDisplay" class="client-phone-btn" title="点击复制号码" style="font-size:1.15rem !important;font-weight:900;color:var(--text-main);">-</div>
-      </div>
-      <div id="callAssistCompanyRow" style="display:none;margin-top:2px;width:100%;">
-        <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">公司：</span>
-        <span id="callAssistCompany" title="点击复制单位" style="font-size:0.75rem;font-weight:800;color:var(--accent-wechat);background:rgba(7,193,96,0.08);padding:2px 8px;border-radius:var(--radius-xs);cursor:pointer;display:inline-block;"></span>
-      </div>
-      <div id="callAssistNoteRow" style="display:none;margin-top:4px;width:100%;text-align:left;">
-        <span style="font-size:0.7rem;color:var(--text-light);font-weight:800;">备注：</span>
-        <span id="callAssistNote" style="font-size:0.72rem;font-weight:700;color:var(--text-soft);line-height:1.4;word-break:break-all;white-space:pre-wrap;"></span>
-      </div>
-      <div style="display:flex;justify-content:center;margin-top:4px;width:100%;">
-        <a id="callAssistDialLink" class="btn-modal btn-success" style="width:100%;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:0.85rem;height:38px;box-shadow:var(--shadow-card);border-radius:var(--radius-xs);">立即拨打</a>
-      </div>
-      
-      <!-- Remark Input Field (Directly Visible) -->
-      <div style="text-align:left;display:flex;flex-direction:column;gap:4px;width:100%;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="client-card-label" style="font-size:0.65rem;color:var(--text-light);font-weight:800;">通话小记 / 沟通记录</span>
-          <button type="button" id="bhpBoldBtn" title="加粗 (Alt+B)" style="height:22px;width:22px;font-weight:900;font-size:0.6rem;border:none;box-shadow:var(--shadow-card);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;flex-shrink:0;">B</button>
-          <button type="button" id="bhpDelBtn" title="删除线 (Alt+D)" style="height:22px;width:22px;font-weight:700;font-size:0.5rem;border:none;box-shadow:var(--shadow-card);background:var(--btn-bg);color:var(--text-main);cursor:pointer;border-radius:3px;padding:0;line-height:1;text-decoration:line-through;flex-shrink:0;">D</button>
-        </div>
-        <textarea id="callLogNote" placeholder="在这里输入通话记录、客户意向等备注信息..." style="width:100%;height:100px;font-size:0.8rem;padding:8px 10px;background:var(--btn-bg);border:0.5px solid var(--card-border);border-radius:var(--radius-xs);color:var(--text-main);outline:none;font-weight:700;resize:none;"></textarea>
-      </div>
-
-      <!-- Direct Outcome Action Buttons -->
-      <div style="display:flex;gap:10px;width:100%;margin-top:4px;">
-        <button id="callOutcomeSuccessBtn" class="btn-modal btn-success" style="flex:1;font-size:0.85rem;height:42px;box-shadow:var(--shadow-card);">已接通</button>
-        <button id="callOutcomeFailedBtn" class="btn-modal btn-danger" style="flex:1;font-size:0.85rem;height:42px;box-shadow:var(--shadow-card);">未接通</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Export Dialog Modal -->
   <div id="exportModal" class="modal-overlay">
     <div class="modal-card export-modal-card">
@@ -8404,24 +8361,19 @@
           });
         });
 
-        // Wire up call button
+        // 拨号图标直接唤起系统电话应用；仅记录拨号动作，不再弹出快捷呼叫助理。
         container.querySelectorAll('.xls-card-dial-btn').forEach(function(btn) {
-          btn.addEventListener('click', function(e) {
+          btn.addEventListener('click', function() {
             var idx = parseInt(this.dataset.idx);
-            var clientNow = importedClients[idx];
-            if (clientNow && !isClientInfoVisible()) {
-              clientNow.dial_attempted = true;
+            var client = importedClients[idx];
+            if (client && !isClientInfoVisible()) {
+              client.dial_attempted = true;
               saveState();
               this.classList.add('dial-attempted');
               this.title = '已拨打';
-              this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>';
+              this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 1.72 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>';
             }
-            // Delay opening the modal by 200ms to allow Safari to natively trigger the tel: anchor navigation first
-            setTimeout(function() {
-              var client = importedClients[idx];
-              if (client) recordTimeline(client.phone || client.mobile, 'dial');
-              startCallAssistant(idx);
-            }, 200);
+            if (client) recordTimeline(client.phone || client.mobile, 'dial');
           });
         });
       } else {
@@ -8519,17 +8471,11 @@
           });
         });
 
-        // Wire up table dial buttons with call assistant
+        // 表格拨号图标直接唤起系统电话应用，仅记录拨号动作。
         container.querySelectorAll('.col-action a').forEach(function(btn, idx) {
-          btn.addEventListener('click', function(e) {
-            // Let the tel: link work natively
+          btn.addEventListener('click', function() {
             var client = sorted[idx];
-            if (client) {
-              recordTimeline(client.phone || client.mobile, 'dial');
-              setTimeout(function() {
-                startCallAssistant(importedClients.indexOf(client));
-              }, 300);
-            }
+            if (client) recordTimeline(client.phone || client.mobile, 'dial');
           });
         });
       }
@@ -14111,7 +14057,6 @@ function updateAutoDialBtn() {
     safeInit('initAuth', initAuth);
     safeInit('initDark', initDark);
     safeInit('initFileInputs', initFileInputs);
-    safeInit('initCallControls', initCallControls);
     safeInit('initFilters', initFilters);
     safeInit('initDataActions', initDataActions);
 
