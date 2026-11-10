@@ -56,6 +56,7 @@ export function createSupabaseStore(env) {
     if (parts[0] === 'dialer' && parts[1] === 'session' && parts.length >= 3) return { kind: 'session', token: parts.slice(2).join(':') };
     // Device-ban flags must be mapped to Supabase and read fresh on every check.
     if (parts[0] === 'dialer' && parts[1] === 'device-ban' && parts.length === 4) return { kind: 'device_ban', accountId: parts[2], deviceId: parts[3] };
+    if (parts[0] === 'dialer' && parts[1] === 'master-active' && parts.length === 3) return { kind: 'runtime_cache' };
     if (parts[0] === 'dialer' && (parts[1] === 'login' || parts[1] === 'unlock') && parts[2] === 'fail' && parts.length >= 4) return { kind: 'runtime_cache' };
     if (parts[0] === 'dialer' && parts[1] === 'bgjob' && parts.length >= 3) return { kind: 'job', id: parts.slice(2).join(':') };
     if (parts[0] === 'work_stats' && parts.length === 3) return { kind: 'work', accountId: parts[1], date: parts[2] };
