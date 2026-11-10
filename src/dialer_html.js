@@ -8421,6 +8421,8 @@
             var copyText = isClientInfoVisible() ? (buildCopyText(client) || name) : name;
             if (!copyText) return;
             copyTextToClipboard(copyText);
+            // 复制姓名后同步唤起微信，保持在用户点击手势内，兼容 iOS / 鸿蒙。
+            jumpToWechat();
 
             if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
 
@@ -8640,6 +8642,8 @@
 
             // 与移动卡片视图共用跨平台复制逻辑，失败时走同步复制/错误提示兜底。
             copyTextToClipboard(copyText);
+            // 拨号列表中复制姓名后也直接跳转微信；其他字段保持原有行为。
+            if (copyType === 'copy_name') jumpToWechat();
             // Brief flash
             var orig = btn.style.color;
             btn.style.color = '#07c160';
