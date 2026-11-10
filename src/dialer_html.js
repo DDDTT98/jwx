@@ -5249,6 +5249,8 @@
       var nameCol = parseInt(document.getElementById('aiSelName').value);
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
+      var bulkName = ((document.getElementById('excelBulkMissingName') || {}).value || '').trim();
+      var bulkCompany = ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
       var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       
@@ -5356,8 +5358,16 @@
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
 
-      if (nameCol === -1 || phoneCol === -1) {
-        alert('必须映射姓名和手机号列；姓名缺失值可批量补充，手机号必须逐条有效。');
+      if (phoneCol === -1) {
+        alert('必须映射手机号列；手机号必须逐条有效，不能用同一个号码批量代替。');
+        return;
+      }
+      if (nameCol === -1 && !bulkName) {
+        alert('缺少姓名列，请填写“批量补充缺失姓名”后再导入。');
+        return;
+      }
+      if (compCol === -1 && !bulkCompany) {
+        alert('缺少单位名称列，请填写“批量补充缺失单位名称”后再导入。');
         return;
       }
 
@@ -5378,6 +5388,17 @@
 
       var parsedCustomers = [];
       var phoneSet = new Set();
+      var missingPhoneRows = [];
+      for (var vr = startRow; vr < tempImportData.length; vr++) {
+        var vrow = tempImportData[vr];
+        if (!vrow || !vrow.some(function(v) { return String(v == null ? '' : v).trim() !== ''; })) continue;
+        var vphone = cleanPhone(vrow[phoneCol]);
+        if (!isPhone(vphone)) missingPhoneRows.push(vr + 1);
+      }
+      if (missingPhoneRows.length) {
+        alert('导入已拦截：有 ' + missingPhoneRows.length + ' 行缺少有效手机号（例如第 ' + missingPhoneRows.slice(0, 10).join('、') + ' 行）。请逐条补全手机号后再导入。');
+        return;
+      }
 
       for (var r = startRow; r < tempImportData.length; r++) {
         var row = tempImportData[r];
@@ -5387,9 +5408,9 @@
         if (phoneSet.has(phoneVal)) continue;
         phoneSet.add(phoneVal);
 
-        var nameVal = String(row[nameCol] || '').trim() || bulkName;
+        var nameVal = (nameCol !== -1 ? String(row[nameCol] || '').trim() : '') || bulkName;
         var companyVal = (compCol !== -1 ? String(row[compCol] || '').trim() : '') || bulkCompany;
-        if (!nameVal || !companyVal || !/^1[3-9]\\d{9}$/.test(phoneVal)) {
+        if (!nameVal || nameVal === '未知姓名' || !companyVal || !isPhone(phoneVal)) {
           alert('第 ' + (r + 1) + ' 行必备字段不完整：姓名、有效手机号、单位名称均不能为空。请补充后再导入。');
           return;
         }
@@ -7533,7 +7554,7 @@
       var name = String(contact.name || '').trim();
       var phone = cleanPhone(contact.phone || contact.mobile || '');
       var company = String(contact.company || '').trim();
-      var validPhone = /^1[3-9]\\d{9}$/.test(phone);
+      var validPhone = isPhone(phone);
       if (!name || name === '未知姓名' || !validPhone || !company) {
         missing.push({ row: index + 1, fields: [
           (!name || name === '未知姓名') ? '姓名' : '',
