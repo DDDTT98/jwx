@@ -70,6 +70,7 @@ export const LEARN_TIME_MATRIX_HTML = `
           <li>及时屏蔽无关消息打扰</li>
           <li>尽快解决不必要的琐事</li>
           <li>多利用工具和方法提高工作效率</li>
+          <li>快速标记、清理无条件且排斥付费的客户</li>
         </ul>
         <div class="time-q-goal"><b>核心目标：</b>减少被动打断，避免琐事占用开发客户的时间</div>
       </section>
