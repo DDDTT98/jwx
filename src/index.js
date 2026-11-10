@@ -574,8 +574,15 @@ export default {
           });
         }
         const themePattern = type === 'space'
-          ? /(space|universe|galaxy|galaxies|nebula|cosmos|milky way|starfield|astronomy|planet|planets|星云|银河|宇宙|星空)/i
+          ? /(space|universe|galaxy|galaxies|nebula|cosmos|milky way|starfield|planet|planets|星云|银河|宇宙|星空)/i
           : /(flower|floral|bouquet|blossom|rose|roses|tulip|tulips|peony|peonies|daisy|daisies|orchid|orchids|花朵|花卉|鲜花)/i;
+        // 宇宙星空只接受实际天体/深空主题；排除天文学者、研究人员和人物肖像。
+        const isThemeMatch = value => {
+          const text = String(value || '');
+          if (!themePattern.test(text)) return false;
+          if (type === 'space' && /(astronomer|astronomy|astrophysicist|scientist|researcher|professor|portrait|headshot|biography|astronaut|天文学家|天文学|天体物理学家|科学家|研究员|教授|人物肖像|个人简介|宇航员)/i.test(text)) return false;
+          return true;
+        };
         const headers = { 'Accept': 'application/json', 'User-Agent': 'jwx-wallpaper/2.0 (wallpaper search)' };
         const isHttps = value => /^https:\/\//i.test(String(value || ''));
         const toTags = values => (values || []).map(value => ({ name: String(value || ''), alias: '' }));
@@ -605,7 +612,7 @@ export default {
               const tagText = [item.title || '', ...(tags.map(tag => tag.name))].join(' ');
               const fileUrl = String(item.url || item.thumbnail || '');
               if (!isHttps(fileUrl) || !isHttps(item.foreign_landing_url)) continue;
-              if (item.mature === true || !themePattern.test(tagText)) continue;
+              if (item.mature === true || !isThemeMatch(tagText)) continue;
               if (Number(item.width || 0) < 700 || Number(item.height || 0) < 700) continue;
               if (!tags.length) tags.push(...toTags([item.title || query]));
               return new Response(JSON.stringify({
@@ -661,7 +668,7 @@ export default {
               const tagText = title + ' ' + description;
               const fileUrl = String(info.thumburl || info.url || '');
               const sourceUrl = String(info.descriptionurl || '');
-              if (!isHttps(fileUrl) || !isHttps(sourceUrl) || !themePattern.test(tagText)) continue;
+              if (!isHttps(fileUrl) || !isHttps(sourceUrl) || !isThemeMatch(tagText)) continue;
               const tags = toTags([title, description.slice(0, 300)]);
               return new Response(JSON.stringify({
                 success: true,
@@ -709,7 +716,7 @@ export default {
               const wallpaper = detailPayload && detailPayload.data;
               if (!wallpaper || !Array.isArray(wallpaper.tags)) continue;
               const tags = wallpaper.tags.map(tag => ({ name: String(tag && tag.name || ''), alias: String(tag && tag.alias || '') }));
-              if (!themePattern.test(tags.map(tag => tag.name + ' ' + tag.alias).join(' '))) continue;
+              if (!isThemeMatch(tags.map(tag => tag.name + ' ' + tag.alias).join(' '))) continue;
               const fileUrl = String(wallpaper.path || candidate.path || '');
               const sourceUrl = String(wallpaper.url || candidate.url || '');
               if (!isHttps(fileUrl) || !isHttps(sourceUrl)) continue;
