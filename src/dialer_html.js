@@ -3905,6 +3905,9 @@
 
     function sendDeviceHeartbeat() {
       var token=getSessionToken(); if(!token) return;
+      // Ignore responses from a heartbeat started before a successful PIN unlock
+      // or before the browser switched to another login session.
+      var heartbeatUnlockVersion = window._dialerUnlockVersion || 0;
       var ua=(navigator.userAgent||'').toLowerCase();
       var deviceType=ua.indexOf('iphone')>=0||ua.indexOf('ipad')>=0||ua.indexOf('ipod')>=0?'iOS':(ua.indexOf('android')>=0?'Android':(ua.indexOf('windows')>=0?'Windows':(ua.indexOf('macintosh')>=0?'macOS':'桌面设备')));
       var browser=ua.indexOf('edg/')>=0?'Edge':(ua.indexOf('crios')>=0||ua.indexOf('chrome')>=0?'Chrome':(ua.indexOf('fxios')>=0||ua.indexOf('firefox')>=0?'Firefox':(ua.indexOf('safari')>=0?'Safari':'其他浏览器')));
@@ -3912,6 +3915,9 @@
       fetch('/api/dialer/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({device_id:getDeviceId(),device_name:deviceName,device_type:deviceType,browser:browser})})
         .then(function(r){
           if(r.ok) return;
+          // A delayed heartbeat from the pre-unlock lock screen must never
+          // re-lock the app after PIN verification has already succeeded.
+          if (getSessionToken() !== token || (window._dialerUnlockVersion || 0) !== heartbeatUnlockVersion) return;
           return r.json().catch(function(){return {};}).then(function(res){
             var msg=String(res&&res.error||'');
             // 设备被主账号禁止：立即隐藏工作界面并回到 PIN 锁屏，保留会话以便后续重新验证。
@@ -13983,6 +13989,8 @@ function updateAutoDialBtn() {
         .then(function(res) {
           if (!res) return;
           if (res.success) {
+            // Invalidate any heartbeat response that was started before this unlock.
+            window._dialerUnlockVersion = (window._dialerUnlockVersion || 0) + 1;
             clearInterval(lockoutTimer);
             lockoutTimer = null;
             sessionStorage.removeItem('dialer_locked');
