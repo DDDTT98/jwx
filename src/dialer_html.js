@@ -1042,6 +1042,37 @@
     }
     body.dark-mode #lockUnlockBtn:hover {
       background: linear-gradient(180deg, #ffffff 0%, #e8ebee 100%);
+    }
+
+    /* 登录按钮与 PIN 解锁按钮保持统一灰白风格 */
+    #authLoginBtn {
+      background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
+      color: #4b5563;
+      border: 1px solid rgba(120,130,145,0.28);
+      border-radius: 22px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      box-shadow: 0 4px 14px rgba(40,50,65,0.12);
+      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    #authLoginBtn:hover {
+      background: linear-gradient(180deg, #f7f8fa 0%, #e1e5e9 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(40,50,65,0.16);
+    }
+    #authLoginBtn:active {
+      background: linear-gradient(180deg, #e5e8ec 0%, #f1f2f4 100%);
+      transform: scale(0.97);
+      box-shadow: 0 2px 8px rgba(40,50,65,0.12);
+    }
+    body.dark-mode #authLoginBtn {
+      background: linear-gradient(180deg, #f5f6f7 0%, #dfe3e7 100%);
+      color: #374151;
+      border-color: rgba(255,255,255,0.24);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.24);
+    }
+    body.dark-mode #authLoginBtn:hover {
+      background: linear-gradient(180deg, #ffffff 0%, #e8ebee 100%);
     }.auth-overlay.auth-hidden {
       display: none;
     }
