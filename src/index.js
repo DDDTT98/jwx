@@ -558,79 +558,184 @@ export default {
       });
     }
 
-    // ==================== 植物壁纸搜索与标签校验 ====================
-    // 通过 Worker 代理 Wallhaven API，读取单张壁纸详情中的 tags，避免仅凭搜索词误收无关图片。
+    // ==================== 花朵 / 宇宙星空壁纸搜索 ====================
+    // 多源顺序：Openverse（开放授权图库） -> Wikimedia Commons -> Wallhaven。
     if (path === '/api/wallpaper/search' && request.method === 'GET') {
       try {
-        const allowedPlantQueries = ['flowers', 'flower', 'floral', 'bouquet', 'blossom'];
+        const type = String(url.searchParams.get('type') || 'flowers').trim().toLowerCase();
         const query = String(url.searchParams.get('q') || '').trim().toLowerCase();
-        if (allowedPlantQueries.indexOf(query) < 0) {
-          return new Response(JSON.stringify({ success: false, message: '不支持的植物搜索关键词' }), {
+        const flowerQueries = ['flowers', 'flower', 'floral', 'bouquet', 'blossom'];
+        const spaceQueries = ['outer space universe galaxy stars nebula', 'deep space cosmos milky way planets starfield', 'galaxy nebula', 'universe cosmos'];
+        const allowed = type === 'space' ? spaceQueries : (type === 'flowers' ? flowerQueries : []);
+        if (allowed.indexOf(query) < 0) {
+          return new Response(JSON.stringify({ success: false, message: '不支持的壁纸搜索关键词' }), {
             status: 400,
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
           });
         }
-        const searchUrl = new URL('https://wallhaven.cc/api/v1/search');
-        searchUrl.searchParams.set('q', query);
-        searchUrl.searchParams.set('categories', '100');
-        searchUrl.searchParams.set('purity', '100');
-        searchUrl.searchParams.set('sorting', 'random');
-        searchUrl.searchParams.set('ratios', '9x16');
-        const searchResp = await fetch(searchUrl.toString(), {
-          headers: { 'Accept': 'application/json', 'User-Agent': 'jwx-wallpaper/1.0' }
-        });
-        if (!searchResp.ok) throw new Error('Wallhaven 搜索失败：' + searchResp.status);
-        const searchData = await searchResp.json();
-        const candidates = Array.isArray(searchData.data) ? searchData.data : [];
-        // 随机打乱候选，最多读取 6 张详情，避免一次刷新触发过多上游请求。
-        for (let i = candidates.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          const temp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = temp;
-        }
-        const plantTagPattern = /(flower|floral|bouquet|blossom|rose|roses|tulip|tulips|peony|peonies|daisy|daisies|orchid|orchids)/i;
-        for (const candidate of candidates.slice(0, 6)) {
-          if (!candidate || !/^[a-z0-9]{6}$/i.test(String(candidate.id || ''))) continue;
-          if (String(candidate.purity || '').toLowerCase() !== 'sfw') continue;
-          if (String(candidate.category || '').toLowerCase() !== 'general') continue;
-          if (!(Number(candidate.dimension_y) > Number(candidate.dimension_x))) continue;
-          const detailResp = await fetch('https://wallhaven.cc/api/v1/w/' + encodeURIComponent(candidate.id), {
-            headers: { 'Accept': 'application/json', 'User-Agent': 'jwx-wallpaper/1.0' }
-          });
-          if (!detailResp.ok) continue;
-          const detailPayload = await detailResp.json();
-          const wallpaper = detailPayload && detailPayload.data;
-          if (!wallpaper || !Array.isArray(wallpaper.tags)) continue;
-          const tags = wallpaper.tags.map(tag => ({
-            name: String(tag && tag.name || ''),
-            alias: String(tag && tag.alias || '')
-          }));
-          const tagText = tags.map(tag => tag.name + ' ' + tag.alias).join(' ');
-          if (!plantTagPattern.test(tagText)) continue;
-          const fileUrl = String(wallpaper.path || candidate.path || '');
-          if (!/^https:\/\//i.test(fileUrl)) continue;
-          return new Response(JSON.stringify({
-            success: true,
-            data: {
-              file_url: fileUrl,
-              source_url: String(wallpaper.url || candidate.url || ''),
-              purity: String(wallpaper.purity || candidate.purity || ''),
-              category: String(wallpaper.category || candidate.category || ''),
-              resolution: String(wallpaper.resolution || candidate.resolution || ''),
-              is_mobile: Number(wallpaper.dimension_y || candidate.dimension_y) > Number(wallpaper.dimension_x || candidate.dimension_x),
-              tags: tags
+        const themePattern = type === 'space'
+          ? /(space|universe|galaxy|galaxies|nebula|cosmos|milky way|starfield|astronomy|planet|planets|星云|银河|宇宙|星空)/i
+          : /(flower|floral|bouquet|blossom|rose|roses|tulip|tulips|peony|peonies|daisy|daisies|orchid|orchids|花朵|花卉|鲜花)/i;
+        const headers = { 'Accept': 'application/json', 'User-Agent': 'jwx-wallpaper/2.0 (wallpaper search)' };
+        const isHttps = value => /^https:\/\//i.test(String(value || ''));
+        const toTags = values => (values || []).map(value => ({ name: String(value || ''), alias: '' }));
+
+        // Source 1: Openverse，聚合多个开放授权图库，匿名 API 可用。
+        try {
+          const ovUrl = new URL('https://api.openverse.org/v1/images/');
+          ovUrl.searchParams.set('q', query);
+          ovUrl.searchParams.set('page_size', '20');
+          ovUrl.searchParams.set('mature', 'false');
+          ovUrl.searchParams.set('size', 'large');
+          const ovResp = await fetch(ovUrl.toString(), { headers });
+          if (ovResp.ok) {
+            const ovPayload = await ovResp.json();
+            const results = Array.isArray(ovPayload.results) ? ovPayload.results.slice() : [];
+            for (let i = results.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              const tmp = results[i]; results[i] = results[j]; results[j] = tmp;
             }
-          }), {
-            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
-          });
+            for (const item of results) {
+              const tags = (Array.isArray(item.tags) ? item.tags : []).map(tag => ({
+                name: String(tag && tag.name || ''), alias: ''
+              }));
+              const tagText = [item.title || '', ...(tags.map(tag => tag.name))].join(' ');
+              const fileUrl = String(item.url || item.thumbnail || '');
+              if (!isHttps(fileUrl) || !isHttps(item.foreign_landing_url)) continue;
+              if (item.mature === true || !themePattern.test(tagText)) continue;
+              if (Number(item.width || 0) < 700 || Number(item.height || 0) < 700) continue;
+              if (!tags.length) tags.push(...toTags([item.title || query]));
+              return new Response(JSON.stringify({
+                success: true,
+                data: {
+                  file_url: fileUrl,
+                  source_url: String(item.foreign_landing_url),
+                  provider: 'openverse',
+                  purity: 'sfw',
+                  category: 'general',
+                  resolution: String(item.width || '') + 'x' + String(item.height || ''),
+                  is_mobile: true,
+                  tags: tags,
+                  attribution: String(item.attribution || ''),
+                  license: String(item.license || '')
+                }
+              }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
+            }
+          }
+        } catch (openverseError) {
+          console.warn('[wallpaper] Openverse source failed:', openverseError);
         }
-        return new Response(JSON.stringify({ success: false, message: '没有找到通过植物标签校验的壁纸' }), {
+
+        // Source 2: Wikimedia Commons，搜索文件命名空间并读取真实图片信息。
+        try {
+          const commonsUrl = new URL('https://commons.wikimedia.org/w/api.php');
+          commonsUrl.searchParams.set('action', 'query');
+          commonsUrl.searchParams.set('format', 'json');
+          commonsUrl.searchParams.set('origin', '*');
+          commonsUrl.searchParams.set('generator', 'search');
+          commonsUrl.searchParams.set('gsrnamespace', '6');
+          commonsUrl.searchParams.set('gsrlimit', '30');
+          commonsUrl.searchParams.set('gsrsearch', query);
+          commonsUrl.searchParams.set('prop', 'imageinfo');
+          commonsUrl.searchParams.set('iiprop', 'url|size|mime|extmetadata');
+          commonsUrl.searchParams.set('iiurlwidth', '1600');
+          commonsUrl.searchParams.set('iiextmetadatafilter', 'ImageDescription|ObjectName|LicenseShortName');
+          const cmResp = await fetch(commonsUrl.toString(), { headers });
+          if (cmResp.ok) {
+            const cmPayload = await cmResp.json();
+            const pages = Object.values((cmPayload && cmPayload.query && cmPayload.query.pages) || {});
+            for (let i = pages.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              const tmp = pages[i]; pages[i] = pages[j]; pages[j] = tmp;
+            }
+            for (const page of pages) {
+              const info = page && page.imageinfo && page.imageinfo[0];
+              if (!info || !/^image\/(jpeg|png|webp)$/i.test(String(info.mime || ''))) continue;
+              if (Number(info.width || 0) < 700 || Number(info.height || 0) < 700) continue;
+              const meta = info.extmetadata || {};
+              const description = String((meta.ImageDescription && meta.ImageDescription.value) || '');
+              const title = String(page.title || '');
+              const tagText = title + ' ' + description;
+              const fileUrl = String(info.thumburl || info.url || '');
+              const sourceUrl = String(info.descriptionurl || '');
+              if (!isHttps(fileUrl) || !isHttps(sourceUrl) || !themePattern.test(tagText)) continue;
+              const tags = toTags([title, description.slice(0, 300)]);
+              return new Response(JSON.stringify({
+                success: true,
+                data: {
+                  file_url: fileUrl,
+                  source_url: sourceUrl,
+                  provider: 'wikimedia-commons',
+                  purity: 'sfw',
+                  category: 'general',
+                  resolution: String(info.width || '') + 'x' + String(info.height || ''),
+                  is_mobile: true,
+                  tags: tags,
+                  license: String((meta.LicenseShortName && meta.LicenseShortName.value) || '')
+                }
+              }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
+            }
+          }
+        } catch (commonsError) {
+          console.warn('[wallpaper] Wikimedia Commons source failed:', commonsError);
+        }
+
+        // Source 3: Wallhaven 兜底，仅当上面两个图库都没有合格图片时使用。
+        try {
+          const whQuery = type === 'space' ? 'space galaxy nebula universe' : 'flowers floral bouquet';
+          const whUrl = new URL('https://wallhaven.cc/api/v1/search');
+          whUrl.searchParams.set('q', whQuery);
+          whUrl.searchParams.set('categories', '100');
+          whUrl.searchParams.set('purity', '100');
+          whUrl.searchParams.set('sorting', 'random');
+          const whResp = await fetch(whUrl.toString(), { headers });
+          if (whResp.ok) {
+            const whPayload = await whResp.json();
+            const candidates = Array.isArray(whPayload.data) ? whPayload.data.slice() : [];
+            for (let i = candidates.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              const tmp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = tmp;
+            }
+            for (const candidate of candidates.slice(0, 8)) {
+              if (!candidate || !/^[a-z0-9]{6}$/i.test(String(candidate.id || ''))) continue;
+              if (String(candidate.purity || '').toLowerCase() !== 'sfw') continue;
+              const detailResp = await fetch('https://wallhaven.cc/api/v1/w/' + encodeURIComponent(candidate.id), { headers });
+              if (!detailResp.ok) continue;
+              const detailPayload = await detailResp.json();
+              const wallpaper = detailPayload && detailPayload.data;
+              if (!wallpaper || !Array.isArray(wallpaper.tags)) continue;
+              const tags = wallpaper.tags.map(tag => ({ name: String(tag && tag.name || ''), alias: String(tag && tag.alias || '') }));
+              if (!themePattern.test(tags.map(tag => tag.name + ' ' + tag.alias).join(' '))) continue;
+              const fileUrl = String(wallpaper.path || candidate.path || '');
+              const sourceUrl = String(wallpaper.url || candidate.url || '');
+              if (!isHttps(fileUrl) || !isHttps(sourceUrl)) continue;
+              return new Response(JSON.stringify({
+                success: true,
+                data: {
+                  file_url: fileUrl,
+                  source_url: sourceUrl,
+                  provider: 'wallhaven',
+                  purity: 'sfw',
+                  category: 'general',
+                  resolution: String(wallpaper.resolution || candidate.resolution || ''),
+                  is_mobile: true,
+                  tags: tags
+                }
+              }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
+            }
+          }
+        } catch (wallhavenError) {
+          console.warn('[wallpaper] Wallhaven fallback failed:', wallhavenError);
+        }
+
+        return new Response(JSON.stringify({ success: false, message: '多个图片源均未找到符合主题的图片' }), {
           status: 404,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
         });
       } catch (error) {
-        return new Response(JSON.stringify({ success: false, message: error && error.message || '植物壁纸搜索失败' }), {
+        return new Response(JSON.stringify({ success: false, message: error && error.message || '壁纸搜索失败' }), {
           status: 502,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
         });
       }
     }
