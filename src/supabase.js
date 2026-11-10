@@ -725,7 +725,7 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
-        'name,mobile,company_name,storage_institution,unit_nature,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,unit_nature,asset,category,note,fund,batch_label,created_at,last_operation,account_id',
         'name,mobile,company_name,storage_institution,category,note,fund,created_at,last_operation,account_id',
         'name,mobile,company_name,storage_institution,category,note,batch_label,created_at,account_id',
         'name,mobile,company_name,storage_institution,category,note,created_at,account_id',
@@ -833,6 +833,7 @@ export function createSupabaseClient(env) {
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
         unit_nature: String(c.unit_nature || c.unitNature || '').trim() || null,
+        asset: String(c.asset || '').trim() || null,
         note: noteVal,
         category: (c.category || '').trim() || '公海客户',
         batch_label: (c.batch_label || '').trim(),
@@ -1109,8 +1110,8 @@ export function createSupabaseClient(env) {
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
 
       var colSets = [
-        'name,mobile,company_name,storage_institution,unit_nature,category,note,fund,batch_label,created_at,last_operation,pulled_at,account_id',
-        'name,mobile,company_name,storage_institution,unit_nature,category,note,fund,created_at,last_operation,pulled_at,account_id',
+        'name,mobile,company_name,storage_institution,unit_nature,asset,category,note,fund,batch_label,created_at,last_operation,pulled_at,account_id',
+        'name,mobile,company_name,storage_institution,unit_nature,asset,category,note,fund,created_at,last_operation,pulled_at,account_id',
         'name,mobile,company_name,storage_institution,category,note,batch_label,created_at,pulled_at,account_id',
         'name,mobile,company_name,storage_institution,category,note,created_at,pulled_at,account_id',
         'name,mobile,company_name,created_at,pulled_at,account_id',
@@ -1649,7 +1650,7 @@ export function createSupabaseClient(env) {
     while (true) {
       var to = from + pageSize - 1;
       var colSets = [
-        'name,mobile,company_name,storage_institution,unit_nature,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,unit_nature,asset,category,note,fund,batch_label,created_at,last_operation,account_id',
         'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,account_id',
         'name,mobile,company_name,category,note,created_at,account_id',
         '*'
