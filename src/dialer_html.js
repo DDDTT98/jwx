@@ -948,37 +948,33 @@
       /* 50px blur 触发整屏重采样（最贵档），24px 视觉相近、成本大降 */
       backdrop-filter: blur(24px) saturate(160%);
       -webkit-backdrop-filter: blur(24px) saturate(160%);
-      border: 1.5px solid rgba(255,140,180,0.35);
+      border: 1px solid rgba(120,130,145,0.18);
       border-radius: 32px;
       box-shadow:
-        0 0 30px rgba(255,150,200,0.15),
-        0 8px 40px rgba(0,0,0,0.06),
+        0 8px 40px rgba(0,0,0,0.08),
         inset 0 1px 0 rgba(255,255,255,0.5);
       overflow: hidden;
     }
     /* Subtle anime glow ring */
     .auth-overlay .auth-card::before {
-      content: ''; position: absolute; top: -1px; left: 20px; right: 20px; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255,180,210,0.6), rgba(200,160,255,0.6), rgba(255,180,210,0.6), transparent);
-      z-index: 10; pointer-events: none; border-radius: 1px;
+      display: none;
     }
     body.dark-mode .auth-overlay .auth-card {
       background: linear-gradient(160deg, rgba(35,25,35,0.55) 0%, rgba(30,20,30,0.45) 40%, rgba(25,20,30,0.4) 100%);
       backdrop-filter: blur(24px) saturate(140%);
       -webkit-backdrop-filter: blur(24px) saturate(140%);
-      border: 1.5px solid rgba(200,120,180,0.25);
+      border: 1px solid rgba(255,255,255,0.12);
       box-shadow:
-        0 0 40px rgba(200,100,180,0.12),
         0 8px 40px rgba(0,0,0,0.3),
         inset 0 1px 0 rgba(255,255,255,0.04);
     }
     body.dark-mode .auth-overlay .auth-card::before {
-      background: linear-gradient(90deg, transparent, rgba(200,140,200,0.4), rgba(160,120,200,0.4), rgba(200,140,200,0.4), transparent);
+      display: none;
     }
     /* ── Anime PIN input ── */
     .auth-overlay .auth-input {
       background: rgba(255,255,255,0.55);
-      border: 2px solid rgba(255,180,210,0.5);
+      border: 1px solid rgba(120,130,145,0.25);
       border-radius: 18px;
       color: #5c3d5c;
       font-weight: 600;
