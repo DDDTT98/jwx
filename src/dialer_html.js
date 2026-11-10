@@ -13357,7 +13357,7 @@ function updateAutoDialBtn() {
           if(summary) summary.innerHTML=(res.accounts||[]).map(function(a){return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 7px;background:var(--btn-bg);border-radius:4px;font-size:.61rem;color:var(--text-main)"><span>'+escHtml(a.real_name||a.account_name)+'</span><span>'+a.online_count+' / '+a.max_devices+' 台在线</span></div>';}).join('');
           if(!devices.length){list.innerHTML='<div style="font-size:.66rem;color:var(--text-light);padding:8px;text-align:center;">暂无设备记录。子账号登录后会自动登记设备。</div>';return;}
           list.innerHTML=devices.map(function(d){
-            var status=d.online?'<span style="color:#07a35a;font-weight:700">在线</span>':'<span style="color:var(--text-soft)">'+(d.revoked?'已强制下线':'离线')+'</span>';
+            var status=d.online?'<span style="color:#07a35a;font-weight:700">在线</span>':'<span style="color:var(--text-soft)">'+(d.banned?'已禁止登录':(d.revoked?'已强制下线':'离线'))+'</span>';
             var ua=(d.user_agent||'').slice(0,180);
             var first=d.created_at?new Date(d.created_at).toLocaleString():'未知';
             var last=d.last_seen?new Date(d.last_seen).toLocaleString():'未知';
