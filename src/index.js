@@ -2288,7 +2288,7 @@ export default {
           });
           if (!stagedCountResp.ok) throw new Error('核对暂存数量失败：' + stagedCountResp.status);
           var stagedRange = stagedCountResp.headers.get('Content-Range') || '';
-          var stagedMatch = stagedRange.match(/\\/(\\d+)$/);
+          var stagedMatch = stagedRange.match(/\/(\d+)$/);
           if (!stagedMatch || Number(stagedMatch[1]) !== Number(stageJob.total)) throw new Error('暂存数据核对不一致：数据库实际记录 ' + (stagedMatch ? stagedMatch[1] : '未知') + '/' + stageJob.total);
           var stagedLastResp = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?select=row_no&job_id=eq.' + encodeURIComponent(stageJobId) + '&order=row_no.desc&limit=1', {
             headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
