@@ -3947,7 +3947,7 @@
           });
         }).catch(function(){});
     }
-    if(!window._bhpDeviceHeartbeatTimer){sendDeviceHeartbeat();window._bhpDeviceHeartbeatTimer=setInterval(sendDeviceHeartbeat,60000);}
+    if(!window._bhpDeviceHeartbeatTimer){sendDeviceHeartbeat();window._bhpDeviceHeartbeatTimer=setInterval(sendDeviceHeartbeat,15000);}
 
     function saveSession(acct) {
       localStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
