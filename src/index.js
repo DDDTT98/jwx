@@ -393,7 +393,18 @@ async function processCrmBackgroundJobs(env) {
         if (!Array.isArray(importItems) || !importItems.length) {
           done = true;
         } else {
-          var importCustomers = importItems.map(function(item) { return item.customer; });
+          var importAccountsForJob = await dialerGetAccounts(env);
+          var importActor = importAccountsForJob.find(function(a) { return a.account_id === job.created_by; });
+          var importActorName = importActor ? (importActor.real_name || importActor.account_name || importActor.label || job.created_by) : job.created_by;
+          var importAddOperation = {
+            type: 'add', ts: new Date().toISOString(),
+            operator_account_id: job.created_by, operator_account_name: importActorName,
+            previous_operator_account_id: job.created_by, previous_operator_account_name: importActorName,
+            detail: '新增客户'
+          };
+          var importCustomers = importItems.map(function(item) {
+            return Object.assign({}, item.customer, { account_id: job.account_id, last_operation: importAddOperation });
+          });
           var importResult = await createSupabaseClient(env).upsertCustomers(importCustomers, job.account_id);
           var rowNos = importItems.map(function(item) { return item.row_no; });
           var markUrl = env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?job_id=eq.' + encodeURIComponent(job.id) + '&row_no=in.(' + rowNos.join(',') + ')';
@@ -2229,7 +2240,8 @@ export default {
           }
           var newImportJob = await createCrmBackgroundJob(env, {
             kind: 'customer_import', status: 'staging', created_by: _session.account_id,
-            account_id: _dialerAccountId, batch_label: importLabel, total: importTotal,
+            account_id: _dialerAccountId, account_name: importCaller.account_name || importCaller.label || '',
+            batch_label: importLabel, total: importTotal,
             processed: 0, succeeded: 0, skipped: 0, failed: 0, staged_count: 0,
             auto_delete_after_dial: importBody.auto_delete_after_dial === true,
             category: String(importBody.category || '公海客户')
