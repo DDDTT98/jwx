@@ -5569,12 +5569,15 @@
           }
           script.onload = function() {
             if (settled) return;
-            settled = true;
-            script.dataset.loadState = 'loaded';
-            script.onload = null;
-            script.onerror = null;
-            if (!readyCheck || readyCheck.check()) resolve();
-            else fail(new Error('Script loaded but library was not initialized: ' + url));
+            if (!readyCheck || readyCheck.check()) {
+              settled = true;
+              script.dataset.loadState = 'loaded';
+              script.onload = null;
+              script.onerror = null;
+              resolve();
+            } else {
+              fail(new Error('Script loaded but library was not initialized: ' + url));
+            }
           };
           script.onerror = function() { fail(new Error('Failed to load script: ' + url)); };
           if (!script.parentNode) document.head.appendChild(script);
