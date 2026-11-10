@@ -9831,8 +9831,7 @@ function updateAutoDialBtn() {
       if (!headerRow) return;
       var html = '<th style="width: 40px; text-align: center; cursor: default;"><input type="checkbox" id="crmSelectAll"></th>' +
         '<th data-sort="name" style="width: 140px; cursor: pointer;">客户名称 <span class="sort-arrow"></span></th>' +
-        '<th data-sort="mobile" style="width: 160px; cursor: pointer;">联系号码 <span class="sort-arrow"></span></th>' +
-;
+        '<th data-sort="mobile" style="width: 160px; cursor: pointer;">联系号码 <span class="sort-arrow"></span></th>';
       // 批量设置的“类型”是独立固定列，不混入通用自定义列，避免挤占/错位原有单位字段。
       html += '<th data-sort="batch_type" style="min-width: 100px; cursor: pointer;">类型 <span class="sort-arrow"></span></th>';
       var customCols = (DB.customColumns || []).filter(function(col) { return col !== '类型'; });
