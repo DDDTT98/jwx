@@ -562,7 +562,7 @@ export default {
     // 通过 Worker 代理 Wallhaven API，读取单张壁纸详情中的 tags，避免仅凭搜索词误收无关图片。
     if (path === '/api/wallpaper/search' && request.method === 'GET') {
       try {
-        const allowedPlantQueries = ['flowers', 'plants', 'forest', 'trees', 'leaves'];
+        const allowedPlantQueries = ['flowers', 'flower', 'floral', 'bouquet', 'blossom'];
         const query = String(url.searchParams.get('q') || '').trim().toLowerCase();
         if (allowedPlantQueries.indexOf(query) < 0) {
           return new Response(JSON.stringify({ success: false, message: '不支持的植物搜索关键词' }), {
@@ -587,7 +587,7 @@ export default {
           const j = Math.floor(Math.random() * (i + 1));
           const temp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = temp;
         }
-        const plantTagPattern = /(flower|plant|forest|tree|leaf|leaves|botanical|flora|garden)/i;
+        const plantTagPattern = /(flower|floral|bouquet|blossom|rose|roses|tulip|tulips|peony|peonies|daisy|daisies|orchid|orchids)/i;
         for (const candidate of candidates.slice(0, 6)) {
           if (!candidate || !/^[a-z0-9]{6}$/i.test(String(candidate.id || ''))) continue;
           if (String(candidate.purity || '').toLowerCase() !== 'sfw') continue;
