@@ -2250,9 +2250,9 @@ export default {
           if (!Number.isSafeInteger(stageOffset) || stageOffset < 0 || stageCustomers.length < 1 || stageCustomers.length > 500 || stageOffset + stageCustomers.length > stageJob.total) throw new Error('暂存批次范围无效（每批最多 500 条）');
           stageCustomers.forEach(function(c, index) {
             var nm = String(c && c.name || '').trim();
-            var mb = String(c && (c.mobile || c.phone) || '').replace(/\\D/g, '').replace(/^86(?=1[3-9]\\d{9}$)/, '');
+            var mb = String(c && (c.mobile || c.phone) || '').replace(/\D/g, '').replace(/^86(?=1[3-9]\d{9}$)/, '');
             var co = String(c && (c.company || c.company_name) || '').trim();
-            if (!nm || nm === '未知姓名' || !/^1[3-9]\\d{9}$/.test(mb) || !co) throw new Error('第 ' + (stageOffset + index + 1) + ' 条记录不合格：姓名、有效手机号、单位名称必须齐全');
+            if (!nm || nm === '未知姓名' || !/^1[3-9]\d{9}$/.test(mb) || !co) throw new Error('第 ' + (stageOffset + index + 1) + ' 条记录不合格：姓名、有效手机号、单位名称必须齐全');
             c.mobile = mb;
             c.phone = mb;
             c.batch_label = stageJob.batch_label;
