@@ -1013,27 +1013,35 @@
       border-color: transparent;
       box-shadow: none;
     }
-    /* ── Anime unlock button ── */
-    .auth-overlay .auth-btn {
-      background: linear-gradient(135deg, #f8a0c8 0%, #d08ae8 50%, #a8a0f0 100%);
-      border: none;
+    /* PIN 解锁按钮：统一使用克制的灰白质感，不影响登录/注册按钮 */
+    #lockUnlockBtn {
+      background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
+      color: #4b5563;
+      border: 1px solid rgba(120,130,145,0.28);
       border-radius: 22px;
       font-weight: 600;
       letter-spacing: 4px;
-      box-shadow: 0 6px 24px rgba(210,130,200,0.35), 0 0 40px rgba(200,150,220,0.1);
-      transition: all 0.3s ease;
+      box-shadow: 0 4px 14px rgba(40,50,65,0.12);
+      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
-    .auth-overlay .auth-btn:hover {
+    #lockUnlockBtn:hover {
+      background: linear-gradient(180deg, #f7f8fa 0%, #e1e5e9 100%);
       transform: translateY(-1px);
-      box-shadow: 0 8px 28px rgba(210,130,200,0.45), 0 0 50px rgba(200,150,220,0.18);
+      box-shadow: 0 6px 18px rgba(40,50,65,0.16);
     }
-    .auth-overlay .auth-btn:active {
+    #lockUnlockBtn:active {
+      background: linear-gradient(180deg, #e5e8ec 0%, #f1f2f4 100%);
       transform: scale(0.97);
-      box-shadow: 0 4px 16px rgba(210,130,200,0.3);
+      box-shadow: 0 2px 8px rgba(40,50,65,0.12);
     }
-    body.dark-mode .auth-overlay .auth-btn {
-      background: linear-gradient(135deg, #c06090 0%, #a060c0 50%, #7878d0 100%);
-      box-shadow: 0 6px 24px rgba(160,80,150,0.35), 0 0 40px rgba(140,80,160,0.12);
+    body.dark-mode #lockUnlockBtn {
+      background: linear-gradient(180deg, #f5f6f7 0%, #dfe3e7 100%);
+      color: #374151;
+      border-color: rgba(255,255,255,0.24);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.24);
+    }
+    body.dark-mode #lockUnlockBtn:hover {
+      background: linear-gradient(180deg, #ffffff 0%, #e8ebee 100%);
     }.auth-overlay.auth-hidden {
       display: none;
     }
