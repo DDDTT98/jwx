@@ -47,6 +47,7 @@ export const LEARN_TIME_MATRIX_HTML = `
           <li>回放落实上门客户行程安排</li>
           <li>解决要上门客户的重点疑虑</li>
           <li>处理在库待回款客户的落实</li>
+          <li>及时处理有时效性的意向客户，如电话、短信、微信群发回复客户</li>
         </ul>
         <div class="time-q-goal"><b>核心目标：</b>抓住成交窗口，推进上门办理和回款落地</div>
       </section>
