@@ -14017,15 +14017,16 @@ function updateAutoDialBtn() {
         }
         var query = variants[attempt % variants.length];
         attempt++;
-        if (category === 'plants' || category === 'space') {
-          // 花朵与宇宙星空通过 Worker 依次查询 Openverse、Wikimedia Commons、Wallhaven。
-          fetch('/api/wallpaper/search?type=' + (category === 'space' ? 'space' : 'flowers') + '&q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
+        if (category === 'landscape' || category === 'plants' || category === 'space') {
+          // 风景通过 Openverse、Wikimedia Commons、NASA、Flickr CC、Wallhaven 多源接力。
+          var wallpaperType = category === 'landscape' ? 'landscape' : (category === 'space' ? 'space' : 'flowers');
+          fetch('/api/wallpaper/search?type=' + wallpaperType + '&q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
           })
             .then(function(response) {
-              if (!response.ok) throw new Error((category === 'space' ? '宇宙星空' : '花朵') + '壁纸搜索失败：' + response.status);
+              if (!response.ok) throw new Error((category === 'landscape' ? '风景' : (category === 'space' ? '宇宙星空' : '花朵')) + '壁纸搜索失败：' + response.status);
               return response.json();
             })
             .then(function(payload) {
@@ -14037,10 +14038,11 @@ function updateAutoDialBtn() {
                   String(data.category || '').toLowerCase() !== 'general' ||
                   data.is_mobile !== true ||
                   !Array.isArray(data.tags) ||
-                  !(category === 'space'
-                    ? ['space', 'universe', 'galaxy', 'nebula', 'cosmos', 'milky way', 'starfield', 'astronomy', 'planet', '星云', '银河', '宇宙', '星空']
-                    : ['flower', 'floral', 'bouquet', 'blossom', 'rose', 'tulip', 'peony', 'daisy', 'orchid', '花朵', '花卉', '鲜花']
-                  ).some(function(word) {
+                  !(category === 'landscape'
+                     ? ['landscape', 'scenery', 'scenic', 'nature', 'mountain', 'forest', 'lake', 'river', 'waterfall', 'ocean', 'sea', 'coast', 'beach', 'valley', 'desert', 'canyon', 'meadow', 'countryside', 'sunrise', 'sunset', '雪山', '山脉', '森林', '湖泊', '瀑布', '海岸', '海滩', '山谷', '沙漠', '草原', '自然风光', '风景']
+                     : (category === 'space'
+                       ? ['space', 'universe', 'galaxy', 'nebula', 'cosmos', 'milky way', 'starfield', 'planet', '星云', '银河', '宇宙', '星空']
+                       : ['flower', 'floral', 'bouquet', 'blossom', 'rose', 'tulip', 'peony', 'daisy', 'orchid', '花朵', '花卉', '鲜花'])).some(function(word) {
                     return data.tags.some(function(tag) {
                       var tagText = (String(tag.name || '') + ' ' + String(tag.alias || '')).toLowerCase();
                       return tagText.indexOf(word) >= 0;
@@ -14051,6 +14053,11 @@ function updateAutoDialBtn() {
               }
               var img = new Image();
               img.onload = function() {
+                if (category === 'landscape' &&
+                    (img.naturalWidth < 900 || img.naturalHeight < 900 || Math.max(img.naturalWidth, img.naturalHeight) < 1600)) {
+                  tryNext();
+                  return;
+                }
                 _wallpaperLoaded = true;
                 localStorage.setItem('bhp_wp_url_v2', data.file_url);
                 applyWallpaper(data.file_url);
