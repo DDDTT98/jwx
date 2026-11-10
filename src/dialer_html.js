@@ -5137,7 +5137,7 @@
         }
       }
 
-      var nameIdx = -1, phoneIdx = -1, companyIdx = -1, noteIdx = -1, storageInstitutionIdx = -1, unitNatureIdx = -1;
+      var nameIdx = -1, phoneIdx = -1, companyIdx = -1, noteIdx = -1, storageInstitutionIdx = -1, unitNatureIdx = -1, assetIdx = -1;
       var hasHeaders = (headerRowIdx !== -1);
 
       if (hasHeaders) {
@@ -5146,6 +5146,7 @@
           var h = String(headers[i] || '').trim();
           if (/在库机构|入库机构|存储机构|在库单位|在库银行|合作机构/i.test(h)) storageInstitutionIdx = i;
           else if (/单位性质|单位类型|企业性质|企业类型|性质|unit[_ ]?nature/i.test(h)) unitNatureIdx = i;
+          else if (/资产|深房|外地房|有车|asset/i.test(h)) assetIdx = i;
           else if (/姓名|客户|name/i.test(h)) nameIdx = i;
           else if (/电话|手机|号码|phone|tel|mobile/i.test(h)) phoneIdx = i;
           else if (/单位|公司|企业|company|firm|work/i.test(h)) companyIdx = i;
@@ -5287,6 +5288,7 @@
         companyIdx: companyIdx,
         storageInstitutionIdx: storageInstitutionIdx,
         unitNatureIdx: unitNatureIdx,
+        assetIdx: assetIdx,
         noteIdx: noteIdx
       };
     }
@@ -5381,6 +5383,7 @@
       var bulkCompany = ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
       var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var unitNatureCol = parseInt(document.getElementById('aiSelUnitNature').value);
+      var assetCol = parseInt((document.getElementById('aiSelAsset') || {}).value || '-1');
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       
       var customMappings = [];
@@ -5400,7 +5403,8 @@
           '<th style="padding: 4px 8px;">电话</th>' +
           '<th style="padding: 4px 8px;">公司</th>' +
           '<th style="padding: 4px 8px;">在库机构</th>' +
-          '<th style="padding: 4px 8px;">单位性质</th>';
+          '<th style="padding: 4px 8px;">单位性质</th>' +
+          '<th style="padding: 4px 8px;">资产</th>';
         customMappings.forEach(function(m) {
           headHtml += '<th style="padding: 4px 8px;">' + esc(m.name) + '</th>';
         });
@@ -5432,6 +5436,7 @@
         var compVal = (compCol !== -1 ? String(row[compCol] || '').trim() : '') || ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
         var storageInstitutionVal = storageInstitutionCol !== -1 ? String(row[storageInstitutionCol] || '').trim() : '';
         var unitNatureVal = unitNatureCol !== -1 ? String(row[unitNatureCol] || '').trim() : '';
+        var assetVal = assetCol !== -1 ? String(row[assetCol] || '').trim() : '';
 
         var customTds = '';
         customMappings.forEach(function(m) {
@@ -5446,12 +5451,13 @@
                        '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(compVal || '(空)') + '</td>' +
                        '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(storageInstitutionVal || '(空)') + '</td>' +
                        '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(unitNatureVal || '(空)') + '</td>' +
+                       '<td style="padding: 6px 8px; color: var(--text-soft);">' + esc(assetVal || '(空)') + '</td>' +
                        customTds;
         tableBody.appendChild(tr);
         previewCount++;
       }
 
-      var colspanVal = 5 + customMappings.length;
+      var colspanVal = 6 + customMappings.length;
       if (previewCount === 0) {
         tableBody.innerHTML = '<tr><td colspan="' + colspanVal + '" style="padding: 12px; text-align: center; color: var(--text-light);">当前列映射无法提取有效客户电话号码，请手动调整电话数据列。</td></tr>';
       }
@@ -5489,6 +5495,7 @@
       var bulkCompany = ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
       var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var unitNatureCol = parseInt(document.getElementById('aiSelUnitNature').value);
+      var assetCol = parseInt((document.getElementById('aiSelAsset') || {}).value || '-1');
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = '待跟进';
@@ -5552,6 +5559,7 @@
         }
         var storageInstitutionVal = storageInstitutionCol !== -1 ? String(row[storageInstitutionCol] || '').trim() : '';
         var unitNatureVal = unitNatureCol !== -1 ? String(row[unitNatureCol] || '').trim() : '';
+        var assetVal = assetCol !== -1 ? String(row[assetCol] || '').trim() : '';
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
         var fundVal = '';
@@ -5582,6 +5590,7 @@
           company: companyVal,
           storage_institution: storageInstitutionVal,
           unit_nature: unitNatureVal,
+          asset: assetVal,
           note: finalNote,
           fund: fundVal,
           dialedStatus: 'todo',
@@ -8439,6 +8448,8 @@
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
               (showClientInfo && cardDisplaySettings.fund && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
               (showClientInfo && cardDisplaySettings.institution && (c.storage_institution || c.storageInstitution) ? '<span class="client-card-tag" title="机构名称" style="background:rgba(33,150,243,0.08);color:#1976d2;font-weight:700;">' + esc(c.storage_institution || c.storageInstitution) + '</span>' : '') +
+              (showClientInfo && c.unit_nature ? '<span class="client-card-tag" title="单位性质">' + esc(c.unit_nature) + '</span>' : '') +
+              (showClientInfo && c.asset ? '<span class="client-card-tag" title="资产" style="background:rgba(255,152,0,0.08);color:#e67e22;font-weight:700;">' + esc(c.asset) + '</span>' : '') +
               (function() {
                 var customHtml = '';
                 if (c.custom && typeof c.custom === 'object') {
@@ -9832,6 +9843,7 @@ function updateAutoDialBtn() {
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
         '<th data-sort="storage_institution" style="min-width: 160px; cursor: pointer;">在库机构 <span class="sort-arrow"></span></th>' +
         '<th data-sort="unit_nature" style="min-width: 120px; cursor: pointer;">单位性质 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="asset" style="min-width: 100px; cursor: pointer;">资产 <span class="sort-arrow"></span></th>' +
         '<th data-sort="category" style="width: 100px; cursor: pointer;">分类 <span class="sort-arrow"></span></th>' +
         '<th style="min-width:145px;cursor:default;">操作时间</th>' +
         '<th style="width:85px;cursor:default;">操作方式</th>' +
@@ -9958,6 +9970,10 @@ function updateAutoDialBtn() {
         '<select id="aiSelUnitNature" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);"></select>' +
         '</div>' +
         '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">资产数据列 (可选)</label>' +
+        '<select id="aiSelAsset" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>' +
+        '<div style="display: flex; flex-direction: column; gap: 2px;">' +
         '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">客户类型</label>' +
         '<select id="aiImportBatchType" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);">' +
         '<option value="工薪" selected>工薪</option><option value="企业主">企业主</option></select>' +
@@ -9979,6 +9995,7 @@ function updateAutoDialBtn() {
       populateMappingSelect('aiSelCompany', headersList, detected.companyIdx, true);
       populateMappingSelect('aiSelStorageInstitution', headersList, detected.storageInstitutionIdx === undefined ? -1 : detected.storageInstitutionIdx, true);
       populateMappingSelect('aiSelUnitNature', headersList, detected.unitNatureIdx === undefined ? -1 : detected.unitNatureIdx, true);
+      populateMappingSelect('aiSelAsset', headersList, detected.assetIdx === undefined ? -1 : detected.assetIdx, true);
       populateMappingSelect('aiSelNote', headersList, detected.noteIdx, true);
       var customSelects = container.querySelectorAll('.aiSelCustom');
       customSelects.forEach(function(sel) {
@@ -10255,12 +10272,13 @@ function updateAutoDialBtn() {
               '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>' +
             '</div>' +
           '</td>' +
-          '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
+          
           batchTypeTd +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="white-space: normal; min-width:160px;"><a href="javascript:void(0)" class="crm-storage-edit" data-mobile="' + esc(c.mobile || '') + '" data-value="' + esc(c.storage_institution || '') + '" title="点击编辑在库机构">' + esc(c.storage_institution || '＋设置') + '</a></td>' +
           '<td style="white-space: normal; min-width:120px;">' + esc(c.unit_nature || '-') + '</td>' +
+          '<td style="white-space: normal; min-width:100px;">' + esc(c.asset || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
@@ -11180,11 +11198,12 @@ function updateAutoDialBtn() {
               callBtn +
             '</div>' +
           '</td>' +
-          '<td style="white-space: normal; max-width: 300px; word-break: break-all;">' + noteDisplay + '</td>' +
+          
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
           '<td style="white-space: normal; min-width:160px;"><a href="javascript:void(0)" class="crm-storage-edit" data-mobile="' + esc(c.mobile || '') + '" data-value="' + esc(c.storage_institution || '') + '" title="点击编辑在库机构">' + esc(c.storage_institution || '＋设置') + '</a></td>' +
           '<td style="white-space: normal; min-width:120px;">' + esc(c.unit_nature || '-') + '</td>' +
+          '<td style="white-space: normal; min-width:100px;">' + esc(c.asset || '-') + '</td>' +
           '<td style="white-space: nowrap;">' + esc(cat || '未分类') + '</td>' +
           (function(){ var opCells = getCustomerOperationCells(c); return '<td style="white-space:nowrap;">' + esc(opCells.time) + '</td><td style="white-space:nowrap;">' + esc(opCells.method) + '</td><td style="white-space:nowrap;">' + esc(opCells.account) + '</td>'; })() +
           '<td style="cursor: default;">' +
