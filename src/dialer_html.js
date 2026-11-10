@@ -5492,6 +5492,7 @@
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = '待跟进';
+      var importBatchType = (document.getElementById('aiImportBatchType') || {}).value || '工薪';
 
       if (phoneCol === -1) {
         alert('必须映射手机号列；手机号必须逐条有效，不能用同一个号码批量代替。');
@@ -5567,6 +5568,7 @@
           }
         });
         var finalNote = noteVal;
+        customObj.__batch_type = importBatchType;
         if (Object.keys(customObj).length > 0 || fundVal) {
           var pl = { note: noteVal, custom: customObj };
           if (fundVal) pl.fund = fundVal;
@@ -9954,6 +9956,11 @@ function updateAutoDialBtn() {
         '<div style="display: flex; flex-direction: column; gap: 2px;">' +
         '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">单位性质数据列 (可选)</label>' +
         '<select id="aiSelUnitNature" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);"></select>' +
+        '</div>' +
+        '<div style="display: flex; flex-direction: column; gap: 2px;">' +
+        '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">客户类型</label>' +
+        '<select id="aiImportBatchType" style="height: 24px; font-size: 0.65rem; outline: none; border: 0.5px solid var(--card-border); border-radius: var(--radius-xs); font-weight: 600; color: var(--text-soft); background: var(--btn-bg);">' +
+        '<option value="工薪" selected>工薪</option><option value="企业主">企业主</option></select>' +
         '</div>' +
         '<div style="display: flex; flex-direction: column; gap: 2px;">' +
         '<label style="font-size: 0.6rem; color: var(--text-light); font-weight: 600;">备注数据列 (可选)</label>' +
