@@ -3447,9 +3447,9 @@
       <div style="font-size:.76rem;font-weight:900;color:var(--text-main);margin-bottom:8px;">壁纸抓取类型</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:.74rem;color:var(--text-main);">
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="landscape" style="accent-color:var(--accent-wechat);width:16px;height:16px;">风景</label>
-        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="space" style="accent-color:var(--accent-wechat);width:16px;height:16px;">星空</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="space" style="accent-color:var(--accent-wechat);width:16px;height:16px;">宇宙星空</label>
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="people" style="accent-color:var(--accent-wechat);width:16px;height:16px;">人物</label>
-        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="plants" style="accent-color:var(--accent-wechat);width:16px;height:16px;">植物</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="plants" style="accent-color:var(--accent-wechat);width:16px;height:16px;">花朵</label>
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="anime" style="accent-color:var(--accent-wechat);width:16px;height:16px;">二次元</label>
       </div>
       <div style="font-size:.6rem;color:var(--text-soft);margin-top:8px;line-height:1.5;">可同时勾选多个类型；壁纸只从已选类型中随机抓取，抓取内容限定为安全级别（SFW）。</div>
@@ -14002,10 +14002,10 @@ function updateAutoDialBtn() {
       if (!categories.length) categories = ['landscape'];
       var queries = {
         landscape: ['landscape nature mountain', 'scenic nature mountains lake'],
-        space: ['outer space galaxy stars nebula', 'planet starfield astronomy'],
+        space: ['outer space universe galaxy stars nebula', 'deep space cosmos milky way planets starfield'],
         people: ['portrait photography people', 'street portrait people photography'],
-        // 植物类使用短关键词逐个轮询，避免长组合词过度限制搜索结果。
-        plants: ['flowers', 'plants', 'forest', 'trees', 'leaves'],
+        // 花朵类使用短关键词逐个轮询，避免长组合词过度限制搜索结果。
+        plants: ['flowers', 'flower', 'floral', 'bouquet', 'blossom'],
         anime: ['anime illustration wallpaper', 'anime art character illustration']
       };
       var category = categories[Math.floor(Math.random() * categories.length)];
@@ -14021,14 +14021,14 @@ function updateAutoDialBtn() {
         var query = variants[attempt % variants.length];
         attempt++;
         if (category === 'plants') {
-          // 植物类通过同源 Worker 查询 Wallhaven，并以壁纸详情中的 tags 做语义校验。
+          // 花朵类通过同源 Worker 查询 Wallhaven，并以壁纸详情中的 tags 做语义校验。
           fetch('/api/wallpaper/search?q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
           })
             .then(function(response) {
-              if (!response.ok) throw new Error('植物壁纸搜索失败：' + response.status);
+              if (!response.ok) throw new Error('花朵壁纸搜索失败：' + response.status);
               return response.json();
             })
             .then(function(payload) {
@@ -14060,7 +14060,7 @@ function updateAutoDialBtn() {
               img.src = data.file_url;
             })
             .catch(function(error) {
-              console.warn('[wallpaper] 植物关键词未命中，继续尝试：' + query, error);
+              console.warn('[wallpaper] 花朵关键词未命中，继续尝试：' + query, error);
               tryNext();
             });
           return;
