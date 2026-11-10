@@ -14034,15 +14034,18 @@ function updateAutoDialBtn() {
             .then(function(payload) {
               var data = payload && payload.data;
               if (!payload || payload.success !== true || !data ||
-                  !/^https:\/\//i.test(String(data.file_url || '')) ||
+                  String(data.file_url || '').toLowerCase().indexOf('https://') !== 0 ||
                   !/^https?:\/\/wallhaven\.cc\/w\//i.test(String(data.source_url || '')) ||
                   String(data.purity || '').toLowerCase() !== 'sfw' ||
                   String(data.category || '').toLowerCase() !== 'general' ||
                   data.is_mobile !== true ||
                   !Array.isArray(data.tags) ||
-                  !/(flower|plant|forest|tree|leaf|leaves|botanical|flora|garden)/i.test(
-                    data.tags.map(function(tag) { return String(tag.name || '') + ' ' + String(tag.alias || ''); }).join(' ')
-                  )) {
+                  !['flower', 'plant', 'forest', 'tree', 'leaf', 'leaves', 'botanical', 'flora', 'garden'].some(function(word) {
+                    return data.tags.some(function(tag) {
+                      var tagText = (String(tag.name || '') + ' ' + String(tag.alias || '')).toLowerCase();
+                      return tagText.indexOf(word) >= 0;
+                    });
+                  })) {
                 tryNext();
                 return;
               }
