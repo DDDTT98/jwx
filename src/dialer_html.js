@@ -13971,42 +13971,26 @@ function updateAutoDialBtn() {
       var settings = getDbCustomSettings();
       var categories = settings.wallpaperCategories && settings.wallpaperCategories.length ? settings.wallpaperCategories.slice() : ['landscape'];
       var queries = { landscape: 'landscape nature mountain', space: 'space stars galaxy night sky', people: 'portrait people', plants: 'plants botanical flowers', anime: 'anime illustration' };
-      var query = queries[categories[Math.floor(Math.random() * categories.length)]] || queries.landscape;
-      var endpoint = 'https://wallhaven.cc/api/v1/search?q=' + encodeURIComponent(query) + '&sorting=random&purity=100&categories=111&atleast=1920x1080';
-      var fallbackUrls = [
-        'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2560&q=90',
-        'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=2560&q=90'
-      ];
+      var category = categories[Math.floor(Math.random() * categories.length)] || 'landscape';
+      var query = queries[category] || queries.landscape;
+      // 通过图片跳转接口加载，不直接 fetch 跨域 JSON，避免浏览器 CORS 拦截。
+      var endpoint = 'https://hub.saintic.com/openservice/wallhavenpic?q=' + encodeURIComponent(query) + '&category=general,anime,people&mobile';
       function verifyAndApply(url) {
         if (!url) return;
         var img = new Image();
         img.onload = function() { localStorage.setItem('bhp_wp_url', url); applyWallpaper(url); };
         img.onerror = function() {
-          if (categories.indexOf('landscape') >= 0 && fallbackUrls.length) {
-            var fallback = fallbackUrls.splice(Math.floor(Math.random() * fallbackUrls.length), 1)[0];
-            verifyAndApply(fallback);
+          if (category !== 'landscape') {
+            var fallback = 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=2560&q=90';
+            var fallbackImg = new Image();
+            fallbackImg.onload = function() { localStorage.setItem('bhp_wp_url', fallback); applyWallpaper(fallback); };
+            fallbackImg.src = fallback;
           }
         };
         img.src = url;
       }
       _wallpaperLoaded = true;
-      fetch(endpoint).then(function(r) {
-        if (!r.ok) throw new Error('wallpaper api ' + r.status);
-        return r.json();
-      }).then(function(res) {
-        var data = res && Array.isArray(res.data) ? res.data : [];
-        if (!data.length) throw new Error('no wallpaper results');
-        var item = data[Math.floor(Math.random() * data.length)];
-        verifyAndApply(item && item.path);
-      }).catch(function() {
-        if (categories.indexOf('landscape') >= 0 && fallbackUrls.length) verifyAndApply(fallbackUrls[Math.floor(Math.random() * fallbackUrls.length)]);
-      });
+      verifyAndApply(endpoint);
     }
 
     function syncAllOverlayWallpapers() {
