@@ -566,7 +566,8 @@ export default {
         const query = String(url.searchParams.get('q') || '').trim().toLowerCase();
         const flowerQueries = ['flowers', 'flower', 'floral', 'bouquet', 'blossom'];
         const spaceQueries = ['galaxy', 'nebula', 'universe', 'outer space', 'cosmos', 'milky way', 'starfield', 'planets'];
-        const allowed = type === 'space' ? spaceQueries : (type === 'flowers' ? flowerQueries : []);
+        const landscapeQueries = ['landscape nature mountain', 'scenic nature mountains lake', 'mountain landscape', 'forest landscape', 'lake landscape', 'waterfall landscape', 'coastal landscape', 'nature scenery'];
+        const allowed = type === 'space' ? spaceQueries : (type === 'flowers' ? flowerQueries : (type === 'landscape' ? landscapeQueries : []));
         if (allowed.indexOf(query) < 0) {
           return new Response(JSON.stringify({ success: false, message: '不支持的壁纸搜索关键词' }), {
             status: 400,
@@ -575,7 +576,9 @@ export default {
         }
         const themePattern = type === 'space'
           ? /(space|universe|galaxy|galaxies|nebula|cosmos|milky way|starfield|planet|planets|星云|银河|宇宙|星空)/i
-          : /(flower|floral|bouquet|blossom|rose|roses|tulip|tulips|peony|peonies|daisy|daisies|orchid|orchids|花朵|花卉|鲜花)/i;
+          : (type === 'landscape'
+            ? /(landscape|scenery|scenic|nature|mountain|mountains|forest|woods|lake|river|waterfall|ocean|sea|coast|beach|valley|desert|canyon|cliff|meadow|countryside|sunrise|sunset|sky|雪山|山脉|森林|湖泊|瀑布|海岸|海滩|山谷|沙漠|草原|自然风光|风景)/i
+            : /(flower|floral|bouquet|blossom|rose|roses|tulip|tulips|peony|peonies|daisy|daisies|orchid|orchids|花朵|花卉|鲜花)/i);
         // 宇宙星空只接受实际天体/深空主题；排除天文学者、研究人员和人物肖像。
         const isThemeMatch = value => {
           const text = String(value || '');
@@ -690,7 +693,110 @@ export default {
           console.warn('[wallpaper] Wikimedia Commons source failed:', commonsError);
         }
 
-        // Source 3: Wallhaven 兜底，仅当上面两个图库都没有合格图片时使用。
+        // Source 3: NASA Image and Video Library，优先取原始高清资产。
+        if (type === 'landscape') {
+          try {
+            const nasaUrl = new URL('https://images-api.nasa.gov/search');
+            nasaUrl.searchParams.set('q', query);
+            nasaUrl.searchParams.set('media_type', 'image');
+            nasaUrl.searchParams.set('page_size', '20');
+            const nasaResp = await fetch(nasaUrl.toString(), { headers });
+            if (nasaResp.ok) {
+              const nasaPayload = await nasaResp.json();
+              const nasaItems = (((nasaPayload || {}).collection || {}).items || []).slice();
+              for (let i = nasaItems.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = nasaItems[i]; nasaItems[i] = nasaItems[j]; nasaItems[j] = tmp;
+              }
+              for (const item of nasaItems) {
+                const meta = Array.isArray(item.data) ? item.data[0] : null;
+                const title = String(meta && meta.title || '');
+                const description = String(meta && meta.description || '');
+                const keywords = Array.isArray(meta && meta.keywords) ? meta.keywords.join(' ') : '';
+                if (!meta || !isThemeMatch(title + ' ' + description + ' ' + keywords)) continue;
+                const manifestUrl = String(item.href || '');
+                if (!isHttps(manifestUrl)) continue;
+                try {
+                  const assetResp = await fetch(manifestUrl, { headers });
+                  if (!assetResp.ok) continue;
+                  const assets = await assetResp.json();
+                  if (!Array.isArray(assets)) continue;
+                  const assetUrl = assets.find(value => /~orig\\.(jpg|jpeg|png|webp)$/i.test(String(value || '')))
+                    || assets.find(value => /~large\\.(jpg|jpeg|png|webp)$/i.test(String(value || '')))
+                    || assets.find(value => /\\.(jpg|jpeg|png|webp)$/i.test(String(value || '')));
+                  if (!isHttps(assetUrl)) continue;
+                  const sourceUrl = String((Array.isArray(item.links) && item.links[0] && item.links[0].href) || manifestUrl);
+                  return new Response(JSON.stringify({
+                    success: true,
+                    data: {
+                      file_url: String(assetUrl),
+                      source_url: sourceUrl,
+                      provider: 'nasa',
+                      purity: 'sfw',
+                      category: 'general',
+                      resolution: 'original',
+                      is_mobile: true,
+                      tags: toTags([title, keywords, query]),
+                      attribution: String(meta.photographer || meta.center || 'NASA'),
+                      license: 'Public domain where applicable'
+                    }
+                  }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
+                } catch (assetError) {
+                  console.warn('[wallpaper] NASA asset lookup failed:', assetError);
+                }
+              }
+            }
+          } catch (nasaError) {
+            console.warn('[wallpaper] NASA source failed:', nasaError);
+          }
+
+          // Source 4: Flickr 公共图库，仅接收 Creative Commons 授权图片。
+          try {
+            const flickrUrl = new URL('https://www.flickr.com/services/feeds/photos_public.gne');
+            flickrUrl.searchParams.set('format', 'json');
+            flickrUrl.searchParams.set('nojsoncallback', '1');
+            flickrUrl.searchParams.set('tags', query.split(/\\s+/).filter(Boolean).join(','));
+            flickrUrl.searchParams.set('tagmode', 'any');
+            const flickrResp = await fetch(flickrUrl.toString(), { headers });
+            if (flickrResp.ok) {
+              const flickrPayload = await flickrResp.json();
+              const flickrItems = Array.isArray(flickrPayload.items) ? flickrPayload.items.slice() : [];
+              for (let i = flickrItems.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = flickrItems[i]; flickrItems[i] = flickrItems[j]; flickrItems[j] = tmp;
+              }
+              for (const item of flickrItems) {
+                const tagText = String(item.title || '') + ' ' + String(item.tags || '');
+                const licenseId = String(item.license || '');
+                if (!isThemeMatch(tagText) || !['1','2','3','4','5','6','7','8','9','10'].includes(licenseId)) continue;
+                const thumb = String(item.media && item.media.m || '');
+                if (!isHttps(thumb)) continue;
+                const fileUrl = thumb.replace(/_m(\\.[a-z0-9]+)$/i, '_b$1');
+                const sourceUrl = String(item.link || '');
+                if (!isHttps(sourceUrl)) continue;
+                return new Response(JSON.stringify({
+                  success: true,
+                  data: {
+                    file_url: fileUrl,
+                    source_url: sourceUrl,
+                    provider: 'flickr-cc',
+                    purity: 'sfw',
+                    category: 'general',
+                    resolution: 'up to 1024px',
+                    is_mobile: true,
+                    tags: toTags([item.title || '', item.tags || '', query]),
+                    attribution: String(item.author || ''),
+                    license: 'Creative Commons'
+                  }
+                }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } });
+              }
+            }
+          } catch (flickrError) {
+            console.warn('[wallpaper] Flickr source failed:', flickrError);
+          }
+        }
+
+        // Source 5: Wallhaven 兜底，仅当前面图库都没有合格图片时使用。
         try {
           // 使用单个主题词搜索；Wallhaven 的组合词容易变成 AND 条件，导致结果集为空。
           const whQuery = query;
