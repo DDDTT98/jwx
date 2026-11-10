@@ -2283,6 +2283,19 @@ export default {
         if (importAction === 'finalize') {
           if (stageJob.status !== 'staging') throw new Error('任务已提交或已结束');
           if (Number(stageJob.staged_count || 0) !== Number(stageJob.total || 0)) throw new Error('暂存数据不完整：已暂存 ' + (stageJob.staged_count || 0) + '/' + stageJob.total);
+          var stagedCountResp = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?select=row_no&job_id=eq.' + encodeURIComponent(stageJobId), {
+            method: 'HEAD', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, Prefer: 'count=exact' }
+          });
+          if (!stagedCountResp.ok) throw new Error('核对暂存数量失败：' + stagedCountResp.status);
+          var stagedRange = stagedCountResp.headers.get('Content-Range') || '';
+          var stagedMatch = stagedRange.match(/\\/(\\d+)$/);
+          if (!stagedMatch || Number(stagedMatch[1]) !== Number(stageJob.total)) throw new Error('暂存数据核对不一致：数据库实际记录 ' + (stagedMatch ? stagedMatch[1] : '未知') + '/' + stageJob.total);
+          var stagedLastResp = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?select=row_no&job_id=eq.' + encodeURIComponent(stageJobId) + '&order=row_no.desc&limit=1', {
+            headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
+          });
+          if (!stagedLastResp.ok) throw new Error('核对暂存行号失败：' + stagedLastResp.status);
+          var stagedLastRows = await stagedLastResp.json();
+          if (!stagedLastRows.length || Number(stagedLastRows[0].row_no) !== Number(stageJob.total) - 1) throw new Error('暂存数据行号不连续，禁止启动导入');
           stageJob.status = 'queued';
           stageJob.updated_at = new Date().toISOString();
           await env.DATA_STORE.put('dialer:bgjob:' + stageJobId, JSON.stringify(stageJob), { expirationTtl: 60 * 60 * 24 * 30 });
