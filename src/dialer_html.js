@@ -3928,7 +3928,14 @@
       var browser=ua.indexOf('edg/')>=0?'Edge':(ua.indexOf('crios')>=0||ua.indexOf('chrome')>=0?'Chrome':(ua.indexOf('fxios')>=0||ua.indexOf('firefox')>=0?'Firefox':(ua.indexOf('safari')>=0?'Safari':'其他浏览器')));
       var deviceName=(navigator.platform||'设备')+' · '+(ua.indexOf('mobile')>=0||ua.indexOf('android')>=0||ua.indexOf('iphone')>=0||ua.indexOf('ipad')>=0?'移动浏览器':'桌面浏览器');
       fetch('/api/dialer/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({device_id:getDeviceId(),device_name:deviceName,device_type:deviceType,browser:browser})})
-        .then(function(r){if(r.status===401){clearSession();showAuthScreen();}}).catch(function(){});
+        .then(function(r){
+          if(r.ok) return;
+          return r.json().catch(function(){return {};}).then(function(res){
+            var msg=String(res&&res.error||'');
+            // 心跳可能因临时数据源错误返回 401；只有明确的会话失效/账号停用/设备数超限才退出，避免刚登录就被误清会话。
+            if(msg==='会话已失效，请重新登录'||msg==='账号已停用'||msg.indexOf('设备数量已达到上限')===0){clearSession();showAuthScreen();}
+          });
+        }).catch(function(){});
     }
     if(!window._bhpDeviceHeartbeatTimer){sendDeviceHeartbeat();window._bhpDeviceHeartbeatTimer=setInterval(sendDeviceHeartbeat,60000);}
 
