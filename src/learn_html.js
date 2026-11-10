@@ -39,7 +39,7 @@ export const LEARN_TIME_MATRIX_HTML = `
       <div><div class="time-matrix-title">🎯 客户开发 · 四象限时间管理</div><div class="time-matrix-sub">先判断事情的重要程度和紧急程度，再决定时间怎么分配</div></div>
     </div>
     <div class="time-matrix-grid">
-      <section class="time-quadrant">
+      <section class="time-quadrant q1">
         <div class="time-q-head"><span class="time-q-no">Q1</span><span class="time-q-name">重要且紧急</span></div>
         <div class="time-q-strategy">立即处理｜优先完成</div>
         <ul>
@@ -62,7 +62,7 @@ export const LEARN_TIME_MATRIX_HTML = `
         </ul>
         <div class="time-q-goal"><b>核心目标：</b>持续扩大客户池，提高意向客户数量和转化率</div>
       </section>
-      <section class="time-quadrant">
+      <section class="time-quadrant q3">
         <div class="time-q-head"><span class="time-q-no">Q3</span><span class="time-q-name">不重要但紧急</span></div>
         <div class="time-q-strategy">尽量压缩时间｜减少打断</div>
         <ul>
@@ -72,7 +72,7 @@ export const LEARN_TIME_MATRIX_HTML = `
         </ul>
         <div class="time-q-goal"><b>核心目标：</b>减少被动打断，避免琐事占用开发客户的时间</div>
       </section>
-      <section class="time-quadrant">
+      <section class="time-quadrant q4">
         <div class="time-q-head"><span class="time-q-no">Q4</span><span class="time-q-name">不重要且不紧急</span></div>
         <div class="time-q-strategy">尽量减少｜主动舍弃</div>
         <ul>
