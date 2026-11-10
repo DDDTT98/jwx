@@ -5530,19 +5530,59 @@
       document.getElementById('aiImportReport').style.display = 'flex';
     }
 
-    var scriptLoadingPromises = {};
+    var scriptLoadingPromises = Object.create(null);
     function loadScript(url) {
+      var readyChecks = [
+        { match: '/xlsx/', check: function() { return !!(window.XLSX && window.XLSX.read); } },
+        { match: '/tesseract.js/', check: function() { return !!window.Tesseract; } },
+        { match: '/mammoth/', check: function() { return !!window.mammoth; } },
+        { match: '/pdf.js/', check: function() { return !!window['pdfjs-dist/build/pdf']; } }
+      ];
+      var readyCheck = readyChecks.find(function(item) { return url.indexOf(item.match) !== -1; });
+      if (readyCheck && readyCheck.check()) return Promise.resolve();
       if (scriptLoadingPromises[url]) return scriptLoadingPromises[url];
       scriptLoadingPromises[url] = new Promise(function(resolve, reject) {
-        if (document.querySelector('script[src="' + url + '"]')) {
-          resolve();
-          return;
+        var attempt = 0;
+        var maxAttempts = 2;
+        function loadAttempt() {
+          attempt++;
+          var script = Array.prototype.find.call(document.scripts, function(item) { return item.src === url; });
+          if (script && (script.dataset.loadState === 'loaded' || script.readyState === 'loaded' || script.readyState === 'complete')) {
+            if (!readyCheck || readyCheck.check()) { resolve(); return; }
+            script.remove();
+            script = null;
+          }
+          if (!script) {
+            script = document.createElement('script');
+            script.src = url;
+            script.async = true;
+          }
+          var settled = false;
+          function fail(error) {
+            if (settled) return;
+            settled = true;
+            script.onload = null;
+            script.onerror = null;
+            if (script.parentNode) script.parentNode.removeChild(script);
+            if (attempt < maxAttempts) window.setTimeout(loadAttempt, 500 * attempt);
+            else reject(error);
+          }
+          script.onload = function() {
+            if (settled) return;
+            settled = true;
+            script.dataset.loadState = 'loaded';
+            script.onload = null;
+            script.onerror = null;
+            if (!readyCheck || readyCheck.check()) resolve();
+            else fail(new Error('Script loaded but library was not initialized: ' + url));
+          };
+          script.onerror = function() { fail(new Error('Failed to load script: ' + url)); };
+          if (!script.parentNode) document.head.appendChild(script);
         }
-        var script = document.createElement('script');
-        script.src = url;
-        script.onload = function() { resolve(); };
-        script.onerror = function() { reject(new Error('Failed to load script: ' + url)); };
-        document.head.appendChild(script);
+        loadAttempt();
+      }).catch(function(error) {
+        delete scriptLoadingPromises[url];
+        throw error;
       });
       return scriptLoadingPromises[url];
     }
@@ -6802,9 +6842,8 @@
       }
 
       return Tesseract.createWorker({
-        workerPath: window.location.origin + '/tessdata/worker.min.js',
-        corePath: window.location.origin + '/tessdata/core',
-        langPath: window.location.origin + '/tessdata',
+        // Use Tesseract.js 4's version-matched default worker/core from its CDN.
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
         logger: function(m) {
           if (m.status === 'recognizing text') {
             var pct = Math.round(m.progress * 100);
@@ -7053,9 +7092,8 @@
 
     function createAndInitWorker(callback) {
       Tesseract.createWorker({
-        workerPath: window.location.origin + '/tessdata/worker.min.js',
-        corePath: window.location.origin + '/tessdata/core',
-        langPath: window.location.origin + '/tessdata'
+        // Use Tesseract.js 4's version-matched default worker/core from its CDN.
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
       }).then(function(worker) {
         _tesseractWorker = worker;
         return Promise.resolve(worker.load())
@@ -7090,9 +7128,8 @@
 
       function doCreate(imageSource) {
         Tesseract.createWorker({
-          workerPath: window.location.origin + '/tessdata/worker.min.js',
-          corePath: window.location.origin + '/tessdata/core',
-          langPath: window.location.origin + '/tessdata'
+          // Use Tesseract.js 4's version-matched default worker/core from its CDN.
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0'
         }).then(function(worker) {
           return Promise.resolve(worker.load())
             .then(function() { return Promise.resolve(worker.loadLanguage('chi_sim+eng')); })
@@ -7227,9 +7264,8 @@
           }
 
           Tesseract.createWorker({
-            workerPath: window.location.origin + '/tessdata/worker.min.js',
-            corePath: window.location.origin + '/tessdata/core',
-            langPath: window.location.origin + '/tessdata',
+            // Use Tesseract.js 4's version-matched default worker/core from its CDN.
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
             logger: function(m) {
               if (m.status === 'recognizing text') {
                 var pct = Math.round(m.progress * 100);
@@ -7763,6 +7799,12 @@
 
     // Parse Excel/CSV
     function handleExcelImport(file) {
+      if (!window.XLSX || !window.XLSX.read) {
+        loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+          .then(function() { handleExcelImport(file); })
+          .catch(function(err) { alert('Excel 组件加载失败，请检查网络后重试：' + err.message); });
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function(e) {
         try {
@@ -14108,16 +14150,22 @@ function updateAutoDialBtn() {
       if (btn) {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
-          var wb = XLSX.utils.book_new();
-          var data = [
-            ['姓名', '电话', '单位', '在库机构', '公积金', '备注', '跟进情况'],
-            ['示例：张三', '13800138000', '示例科技有限公司', '示例银行A', '月缴2000', '意向客户，需跟进', '已电话沟通'],
-            ['示例：李四', '13900139000', '测试企业集团', '示例银行B', '月缴3000', '对公积金贷款感兴趣', '待回访'],
-          ];
-          var ws = XLSX.utils.aoa_to_sheet(data);
-          ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 20 }];
-          XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
-          XLSX.writeFile(wb, '客户导入模板.xlsx');
+          loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+            .then(function() {
+              var wb = window.XLSX.utils.book_new();
+              var data = [
+                ['姓名', '电话', '单位', '在库机构', '公积金', '备注', '跟进情况'],
+                ['示例：张三', '13800138000', '示例科技有限公司', '示例银行A', '月缴2000', '意向客户，需跟进', '已电话沟通'],
+                ['示例：李四', '13900139000', '测试企业集团', '示例银行B', '月缴3000', '对公积金贷款感兴趣', '待回访'],
+              ];
+              var ws = window.XLSX.utils.aoa_to_sheet(data);
+              ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 20 }];
+              window.XLSX.utils.book_append_sheet(wb, ws, '客户导入模板');
+              window.XLSX.writeFile(wb, '客户导入模板.xlsx');
+            })
+            .catch(function(err) {
+              alert('模板组件加载失败，请检查网络后重试：' + err.message);
+            });
         });
       }
     });
