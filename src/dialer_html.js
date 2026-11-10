@@ -3505,12 +3505,6 @@
         <label id="dbAssignLeaderRow" style="display:none;align-items:center;gap:7px;margin:4px 0 7px;font-size:.72rem;font-weight:700;color:var(--text-soft);"><input type="checkbox" id="dbAssignLeaderCheck" style="width:16px;height:16px;"> 指定小组长</label>
         <select id="dbSubAccountParentInput" style="display:none;width:100%;height:34px;margin-bottom:6px;padding:0 8px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);"><option value="">主账号默认组</option></select>
         <div id="dbSubAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; margin-bottom:8px;"></div>
-        <div id="dbDeviceMonitor" style="border-top:0.5px solid var(--card-border);padding-top:10px;margin:8px 0;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><div style="font-size:.78rem;font-weight:800;color:var(--text-main);">子账号设备监控 <span id="dbDeviceOnlineCount" style="font-size:.66rem;font-weight:600;color:var(--text-soft);">在线 0 台</span></div><button id="dbDeviceRefreshBtn" type="button" class="btn-secondary" style="height:26px;padding:0 9px;font-size:.62rem;">刷新</button></div>
-          <div style="font-size:.62rem;line-height:1.45;color:var(--text-soft);margin-bottom:6px;">设备心跳每分钟更新；超过 2 分钟无心跳显示为离线。设备按浏览器标识统计，不等同于真实硬件数量。</div>
-          <div id="dbDeviceAccountSummary" style="display:flex;flex-direction:column;gap:4px;margin-bottom:7px;"></div>
-          <div id="dbDeviceList" style="display:flex;flex-direction:column;gap:5px;"><div style="font-size:.66rem;color:var(--text-light);padding:6px;text-align:center;">加载设备信息中…</div></div>
-        </div>
         <div style="display:flex; gap:6px; margin-bottom:6px;">
           <input type="text" id="dbSubAccountRealNameInput" maxlength="20" placeholder="真实姓名（必填）" style="width:100%; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
         </div>
@@ -13390,15 +13384,15 @@ function updateAutoDialBtn() {
         var res=results[0]||{}, statsRes=results[1]||{}, devicesRes=results[2]||{};
         if(res.error)throw new Error(res.error);
         var accounts=res.accounts||[], callerRole=res.caller_role||getSessionRole();
-        var statsMap={},deviceMap={};
+        var statsMap={},deviceMap={},deviceSessionsMap={};
         (statsRes.stats||[]).forEach(function(s){statsMap[s.account_id]=Number(s.upload_count||0);});
         (devicesRes.accounts||[]).forEach(function(d){deviceMap[d.account_id]=d;});
+        (devicesRes.devices||[]).forEach(function(d){(deviceSessionsMap[d.account_id]||(deviceSessionsMap[d.account_id]=[])).push(d);});
         if(parentSel){
           parentSel.style.display='none';
           parentSel.innerHTML='<option value="'+escHtml(res.caller_account_id||'')+'">主账号默认组</option>'+accounts.filter(function(a){return a.role==='manager'&&a.active!==false;}).map(function(m){return '<option value="'+escHtml(m.account_id)+'">'+escHtml(m.group_name||m.account_name||m.label||m.account_id)+'</option>';}).join('');
         }
         var assignRow=document.getElementById('dbAssignLeaderRow');if(assignRow)assignRow.style.display=callerRole==='master'?'flex':'none';
-        var deviceMonitor=document.getElementById('dbDeviceMonitor');if(deviceMonitor)deviceMonitor.style.display=callerRole==='master'?'block':'none';
         var shown=accounts.filter(function(a){return a.account_id!==(res.caller_account_id||getSessionAccountId());});
         if(!shown.length){list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);text-align:center;padding:12px;">暂无下级账号</div>';return;}
         function render(a){
@@ -13409,6 +13403,7 @@ function updateAutoDialBtn() {
           var realName=a.real_name||'未登记姓名';
           var count=statsMap[a.account_id]||0;
           var device=deviceMap[a.account_id]||{};
+          var accountDevices=deviceSessionsMap[a.account_id]||[];
           var online=Number(device.online_count||0);
           var limit=Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||2));
           var statusText=a.active===false?'已禁用':(online>0?'在线 '+online+' 台':'当前离线');
@@ -13446,7 +13441,8 @@ function updateAutoDialBtn() {
             +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--card-border)">'
               +'<div style="font-size:.63rem;color:'+statusColor+';font-weight:750">设备状态：'+escHtml(statusText)+' <span style="color:var(--text-soft);font-weight:500">/ 上限 '+limit+' 台</span></div>'
               +'<div style="display:flex;gap:5px;flex-shrink:0"><button class="sub-edit-name-btn" data-id="'+escHtml(a.account_id)+'" data-name="'+escHtml(a.real_name||'')+'" style="font-size:.62rem;padding:5px 8px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main)">改姓名</button><button class="sub-toggle-btn" data-id="'+escHtml(a.account_id)+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.62rem;padding:5px 8px;border:0;border-radius:5px;background:var(--btn-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'停用':'启用')+'</button><button class="sub-delete-btn" data-id="'+escHtml(a.account_id)+'" data-role="'+(a.role||'member')+'" style="font-size:.62rem;padding:5px 8px;border:0;border-radius:5px;background:rgba(231,76,60,.08);color:#e74c3c">删除</button></div>'
-            +'</div></article>';
+            +'</div>'
+            +(callerRole==='master'?'<details style="margin-top:9px;border-top:1px solid var(--card-border);padding-top:8px"><summary style="cursor:pointer;list-style:none;font-size:.68rem;font-weight:800;color:var(--text-main);display:flex;justify-content:space-between;gap:8px"><span>设备详情 · '+accountDevices.length+' 台记录</span><span style="color:var(--text-soft);font-weight:600">查看 / 收起</span></summary><div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">'+(accountDevices.length?accountDevices.map(function(d){var deviceStatus=d.online?'<span style="color:#07a35a;font-weight:800">在线</span>':'<span style="color:var(--text-soft)">'+(d.revoked?'已强制下线':'离线')+'</span>';var last=d.last_seen?new Date(d.last_seen).toLocaleString():'未知';return '<div style="padding:8px;border:1px solid var(--card-border);border-radius:7px;background:var(--btn-bg)"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:.68rem;font-weight:800;color:var(--text-main);min-width:0;overflow-wrap:anywhere">'+escHtml(d.device_name||'未知设备')+' · '+deviceStatus+'</div>'+(!d.revoked?'<button class="device-kick-btn" data-session="'+escHtml(d.session_id||'')+'" type="button" style="height:26px;padding:0 8px;border:0;border-radius:5px;background:rgba(231,76,60,.09);color:#e74c3c;font-size:.61rem;flex-shrink:0">强制下线</button>':'')+'</div><div style="font-size:.63rem;color:var(--text-main);margin-top:4px">'+escHtml(d.browser||'未知浏览器')+' · '+escHtml(d.device_type||'未知设备')+'</div><div style="font-size:.59rem;color:var(--text-soft);margin-top:4px">最后活跃：'+escHtml(last)+'</div></div>';}).join(''):'<div style="font-size:.64rem;color:var(--text-soft);padding:7px 2px">暂无设备记录，子账号登录后会自动登记。</div>')+'</div></details>':'')+'</article>';
         }
         var managers=shown.filter(function(a){return a.role==='manager';}),members=shown.filter(function(a){return a.role!=='manager';});
         list.innerHTML=(managers.length?'<div style="font-size:.7rem;font-weight:900;padding:4px 2px;color:var(--text-main)">小组长 / 小组</div>'+managers.map(render).join(''):'')+(members.length?'<div style="font-size:.7rem;font-weight:900;padding:7px 2px 4px;color:var(--text-main)">组员账号</div>'+members.map(render).join(''):'');
@@ -13455,6 +13451,7 @@ function updateAutoDialBtn() {
         list.querySelectorAll('.sub-group-select').forEach(function(sel){sel.addEventListener('change',function(){var nextParent=sel.value;sel.disabled=true;fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,parent_account_id:nextParent})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'分组调整失败');loadSubAccounts();loadAccountStats();}).catch(function(e){alert('调整所属小组失败：'+e.message);loadSubAccounts();}).finally(function(){sel.disabled=false;});});});
         list.querySelectorAll('.sub-toggle-btn').forEach(function(btn){btn.addEventListener('click',function(){var active=btn.dataset.active==='1';btn.disabled=true;fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,active:!active})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();}).catch(function(e){alert(e.message);btn.disabled=false;});});});
         list.querySelectorAll('.sub-delete-btn').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm(btn.dataset.role==='manager'?'确定删除该小组长账号？该小组必须先清空成员。':'确定删除该普通子账号？其客户数据将迁回所属上级。'))return;btn.disabled=true;fetch('/api/dialer/auth/accounts',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();if(x.migrated)alert('已迁移 '+x.migrated+' 条客户数据');}).catch(function(e){alert(e.message);btn.disabled=false;});});});
+        list.querySelectorAll('.device-kick-btn').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm('确定强制该设备下线？该设备下一次请求时会被要求重新登录。'))return;btn.disabled=true;btn.textContent='处理中…';fetch('/api/dialer/auth/devices/kick',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({session_id:btn.dataset.session})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'操作失败');loadSubAccounts();}).catch(function(e){alert('强制下线失败：'+e.message);btn.disabled=false;btn.textContent='强制下线';});});});
       }).catch(function(e){list.innerHTML='<div style="font-size:.68rem;color:#e74c3c;padding:8px;">加载失败：'+escHtml(e.message)+'</div>';});
     }
 
