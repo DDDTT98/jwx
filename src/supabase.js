@@ -54,6 +54,8 @@ export function createSupabaseStore(env) {
     if (keyName.indexOf('config:') === 0) return { kind: 'setting' };
     if (keyName === 'dialer:accounts') return { kind: 'accounts' };
     if (parts[0] === 'dialer' && parts[1] === 'session' && parts.length >= 3) return { kind: 'session', token: parts.slice(2).join(':') };
+    // Device-ban flags must be mapped to Supabase and read fresh on every check.
+    if (parts[0] === 'dialer' && parts[1] === 'device-ban' && parts.length === 4) return { kind: 'device_ban', accountId: parts[2], deviceId: parts[3] };
     if (parts[0] === 'dialer' && (parts[1] === 'login' || parts[1] === 'unlock') && parts[2] === 'fail' && parts.length >= 4) return { kind: 'runtime_cache' };
     if (parts[0] === 'dialer' && parts[1] === 'bgjob' && parts.length >= 3) return { kind: 'job', id: parts.slice(2).join(':') };
     if (parts[0] === 'work_stats' && parts.length === 3) return { kind: 'work', accountId: parts[1], date: parts[2] };
@@ -85,7 +87,7 @@ export function createSupabaseStore(env) {
     if (kind === 'master_pull') return { key: keyName, value: JSON.stringify({ count: row.count || 0, updated_at: row.updated_at }), value_type: 'text', expires_at: row.expires_at || null };
     if (kind === 'pull_lock') return { key: keyName, value: row.lock_value || '', value_type: 'text', expires_at: row.expires_at || null };
     if (kind === 'batch_marker') return { key: keyName, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: null };
-    if (kind === 'runtime_cache') return { key: keyName, value: row.value, value_type: row.value_type || 'text', expires_at: row.expires_at || null };
+    if (kind === 'runtime_cache' || kind === 'device_ban') return { key: keyName, value: row.value, value_type: row.value_type || 'text', expires_at: row.expires_at || null };
     return null;
   }
   async function getTypedRow(keyName, descriptor) {
@@ -119,7 +121,7 @@ export function createSupabaseStore(env) {
       table = 'dialer_pull_locks'; params.set('select', 'lock_value,expires_at'); params.set('account_id', 'eq.' + descriptor.accountId);
     } else if (kind === 'batch_marker') {
       table = 'dialer_batch_delete_markers'; params.set('select', 'payload'); params.set('marker_key', 'eq.' + keyName);
-    } else if (kind === 'runtime_cache') {
+    } else if (kind === 'runtime_cache' || kind === 'device_ban') {
       table = 'app_runtime_cache'; params.set('select', 'value,value_type,expires_at'); params.set('cache_key', 'eq.' + keyName);
     } else return null;
     params.set('limit', '1');
@@ -250,7 +252,7 @@ export function createSupabaseStore(env) {
       });
       return { key: keyName, value: JSON.stringify(payload), value_type: 'text', expires_at: null };
     }
-    if (descriptor.kind === 'runtime_cache') {
+    if (descriptor.kind === 'runtime_cache' || descriptor.kind === 'device_ban') {
       await upsertTable('app_runtime_cache', 'cache_key', { cache_key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt, updated_at: now });
       return { key: keyName, value: storedValue, value_type: valueType, expires_at: expiresAt };
     }
@@ -273,7 +275,7 @@ export function createSupabaseStore(env) {
     else if (descriptor.kind === 'master_pull') { table='dialer_master_pull_daily'; params.set('account_id','eq.'+descriptor.accountId); params.set('pull_date','eq.'+descriptor.date); }
     else if (descriptor.kind === 'pull_lock') { table='dialer_pull_locks'; field='account_id'; value=descriptor.accountId; }
     else if (descriptor.kind === 'batch_marker') { table='dialer_batch_delete_markers'; field='marker_key'; value=keyName; }
-    else if (descriptor.kind === 'runtime_cache') { table='app_runtime_cache'; field='cache_key'; value=keyName; }
+    else if (descriptor.kind === 'runtime_cache' || descriptor.kind === 'device_ban') { table='app_runtime_cache'; field='cache_key'; value=keyName; }
     else return false;
     if (field) params.set(field, 'eq.' + value);
     await requestTable(table, params.toString(), { method: 'DELETE', headers: headers({ 'Prefer': 'return=minimal' }) });
@@ -303,7 +305,7 @@ export function createSupabaseStore(env) {
     // Always read dialer sessions from Postgres: a master account's remote revoke
     // must be visible immediately across Worker isolates, not hidden by rowCache.
     const sessionDescriptor = parseKey(keyName);
-    if (sessionDescriptor && sessionDescriptor.kind === 'session') {
+    if (sessionDescriptor && (sessionDescriptor.kind === 'session' || sessionDescriptor.kind === 'device_ban')) {
       let sessionRow = await getTypedRow(keyName, sessionDescriptor);
       if (isExpiredRow(sessionRow)) {
         await deleteTyped(keyName, sessionDescriptor);
@@ -1670,5 +1672,4 @@ export function createSupabaseClient(env) {
     return all;
   }
 }
-
 
