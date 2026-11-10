@@ -13837,13 +13837,26 @@ function updateAutoDialBtn() {
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
         body: JSON.stringify({ pin: pin, turnstileToken: window._tsToken || '' })
       }).then(function(r) {
-          if (r.status === 401) {
-            sessionStorage.removeItem('dialer_locked');
-            clearSession();
-            showAuthScreen();
-            return null;
-          }
-          return r.json();
+          return r.json().catch(function() { return {}; }).then(function(res) {
+            // 设备被主账号禁止登录：保留 PIN 锁屏和当前会话提示，不跳账号登录弹窗。
+            var errMsg = res && res.error ? String(res.error) : '';
+            if (r.status === 401 && (errMsg.indexOf('DEVICE_BANNED:') === 0 || errMsg.indexOf('设备已被主账号禁止登录') >= 0)) {
+              error.textContent = errMsg.replace(/^DEVICE_BANNED:/, '') || '该设备已被主账号禁止登录';
+              pinInput.value = '';
+              unlockBtn.disabled = true;
+              unlockBtn.textContent = '设备已禁止登录';
+              return null;
+            }
+            // 只有真正的会话失效才清理会话并返回账号登录界面。
+            if (r.status === 401) {
+              sessionStorage.removeItem('dialer_locked');
+              clearSession();
+              showAuthScreen();
+              return null;
+            }
+            res = res || {};
+            return res;
+          });
         })
         .then(function(res) {
           if (!res) return;
