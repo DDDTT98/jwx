@@ -65,6 +65,10 @@ async function dialerValidateSession(env, token) {
     return null;
   }
   if (session.revoked === true) return null;
+  // 主账号采用全局单会话：新设备登录后，旧 token 在所有 API 请求中立即失效。
+  // 活动 token 存放在 Supabase 持久层，不依赖单个 Worker 实例内存。
+  var masterActiveToken = await env.DATA_STORE.get('dialer:master-active:' + session.account_id);
+  if (masterActiveToken && masterActiveToken !== token) return null;
   return session;
 }
 
@@ -624,6 +628,7 @@ export default {
 
         var token = dialerGenToken();
         await env.DATA_STORE.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
+        await env.DATA_STORE.put('dialer:master-active:' + accountId, token);
 
         return new Response(JSON.stringify({ success: true, account_id: accountId, is_master: true, role: 'master', label: label, session_token: token }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -712,6 +717,10 @@ export default {
         }
         var token = dialerGenToken();
         await env.DATA_STORE.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: nowIso, device_id: deviceId, device_name: deviceName, user_agent: request.headers.get('User-Agent') || '', last_seen: nowIso }));
+        // 仅主账号单设备：新登录 token 覆盖活动 token，旧设备后续所有受保护请求都会被拒绝。
+        if (account.is_master !== false) {
+          await env.DATA_STORE.put('dialer:master-active:' + accountId, token);
+        }
 
         return new Response(JSON.stringify({
           success: true, account_id: accountId, is_master: account.is_master !== false,
