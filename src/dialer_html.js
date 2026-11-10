@@ -3964,7 +3964,7 @@
     var DB_CUSTOM_SETTINGS_K = 'dialer_custom_settings:';
     function getDbCustomSettingsKey() { return DB_CUSTOM_SETTINGS_K + (getSessionAccountId() || getOrCreateAccountId()); }
     function getDbCustomSettings() {
-      var defaults = { company: true, fund: true, institution: true, wallpaperCategories: ['landscape','space','people','plants','anime'] };
+      var defaults = { company: true, fund: true, institution: true, wallpaperCategories: ['landscape'] };
       try {
         var saved = JSON.parse(localStorage.getItem(getDbCustomSettingsKey()) || 'null');
         if (!saved || typeof saved !== 'object') return defaults;
