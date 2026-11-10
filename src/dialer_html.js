@@ -12165,6 +12165,8 @@ function updateAutoDialBtn() {
 
       trigger.addEventListener('click', function(e) {
         e.stopPropagation();
+        // 登录态在面板初始化后才恢复；每次打开账户弹窗时刷新主账号入口权限。
+        if (openDBBtn) openDBBtn.style.display = isSessionMaster() ? 'block' : 'none';
         renderPrefPanel();
         overlay.classList.add('active');
       });
