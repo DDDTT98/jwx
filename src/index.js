@@ -402,6 +402,7 @@ async function processCrmBackgroundJobs(env) {
           job.processed = Number(job.processed || 0) + importItems.length;
           job.succeeded = Number(job.succeeded || 0) + Number(importResult.count || 0);
           job.skipped = Number(job.skipped || 0) + Number(importResult.skipped || 0);
+          job.new_customer_count = Number(job.new_customer_count || 0) + (Array.isArray(importResult.new_customers) ? importResult.new_customers.length : 0);
           job.cursor = job.processed;
           if (Array.isArray(importResult.new_customers) && importResult.new_customers.length) {
             try {
@@ -477,6 +478,22 @@ async function processCrmBackgroundJobs(env) {
           done = Number(job.group_cursor || 0) >= groups.length;
         }
       } else { job.status = 'failed'; job.error = '未知后台任务类型'; }
+      if (done && job.kind === 'customer_import' && job.status !== 'failed') {
+        if (job.auto_delete_after_dial) {
+          var importMarkerKey = 'auto_delete_batch:' + job.account_id + ':' + encodeURIComponent(job.batch_label);
+          var importSb = createSupabaseClient(env);
+          await importSb.resetBatchDialStatus(job.batch_label, job.account_id);
+          var importBatchState = await importSb.getBatchDialStatus(job.batch_label, job.account_id, false);
+          if (importBatchState.total > 0) await env.DATA_STORE.put(importMarkerKey, JSON.stringify({ batch_label: job.batch_label, account_id: job.account_id, created_at: Date.now() }));
+        }
+        var importLogTime = Date.now();
+        if (Number(job.new_customer_count || 0) > 0) {
+          await env.DATA_STORE.put('upload_log:' + importLogTime + ':' + Math.random().toString(36).slice(2, 6), JSON.stringify({
+            account_id: job.account_id, account_name: job.account_name || '', count: Number(job.new_customer_count || 0),
+            metric_version: 2, batch_label: job.batch_label, created_at: importLogTime
+          }));
+        }
+      }
       if (done && job.status !== 'failed') job.status = job.failed ? 'completed_with_errors' : 'completed';
       job.updated_at = new Date().toISOString();
       await env.DATA_STORE.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
@@ -2204,6 +2221,12 @@ export default {
           var importLabel = String(importBody.batch_label || '').trim();
           if (!Number.isSafeInteger(importTotal) || importTotal < 1 || importTotal > 100000) throw new Error('导入数量无效（最多 100000 条）');
           if (importBody.auto_delete_after_dial && !importLabel) throw new Error('自动删除批次必须设置批次标签');
+          if (importBody.auto_delete_after_dial) {
+            var importMarker = 'auto_delete_batch:' + _dialerAccountId + ':' + encodeURIComponent(importLabel);
+            if (await env.DATA_STORE.get(importMarker)) throw new Error('该批次标签已有自动删除任务，请更换唯一批次标签');
+            var existingImportBatch = await createSupabaseClient(env).getBatchDialStatus(importLabel, _dialerAccountId, false);
+            if (existingImportBatch.total > 0) throw new Error('该批次标签在当前账户中已存在数据，请更换唯一批次标签');
+          }
           var newImportJob = await createCrmBackgroundJob(env, {
             kind: 'customer_import', status: 'staging', created_by: _session.account_id,
             account_id: _dialerAccountId, batch_label: importLabel, total: importTotal,
@@ -2237,7 +2260,7 @@ export default {
           });
           var stageRows = stageCustomers.map(function(customer, index) { return { job_id: stageJobId, row_no: stageOffset + index, customer: customer, status: 'pending' }; });
           var stageResp = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?on_conflict=job_id,row_no', {
-            method: 'POST', headers: Object.assign({}, hdr, { Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(stageRows)
+            method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(stageRows)
           });
           if (!stageResp.ok) throw new Error('暂存导入数据失败：' + (await stageResp.text()).slice(0, 300));
           stageJob.staged_count = Math.max(Number(stageJob.staged_count || 0), stageOffset + stageCustomers.length);
