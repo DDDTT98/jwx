@@ -558,6 +558,83 @@ export default {
       });
     }
 
+    // ==================== 植物壁纸搜索与标签校验 ====================
+    // 通过 Worker 代理 Wallhaven API，读取单张壁纸详情中的 tags，避免仅凭搜索词误收无关图片。
+    if (path === '/api/wallpaper/search' && request.method === 'GET') {
+      try {
+        const allowedPlantQueries = ['flowers', 'plants', 'forest', 'trees', 'leaves'];
+        const query = String(url.searchParams.get('q') || '').trim().toLowerCase();
+        if (allowedPlantQueries.indexOf(query) < 0) {
+          return new Response(JSON.stringify({ success: false, message: '不支持的植物搜索关键词' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+          });
+        }
+        const searchUrl = new URL('https://wallhaven.cc/api/v1/search');
+        searchUrl.searchParams.set('q', query);
+        searchUrl.searchParams.set('categories', '100');
+        searchUrl.searchParams.set('purity', '100');
+        searchUrl.searchParams.set('sorting', 'random');
+        searchUrl.searchParams.set('ratios', '9x16');
+        const searchResp = await fetch(searchUrl.toString(), {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'jwx-wallpaper/1.0' }
+        });
+        if (!searchResp.ok) throw new Error('Wallhaven 搜索失败：' + searchResp.status);
+        const searchData = await searchResp.json();
+        const candidates = Array.isArray(searchData.data) ? searchData.data : [];
+        // 随机打乱候选，最多读取 6 张详情，避免一次刷新触发过多上游请求。
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const temp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = temp;
+        }
+        const plantTagPattern = /(flower|plant|forest|tree|leaf|leaves|botanical|flora|garden)/i;
+        for (const candidate of candidates.slice(0, 6)) {
+          if (!candidate || !/^[a-z0-9]{6}$/i.test(String(candidate.id || ''))) continue;
+          if (String(candidate.purity || '').toLowerCase() !== 'sfw') continue;
+          if (String(candidate.category || '').toLowerCase() !== 'general') continue;
+          if (!(Number(candidate.dimension_y) > Number(candidate.dimension_x))) continue;
+          const detailResp = await fetch('https://wallhaven.cc/api/v1/w/' + encodeURIComponent(candidate.id), {
+            headers: { 'Accept': 'application/json', 'User-Agent': 'jwx-wallpaper/1.0' }
+          });
+          if (!detailResp.ok) continue;
+          const detailPayload = await detailResp.json();
+          const wallpaper = detailPayload && detailPayload.data;
+          if (!wallpaper || !Array.isArray(wallpaper.tags)) continue;
+          const tags = wallpaper.tags.map(tag => ({
+            name: String(tag && tag.name || ''),
+            alias: String(tag && tag.alias || '')
+          }));
+          const tagText = tags.map(tag => tag.name + ' ' + tag.alias).join(' ');
+          if (!plantTagPattern.test(tagText)) continue;
+          const fileUrl = String(wallpaper.path || candidate.path || '');
+          if (!/^https:\/\//i.test(fileUrl)) continue;
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              file_url: fileUrl,
+              source_url: String(wallpaper.url || candidate.url || ''),
+              purity: String(wallpaper.purity || candidate.purity || ''),
+              category: String(wallpaper.category || candidate.category || ''),
+              resolution: String(wallpaper.resolution || candidate.resolution || ''),
+              is_mobile: Number(wallpaper.dimension_y || candidate.dimension_y) > Number(wallpaper.dimension_x || candidate.dimension_x),
+              tags: tags
+            }
+          }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+          });
+        }
+        return new Response(JSON.stringify({ success: false, message: '没有找到通过植物标签校验的壁纸' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, message: error && error.message || '植物壁纸搜索失败' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+        });
+      }
+    }
+
     // ==================== Auth API ====================
 
     if (path === '/api/dialer/auth/status' && request.method === 'POST') {
