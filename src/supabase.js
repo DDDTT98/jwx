@@ -387,7 +387,13 @@ export function createSupabaseStore(env) {
         } else if (/^\d{4}-\d{2}-\d{2}$/.test(datePrefix)) {
           params.set('entry_date', 'eq.' + datePrefix);
         }
+      } else if (mapped.kind === 'job') {
+        // job_id 列只存 crm_xxx 任务号，不带 'dialer:bgjob:' 前缀，
+        // 用 like 过滤会让后台任务永远查不到自己，导入将一直停在 queued。
+        // 同时按更新时间倒序，避免已完成任务累积后占满 limit 饿死新任务。
+        params.set('order', 'updated_at.desc');
       } else {
+        // 其余类型（如 upload_log）的键值本身就带前缀，仍用 like 过滤。
         params.set(mapped.field, 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
       }
       if (mapped.kind !== 'upload' && mapped.kind !== 'diet') params.set('or', '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')');
