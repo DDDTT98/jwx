@@ -55,7 +55,7 @@ export const LEARN_TIME_MATRIX_HTML = `
         <div class="time-q-head"><span class="time-q-no">Q2</span><span class="time-q-name">重要但不紧急</span></div>
         <div class="time-q-strategy">每天重点投入｜提前规划</div>
         <ul>
-          <li>利用重点时间开发有意向的客户</li>
+          <li>利用重点时间专心获取有意向的客户</li>
           <li>持续不断地增加微信好友数量</li>
           <li>定期触达，推动微信意向客户转化</li>
           <li>多渠道开发社交软件客户，例如小红书</li>
