@@ -672,6 +672,11 @@ export default {
         var pin = (body.pin || '').trim();
         if (!pin || pin.length < 4 || pin.length > 6) throw new Error('PIN 格式不正确');
         var unlockToken = (request.headers.get('Authorization') || '').replace('Bearer ', '');
+        var unlockRaw = unlockToken ? await env.DATA_STORE.get('dialer:session:' + unlockToken) : null;
+        var unlockPeek = unlockRaw ? JSON.parse(unlockRaw) : null;
+        if (unlockPeek && unlockPeek.account_id && unlockPeek.device_id && await env.DATA_STORE.get('dialer:device-ban:' + unlockPeek.account_id + ':' + unlockPeek.device_id) === '1') {
+          throw new Error('DEVICE_BANNED:该设备已被主账号禁止登录');
+        }
         var unlockSession = await dialerValidateSession(env, unlockToken);
         if (!unlockSession) throw new Error('会话已过期，请重新登录');
         var accounts = await dialerGetAccounts(env);
