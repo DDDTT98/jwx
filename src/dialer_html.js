@@ -5298,8 +5298,8 @@
         var phoneVal = cleanPhone(rawPhone);
         if (!phoneVal) continue;
 
-        var nameVal = nameCol !== -1 ? String(row[nameCol] || '').trim() : '客户';
-        var compVal = compCol !== -1 ? String(row[compCol] || '').trim() : '';
+        var nameVal = (nameCol !== -1 ? String(row[nameCol] || '').trim() : '') || ((document.getElementById('excelBulkMissingName') || {}).value || '').trim();
+        var compVal = (compCol !== -1 ? String(row[compCol] || '').trim() : '') || ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
         var storageInstitutionVal = storageInstitutionCol !== -1 ? String(row[storageInstitutionCol] || '').trim() : '';
 
         var customTds = '';
@@ -5353,6 +5353,8 @@
       var nameCol = parseInt(document.getElementById('aiSelName').value);
       var phoneCol = parseInt(document.getElementById('aiSelPhone').value);
       var compCol = parseInt(document.getElementById('aiSelCompany').value);
+      var bulkName = ((document.getElementById('excelBulkMissingName') || {}).value || '').trim();
+      var bulkCompany = ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
       var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
