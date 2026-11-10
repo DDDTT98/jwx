@@ -3951,7 +3951,11 @@
 
     function sendDeviceHeartbeat() {
       var token=getSessionToken(); if(!token) return;
-      fetch('/api/dialer/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({device_id:getDeviceId(),device_name:(navigator.platform||'设备')+' · '+(/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)?'移动浏览器':'桌面浏览器'),device_type:/iPhone|iPad|iPod/i.test(navigator.userAgent)?'iOS':(/Android/i.test(navigator.userAgent)?'Android':(/Windows/i.test(navigator.userAgent)?'Windows':(/Macintosh/i.test(navigator.userAgent)?'macOS':'桌面设备'))),browser:/Edg\//i.test(navigator.userAgent)?'Edge':(/CriOS|Chrome/i.test(navigator.userAgent)?'Chrome':(/FxiOS|Firefox/i.test(navigator.userAgent)?'Firefox':(/Safari/i.test(navigator.userAgent)?'Safari':'其他浏览器')))} )})
+      var ua=(navigator.userAgent||'').toLowerCase();
+      var deviceType=ua.indexOf('iphone')>=0||ua.indexOf('ipad')>=0||ua.indexOf('ipod')>=0?'iOS':(ua.indexOf('android')>=0?'Android':(ua.indexOf('windows')>=0?'Windows':(ua.indexOf('macintosh')>=0?'macOS':'桌面设备')));
+      var browser=ua.indexOf('edg/')>=0?'Edge':(ua.indexOf('crios')>=0||ua.indexOf('chrome')>=0?'Chrome':(ua.indexOf('fxios')>=0||ua.indexOf('firefox')>=0?'Firefox':(ua.indexOf('safari')>=0?'Safari':'其他浏览器')));
+      var deviceName=(navigator.platform||'设备')+' · '+(ua.indexOf('mobile')>=0||ua.indexOf('android')>=0||ua.indexOf('iphone')>=0||ua.indexOf('ipad')>=0?'移动浏览器':'桌面浏览器');
+      fetch('/api/dialer/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({device_id:getDeviceId(),device_name:deviceName,device_type:deviceType,browser:browser})})
         .then(function(r){if(r.status===401){clearSession();showAuthScreen();}}).catch(function(){});
     }
     if(!window._bhpDeviceHeartbeatTimer){sendDeviceHeartbeat();window._bhpDeviceHeartbeatTimer=setInterval(sendDeviceHeartbeat,60000);}
