@@ -2956,8 +2956,8 @@
       <div class="auth-subtitle">创建主账户以保护您的客户数据</div>
       <input type="text" id="authSetupName" class="auth-input" maxlength="20" placeholder="账户名（登录用，如：办公室）" autocomplete="off">
       <input type="text" id="authSetupLabel" class="auth-input" maxlength="20" placeholder="显示标签（可选）" autocomplete="off">
-      <input type="password" id="authSetupPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="设置 4-6 位 PIN 码" autocomplete="new-password">
-      <input type="password" id="authSetupPinConfirm" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="再次输入 PIN 码" autocomplete="new-password">
+      <input type="password" id="authSetupPin" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="设置 4-6 位 PIN 码" autocomplete="new-password" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+      <input type="password" id="authSetupPinConfirm" class="auth-input auth-pin-input" maxlength="6" inputmode="numeric" placeholder="再次输入 PIN 码" autocomplete="new-password" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
       <div id="authSetupError" class="auth-error"></div>
       <div id="tsSetupWidget" style="height:0;overflow:hidden;pointer-events:none;" aria-hidden="true"></div>
       <button id="authSetupBtn" class="auth-btn">创建主账户</button>
@@ -3331,8 +3331,8 @@
       <div id="copyPrefChildPinPanel" style="display:none;margin:8px 0 0;padding:5px 7px;border:1px solid var(--card-border);border-radius:7px;background:var(--btn-bg);">
         <div style="font-size:0.62rem;font-weight:800;color:var(--text-main);margin-bottom:4px;">修改登录 PIN</div>
         <div style="display:flex;align-items:center;gap:4px;">
-          <input type="password" id="copyPrefOldPin" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="当前 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:20px;padding:0 5px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);font-size:0.6rem;text-align:center;">
-          <input type="password" id="copyPrefNewPin" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="新 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:20px;padding:0 5px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);font-size:0.6rem;text-align:center;">
+          <input type="password" id="copyPrefOldPin" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="当前 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:20px;padding:0 5px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);font-size:0.6rem;text-align:center;" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+          <input type="password" id="copyPrefNewPin" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="新 PIN" style="box-sizing:border-box;min-width:0;flex:1;height:20px;padding:0 5px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);font-size:0.6rem;text-align:center;" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
           <button type="button" id="copyPrefChangePinBtn" style="height:20px;padding:0 8px;border:0;border-radius:5px;background:var(--accent-wechat);color:#fff;font-size:0.6rem;font-weight:800;white-space:nowrap;">修改</button>
         </div>
         <div id="copyPrefPinMessage" style="min-height:11px;margin-top:2px;font-size:0.56rem;color:#e74c3c;"></div>
@@ -3508,7 +3508,7 @@
         </div>
         <div style="display:flex; gap:6px;">
           <input type="text" id="dbSubAccountNameInput" maxlength="20" placeholder="账户名" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
-          <input type="password" id="dbSubAccountPinInput" maxlength="6" placeholder="PIN码" style="width:80px; height:32px; padding:0 6px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
+          <input type="password" id="dbSubAccountPinInput" maxlength="6" placeholder="PIN码" style="width:80px; height:32px; padding:0 6px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;" autocomplete="new-password" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
         </div>
         <div style="display:flex;gap:7px;margin:7px 0;">
           <button id="dbCreateGroupBtn" type="button" class="btn-primary" style="flex:1;height:36px;font-size:.75rem;">＋ 创建小组</button>
@@ -3518,8 +3518,8 @@
       </div>
       <div style="font-size:0.85rem; font-weight:900; color:var(--text-main);">修改 PIN 码</div>
       <div style="display:flex; gap:6px;">
-        <input type="password" id="dbChangePinOld" maxlength="6" placeholder="当前PIN" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
-        <input type="password" id="dbChangePinNew" maxlength="6" placeholder="新PIN" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;">
+        <input type="password" id="dbChangePinOld" maxlength="6" placeholder="当前PIN" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;" autocomplete="new-password" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
+        <input type="password" id="dbChangePinNew" maxlength="6" placeholder="新PIN" style="flex:1; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main); text-align:center; font-family:monospace;" autocomplete="new-password" readonly onfocus="this.removeAttribute(&quot;readonly&quot;)" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true">
         <button id="dbChangePinBtn" class="btn-secondary" style="padding:0 12px; height:32px; font-size:0.72rem;">修改</button>
       </div>
       <div id="dbChangePinError" style="font-size:0.62rem; min-height:16px;"></div>
