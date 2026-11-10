@@ -391,6 +391,7 @@ async function processCrmBackgroundJobs(env) {
         if (!importItemsResp.ok) throw new Error('读取导入暂存数据失败：' + (await importItemsResp.text()).slice(0, 240));
         var importItems = await importItemsResp.json();
         if (!Array.isArray(importItems) || !importItems.length) {
+          job.processed = Number(job.total || job.processed || 0);
           done = true;
         } else {
           var importAccountsForJob = await dialerGetAccounts(env);
@@ -512,7 +513,7 @@ async function processCrmBackgroundJobs(env) {
       if (job.kind === 'customer_import') {
         job.attempts = Number(job.attempts || 0) + 1;
         job.last_error = err.message || String(err);
-        job.status = job.attempts >= 3 ? 'failed' : 'queued';
+        job.status = job.attempts >= 5 ? 'failed' : 'queued';
       } else {
         job.status = 'failed'; job.error = err.message || String(err);
       }
