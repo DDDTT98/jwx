@@ -14011,7 +14011,7 @@ function updateAutoDialBtn() {
       var category = categories[Math.floor(Math.random() * categories.length)];
       var variants = queries[category] || queries.landscape;
       var attempt = 0;
-      var maxAttempts = category === 'plants' ? variants.length * 2 : Math.max(4, variants.length);
+      var maxAttempts = (category === 'plants' || category === 'space') ? variants.length * 2 : Math.max(4, variants.length);
       function tryNext() {
         if (attempt >= maxAttempts) {
           _wallpaperLoaded = false;
@@ -14020,28 +14020,30 @@ function updateAutoDialBtn() {
         }
         var query = variants[attempt % variants.length];
         attempt++;
-        if (category === 'plants') {
-          // 花朵类通过同源 Worker 查询 Wallhaven，并以壁纸详情中的 tags 做语义校验。
-          fetch('/api/wallpaper/search?q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
+        if (category === 'plants' || category === 'space') {
+          // 花朵与宇宙星空通过 Worker 依次查询 Openverse、Wikimedia Commons、Wallhaven。
+          fetch('/api/wallpaper/search?type=' + (category === 'space' ? 'space' : 'flowers') + '&q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
           })
             .then(function(response) {
-              if (!response.ok) throw new Error('花朵壁纸搜索失败：' + response.status);
+              if (!response.ok) throw new Error((category === 'space' ? '宇宙星空' : '花朵') + '壁纸搜索失败：' + response.status);
               return response.json();
             })
             .then(function(payload) {
               var data = payload && payload.data;
               if (!payload || payload.success !== true || !data ||
                   String(data.file_url || '').toLowerCase().indexOf('https://') !== 0 ||
-                  (String(data.source_url || '').toLowerCase().indexOf('https://wallhaven.cc/w/') !== 0 &&
-                   String(data.source_url || '').toLowerCase().indexOf('http://wallhaven.cc/w/') !== 0) ||
+                  String(data.source_url || '').toLowerCase().indexOf('https://') !== 0 ||
                   String(data.purity || '').toLowerCase() !== 'sfw' ||
                   String(data.category || '').toLowerCase() !== 'general' ||
                   data.is_mobile !== true ||
                   !Array.isArray(data.tags) ||
-                  !['flower', 'plant', 'forest', 'tree', 'leaf', 'leaves', 'botanical', 'flora', 'garden'].some(function(word) {
+                  !(category === 'space'
+                    ? ['space', 'universe', 'galaxy', 'nebula', 'cosmos', 'milky way', 'starfield', 'astronomy', 'planet', '星云', '银河', '宇宙', '星空']
+                    : ['flower', 'floral', 'bouquet', 'blossom', 'rose', 'tulip', 'peony', 'daisy', 'orchid', '花朵', '花卉', '鲜花']
+                  ).some(function(word) {
                     return data.tags.some(function(tag) {
                       var tagText = (String(tag.name || '') + ' ' + String(tag.alias || '')).toLowerCase();
                       return tagText.indexOf(word) >= 0;
@@ -14060,7 +14062,7 @@ function updateAutoDialBtn() {
               img.src = data.file_url;
             })
             .catch(function(error) {
-              console.warn('[wallpaper] 花朵关键词未命中，继续尝试：' + query, error);
+              console.warn('[wallpaper] 关键词未命中，继续尝试：' + query, error);
               tryNext();
             });
           return;
