@@ -3497,7 +3497,7 @@
       <div class="crm-tab" data-tab="uploadLog">上传记录</div>
       <div class="crm-tab" data-tab="masterPullLog">主账号补充</div>
       <div class="crm-tabs-right">
-        <button class="db-close" id="dbCustomSettingsBtn" type="button" title="自定义设置" aria-label="自定义设置" style="display:none;padding:0 10px;font-size:.68rem;font-weight:800;color:var(--text-main);">⚙ 自定义设置</button>
+        <button class="db-close" id="dbCustomSettingsBtn" type="button" title="自定义设置" aria-label="自定义设置" style="display:none;padding:0 8px;font-size:1.05rem;font-weight:800;color:var(--text-main);line-height:1;">⚙️</button>
         <button class="db-close" id="dbMobileBtn" type="button" title="手机版界面" aria-label="手机版界面" style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:0 9px;font-size:0;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
         </button>
