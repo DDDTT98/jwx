@@ -2376,6 +2376,18 @@
     }
 
 
+    /* Mark attempted calls in orange on regular customer-card buttons. */
+    .xls-dial-card .xls-card-dial-btn.dial-attempted:not(.privacy-dial-icon) {
+      background: rgba(255, 149, 0, .16) !important;
+      color: #c66a00 !important;
+      border: 0 !important;
+      box-shadow: 0 1px 4px rgba(255, 149, 0, .12) !important;
+    }
+    body.dark-mode .xls-dial-card .xls-card-dial-btn.dial-attempted:not(.privacy-dial-icon) {
+      background: rgba(255, 159, 10, .20) !important;
+      color: #ffb340 !important;
+    }
+
     /* Customer-card green accents: translucent dial button and sequence marker. */
     .xls-dial-card .xls-card-dial-btn:not(.privacy-dial-icon) {
       background: rgba(7,193,96,.16) !important;
@@ -8365,7 +8377,7 @@
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
-                  '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn' + (!showClientInfo ? ' privacy-dial-icon' + (c.dial_attempted ? ' dial-attempted' : '') : '') + '" data-idx="' + i + '" title="' + (!showClientInfo ? (c.dial_attempted ? '已拨打' : '拨打电话') : '拨打') + '" style="font-size:0.7rem;padding:2px 10px;height:24px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">' + (!showClientInfo ? (c.dial_attempted ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>') : '拨打') + '</a>' +
+                  '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn' + (!showClientInfo ? ' privacy-dial-icon' + (c.dial_attempted ? ' dial-attempted' : '') : '') + '" data-idx="' + i + '" title="' + (c.dial_attempted ? '已拨' : (!showClientInfo ? '拨打电话' : '拨打')) + '"' style="font-size:0.7rem;padding:2px 10px;height:24px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">' + (!showClientInfo ? (c.dial_attempted ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>') : (c.dial_attempted ? '已拨' : '拨打')) + '</a>' +
                 '</div>' +
               '</div>' +
             '</div>' +
@@ -8586,12 +8598,16 @@
           btn.addEventListener('click', function() {
             var idx = parseInt(this.dataset.idx);
             var client = importedClients[idx];
-            if (client && !isClientInfoVisible()) {
+            if (client) {
               client.dial_attempted = true;
               saveState();
               this.classList.add('dial-attempted');
-              this.title = '已拨打';
-              this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 1.72 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>';
+              this.title = '已拨';
+              if (isClientInfoVisible()) {
+                this.textContent = '已拨';
+              } else {
+                this.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 1.72 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>';
+              }
             }
             if (client) recordTimeline(client.phone || client.mobile, 'dial');
           });
