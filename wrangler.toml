@@ -15,6 +15,7 @@ crons = ["* * * * *", "0 13 * * *"] # 每天北京时间 21:00；周日同一触
 [vars]
 BHP_FROM_EMAIL = "onboarding@resend.dev"
 BACKUP_TARGET_EMAIL = "zy28341215@gmail.com"
+SUPABASE_URL = "https://qzaemkklpfwwxjjricda.supabase.co"
 
 [ai]
 binding = "AI"
