@@ -1006,6 +1006,13 @@
       box-shadow: 0 0 24px rgba(200,120,180,0.18), 0 0 0 4px rgba(180,120,170,0.08);
       background: rgba(50,30,50,0.7);
     }
+
+    /* PIN 解锁输入框：移除聚焦时的边框打光与外发光 */
+    #lockPinInput:focus,
+    body.dark-mode #lockPinInput:focus {
+      border-color: transparent;
+      box-shadow: none;
+    }
     /* ── Anime unlock button ── */
     .auth-overlay .auth-btn {
       background: linear-gradient(135deg, #f8a0c8 0%, #d08ae8 50%, #a8a0f0 100%);
