@@ -2254,7 +2254,7 @@ export default {
             batch_label: importLabel, total: importTotal,
             processed: 0, succeeded: 0, skipped: 0, failed: 0, staged_count: 0,
             auto_delete_after_dial: importBody.auto_delete_after_dial === true,
-            category: String(importBody.category || '公海客户')
+            category: '待跟进'
           });
           newImportJob.status = 'staging';
           await env.DATA_STORE.put('dialer:bgjob:' + newImportJob.id, JSON.stringify(newImportJob), { expirationTtl: 60 * 60 * 24 * 30 });
