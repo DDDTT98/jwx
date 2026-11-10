@@ -3136,21 +3136,6 @@
               <input type="checkbox" id="autoDeleteBatchAfterDial" style="width:15px;height:15px;accent-color:#e74c3c;flex-shrink:0;">
               <label for="autoDeleteBatchAfterDial" style="font-size:0.7rem;color:var(--text-main);font-weight:600;">本批次全部拨打完成后自动删除（不进入公海）</label>
             </div>
-            <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px; width: 100%;">
-              <span style="font-size: 0.68rem; color: var(--text-soft); font-weight: 600; white-space: nowrap;">默认分类</span>
-              <select id="importCategorySelect" style="flex:1; height:28px; padding:0 8px; font-size:0.72rem; border:0.5px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; cursor:pointer;">
-                <option value="待跟进">待跟进</option>
-                <option value="潜在客户">潜在客户</option>
-                <option value="意向客户">意向客户</option>
-                <option value="已成交">已成交</option>
-                <option value="无效号码">无效号码</option>
-                <option value="老客户">老客户</option>
-                <option value="同行">同行</option>
-                <option value="其他">其他</option>
-                <option value="公海客户" selected>公海客户</option>
-                <option value="未分类">未分类</option>
-              </select>
-            </div>
             <div id="whitelistProductImportPanel" style="display:flex;flex-direction:column;gap:7px;width:100%;margin-top:12px;padding:10px;border:1px solid var(--card-border);border-radius:10px;background:var(--card-bg);">
               <div style="font-size:0.76rem;font-weight:800;color:var(--text-main);">白名单产品导入</div>
               <div style="font-size:0.64rem;line-height:1.5;color:var(--text-light);">先填写白名单名称，再上传 Excel。系统自动识别“单位名称 / 企业名称 / 公司名称”等列，导入后新增或更新对应白名单。</div>
@@ -5499,7 +5484,7 @@
       var storageInstitutionCol = parseInt(document.getElementById('aiSelStorageInstitution').value);
       var noteCol = parseInt(document.getElementById('aiSelNote').value);
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
+      var defaultCat = '待跟进';
 
       if (phoneCol === -1) {
         alert('必须映射手机号列；手机号必须逐条有效，不能用同一个号码批量代替。');
@@ -5618,7 +5603,7 @@
       var invalidVcf = vcfContacts.findIndex(function(c) { return !String(c.name || '').trim() || String(c.name || '').trim() === '未知姓名' || !isPhone(cleanPhone(c.phone)) || !String(c.company || '').trim(); });
       if (invalidVcf !== -1) { alert('导入已拦截：VCF 第 ' + (invalidVcf + 1) + ' 条记录缺少姓名、有效手机号或单位名称。请先补全所有必备字段。'); return; }
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
+      var defaultCat = '待跟进';
       // Tag each client with the batch label and category
       for (var i = 0; i < tempImportData.length; i++) {
         var c = tempImportData[i];
@@ -7724,7 +7709,7 @@
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
        if (!validateUnstructuredImportContacts()) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
-      var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
+      var defaultCat = '待跟进';
       // Tag each client with the batch label and category
       for (var i = 0; i < tempUnstructuredContacts.length; i++) {
         var c = tempUnstructuredContacts[i];
