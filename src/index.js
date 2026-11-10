@@ -402,7 +402,7 @@ async function processCrmBackgroundJobs(env) {
           var importActor = importAccountsForJob.find(function(a) { return a.account_id === job.created_by; });
           var importActorName = importActor ? (importActor.real_name || importActor.account_name || importActor.label || job.created_by) : job.created_by;
           var importAddOperation = {
-            type: 'add', ts: new Date().toISOString(),
+            type: 'import', ts: new Date().toISOString(),
             operator_account_id: job.created_by, operator_account_name: importActorName,
             previous_operator_account_id: job.created_by, previous_operator_account_name: importActorName,
             detail: '新增客户'
@@ -2336,7 +2336,7 @@ export default {
         var uploadActor = _session.account_id;
         var uploadActorAccount = (await dialerGetAccounts(env)).find(function(a) { return a.account_id === uploadActor; });
         var uploadActorName = uploadActorAccount ? (uploadActorAccount.real_name || uploadActorAccount.account_name || uploadActorAccount.label || uploadActor) : uploadActor;
-        var addOperation = { type: 'add', ts: new Date().toISOString(), operator_account_id: uploadActor, operator_account_name: uploadActorName, previous_operator_account_id: uploadActor, previous_operator_account_name: uploadActorName, detail: '新增客户' };
+        var addOperation = { type: 'import', ts: new Date().toISOString(), operator_account_id: uploadActor, operator_account_name: uploadActorName, previous_operator_account_id: uploadActor, previous_operator_account_name: uploadActorName, detail: '新增客户' };
         const tagged = customers.map(function(c) {
           return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId, last_operation: addOperation });
         });
