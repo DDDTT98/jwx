@@ -11518,6 +11518,7 @@ function updateAutoDialBtn() {
                     note: noteObj.note || '',
                     custom: noteObj.custom || '',
                     fund: c.fund || noteObj.fund || '',
+                    storage_institution: c.storage_institution || c.storageInstitution || '',
                     whitelist_name: c.whitelist_name || '',
                     category: c.category || '',
                     batch_label: c.batch_label || '',
