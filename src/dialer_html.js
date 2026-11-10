@@ -2934,7 +2934,7 @@
     <div class="lock-wallpaper-overlay"></div>
     <div class="auth-card">
       <div id="bootFallbackNotice" role="alert" style="padding:10px 12px;margin-bottom:12px;border-radius:10px;background:rgba(255,149,0,0.12);color:#9a5b00;font-size:13px;text-align:center;">页面正在启动。如果此提示持续显示，说明页面脚本未能正常启动，请刷新页面或联系管理员。</div>
-      <form autocomplete="off" data-form-type="other" style="margin:0;">
+      <form autocomplete="off" data-form-type="other" style="margin:0;" onsubmit="return false;">
         <input type="text" id="authLoginAccountName" class="auth-input" placeholder="账号" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" readonly>
         <input type="text" id="authLoginPin" class="auth-input auth-pin-input auth-pin-mask" maxlength="6" inputmode="numeric" placeholder="PIN" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" readonly>
         <div id="authLoginError" class="auth-error"></div>
@@ -2952,7 +2952,7 @@
     <div id="lockWallpaper" class="lock-wallpaper"></div>
     <div class="lock-wallpaper-overlay"></div>
     <div class="auth-card">
-      <form autocomplete="off" data-form-type="other" style="margin:0;">
+      <form autocomplete="off" data-form-type="other" style="margin:0;" onsubmit="return false;">
         <input type="text" id="lockPinInput" class="auth-input auth-pin-input auth-pin-mask" maxlength="12" inputmode="numeric" placeholder="输入 PIN 解锁" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" readonly>
         <div id="lockScreenError" class="auth-error"></div>
         <div id="tsLockWidget" style="height:0;overflow:hidden;pointer-events:none;" aria-hidden="true"></div>
@@ -3743,6 +3743,21 @@
     }
 
     var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+    // 兼容旧版本：Enter 曾触发锁屏表单提交，把 PIN 明文带进地址栏（?lp_xxxx=PIN）。
+    // 这里立即从地址栏与当前历史条目中清除，避免 PIN 残留。
+    (function stripLeakedPinFromUrl() {
+      try {
+        var search = window.location.search;
+        if (!search || search.indexOf('lp_') === -1) return;
+        var raw = search.charAt(0) === '?' ? search.slice(1) : search;
+        var kept = raw.split('&').filter(function (kv) {
+          return kv && kv.indexOf('lp_') !== 0;
+        });
+        var clean = window.location.pathname + (kept.length ? '?' + kept.join('&') : '') + (window.location.hash || '');
+        window.history.replaceState(null, '', clean);
+      } catch (e) { /* 忽略：不影响启动 */ }
+    })();
 
     // 新号模式：新号每日添加上限低 → 每轮只显示 10 个客户卡片，加完冷却 20-30 分钟（普通模式 50 个、45-60 分钟）
     // 新号模式按「账号 + 当前设备」独立记录：键含账号 ID，切换账号或其他设备互不影响
@@ -13757,7 +13772,7 @@ function updateAutoDialBtn() {
       pinInput.onfocus = function() { this.removeAttribute('readonly'); };
 
       loginBtn.onclick = doLogin;
-      pinInput.onkeypress = function(e) { if (e.key === 'Enter') doLogin(); };
+      pinInput.onkeypress = function(e) { if (e.key === 'Enter') { e.preventDefault(); doLogin(); } };
       accountInput.onkeypress = function(e) { if (e.key === 'Enter') { pinInput.focus(); } };
 
     }
@@ -13868,7 +13883,7 @@ function updateAutoDialBtn() {
       pinInput.onfocus = function() { this.removeAttribute('readonly'); };
 
       unlockBtn.onclick = doUnlock;
-      pinInput.onkeypress = function(e) { if (e.key === 'Enter') doUnlock(); };
+      pinInput.onkeypress = function(e) { if (e.key === 'Enter') { e.preventDefault(); doUnlock(); } };
 
       // Resume cooldown if page was refreshed during lockout
       var savedUntil = parseInt(sessionStorage.getItem('dialer_lockout_until') || '0');
