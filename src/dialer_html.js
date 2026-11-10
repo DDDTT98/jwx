@@ -3196,6 +3196,12 @@
               </div>
             </div>
 
+            <div id="excelBulkDefaults" style="display:none;flex-wrap:wrap;gap:6px;padding:8px;background:var(--accent-wechat-bg);border-radius:var(--radius-sm);">
+              <input id="excelBulkMissingName" type="text" placeholder="批量补充缺失姓名（可选）" style="flex:1;min-width:120px;height:30px;padding:0 8px;border:1px solid var(--card-border);border-radius:7px;background:var(--card-bg);color:var(--text-main);font-size:12px;">
+              <input id="excelBulkMissingCompany" type="text" placeholder="批量补充缺失单位名称（可选）" style="flex:1;min-width:140px;height:30px;padding:0 8px;border:1px solid var(--card-border);border-radius:7px;background:var(--card-bg);color:var(--text-main);font-size:12px;">
+              <button id="applyExcelBulkDefaultsBtn" type="button" class="btn-secondary" style="padding:6px 12px;font-size:12px;">应用批量补充</button>
+              <span id="excelBulkDefaultsHint" style="width:100%;font-size:11px;color:var(--text-soft);">手机号必须逐条有效；姓名和单位可批量补充空值，不覆盖原数据。</span>
+            </div>
             <!-- Live Preview Table -->
             <div id="aiExcelPreviewContainer" style="width: 100%; border: 0.5px solid var(--card-border); border-radius: var(--radius-sm); overflow: hidden; background: var(--card-bg);">
               <div style="font-size: 0.6rem; font-weight: 600; color: var(--text-light); background: var(--btn-bg); padding: 4px 8px; border-bottom: 0.5px solid var(--card-border);">AI 导入数据效果实时预览 (前3行)：</div>
@@ -5200,13 +5206,8 @@
       document.getElementById('pillNote').innerHTML = '备注' + (detected.noteIdx !== -1 ? headersList[detected.noteIdx].label : '无');
 
       renderImportMappingControls(headersList, detected);
-
-      if (detected.nameIdx !== -1 && detected.phoneIdx !== -1) {
-        executeAIImportExcel();
-        showCheckToast();
-        return;
-      }
-
+      var excelBulk = document.getElementById('excelBulkDefaults');
+      if (excelBulk) excelBulk.style.display = 'flex';
       var conf = 90;
       if (detected.nameIdx !== -1 && detected.phoneIdx !== -1) conf = detected.headerRowIdx !== -1 ? 98.5 : 92.0;
       if (detected.companyIdx !== -1) conf += 1.0;
@@ -5355,8 +5356,8 @@
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
 
-      if (phoneCol === -1) {
-        alert('请至少为电话选择一列进行导入！');
+      if (nameCol === -1 || phoneCol === -1) {
+        alert('必须映射姓名和手机号列；姓名缺失值可批量补充，手机号必须逐条有效。');
         return;
       }
 
@@ -5386,8 +5387,12 @@
         if (phoneSet.has(phoneVal)) continue;
         phoneSet.add(phoneVal);
 
-        var nameVal = nameCol !== -1 ? String(row[nameCol] || '').trim() : '客户';
-        var companyVal = compCol !== -1 ? String(row[compCol] || '').trim() : '';
+        var nameVal = String(row[nameCol] || '').trim() || bulkName;
+        var companyVal = (compCol !== -1 ? String(row[compCol] || '').trim() : '') || bulkCompany;
+        if (!nameVal || !companyVal || !/^1[3-9]\\d{9}$/.test(phoneVal)) {
+          alert('第 ' + (r + 1) + ' 行必备字段不完整：姓名、有效手机号、单位名称均不能为空。请补充后再导入。');
+          return;
+        }
         var storageInstitutionVal = storageInstitutionCol !== -1 ? String(row[storageInstitutionCol] || '').trim() : '';
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
@@ -5412,7 +5417,7 @@
         }
 
         parsedCustomers.push({
-          name: nameVal || '未知姓名',
+          name: nameVal,
           phone: phoneVal,
           mobile: phoneVal,
           company: companyVal,
@@ -7521,9 +7526,36 @@
       });
     }
 
-    function executeAIImportUnstructured() {
+    function validateUnstructuredImportContacts() {
+    var contacts = tempUnstructuredContacts || tempImportData || [];
+    var missing = [];
+    contacts.forEach(function(contact, index) {
+      var name = String(contact.name || '').trim();
+      var phone = cleanPhone(contact.phone || contact.mobile || '');
+      var company = String(contact.company || '').trim();
+      var validPhone = /^1[3-9]\\d{9}$/.test(phone);
+      if (!name || name === '未知姓名' || !validPhone || !company) {
+        missing.push({ row: index + 1, fields: [
+          (!name || name === '未知姓名') ? '姓名' : '',
+          !validPhone ? '有效手机号' : '',
+          !company ? '单位名称' : ''
+        ].filter(Boolean) });
+      }
+    });
+    if (missing.length) {
+      var details = missing.slice(0, 12).map(function(item) {
+        return '第' + item.row + '条缺少' + item.fields.join('、');
+      }).join('；');
+      alert('导入已拦截：每条联系人都必须有姓名、有效手机号、单位名称。\\n共 ' + missing.length + ' 条不合格。\\n' + details + (missing.length > 12 ? '；其余请在预览表中检查' : '') + '\\n请批量补充姓名/单位，并逐条修正手机号。');
+      return false;
+    }
+    return true;
+  }
+
+  function executeAIImportUnstructured() {
       if (!canStartNextImportBatch()) return;
       if (!tempUnstructuredContacts || tempUnstructuredContacts.length === 0) return;
+       if (!validateUnstructuredImportContacts()) return;
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
       // Tag each client with the batch label and category
@@ -7655,7 +7687,29 @@
  }
 
  // Batch-fill only missing names and company names in text/VCF imports
- var bulkFillBtn = document.getElementById('applyBulkMissingFieldsBtn');
+ var excelBulkBtn = document.getElementById('applyExcelBulkDefaultsBtn');
+  if (excelBulkBtn) {
+    excelBulkBtn.addEventListener('click', function() {
+      var nameValue = ((document.getElementById('excelBulkMissingName') || {}).value || '').trim();
+      var companyValue = ((document.getElementById('excelBulkMissingCompany') || {}).value || '').trim();
+      if (!nameValue && !companyValue) { alert('请至少填写姓名或单位名称'); return; }
+      var nameCol = parseInt(document.getElementById('aiSelName').value);
+      var companyCol = parseInt(document.getElementById('aiSelCompany').value);
+      var start = tempImportDetected && tempImportDetected.headerRowIdx !== -1 ? tempImportDetected.headerRowIdx + 1 : 0;
+      var names = 0, companies = 0;
+      for (var r = start; r < tempImportData.length; r++) {
+        var row = tempImportData[r];
+        if (!row) continue;
+        if (nameValue && nameCol !== -1 && !String(row[nameCol] || '').trim()) { row[nameCol] = nameValue; names++; }
+        if (companyValue && companyCol !== -1 && !String(row[companyCol] || '').trim()) { row[companyCol] = companyValue; companies++; }
+      }
+      var hint = document.getElementById('excelBulkDefaultsHint');
+      if (hint) hint.textContent = '批量补充已应用。姓名 ' + names + ' 条，单位列补充 ' + companies + ' 条；未覆盖原有数据。';
+      updateAIPreviewTable();
+    });
+  }
+
+  var bulkFillBtn = document.getElementById('applyBulkMissingFieldsBtn');
  if (bulkFillBtn) {
    bulkFillBtn.addEventListener('click', function() {
      var nameValue = (document.getElementById('bulkMissingName') || {}).value || '';
