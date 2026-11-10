@@ -21,6 +21,18 @@
       });
       window.setTimeout(function () {
         if (window.__BHP_BOOT_OK) return;
+        // 无任何 JS 错误却未完成初始化，通常说明响应被中途截断（主脚本没到），
+        // 自动重载一次即可恢复；用 sessionStorage 防死循环。
+        if (!bootErrors.length) {
+          try {
+            if (!window.sessionStorage.getItem('bhp_boot_retry')) {
+              window.sessionStorage.setItem('bhp_boot_retry', '1');
+              window.location.reload();
+              return;
+            }
+            window.sessionStorage.removeItem('bhp_boot_retry');
+          } catch (e) { /* 隐私模式禁用 storage 时直接降级到提示 */ }
+        }
         var notice = document.getElementById('bootFallbackNotice');
         if (notice) {
           notice.style.display = 'block';
@@ -36,7 +48,7 @@
           login.style.display = 'flex';
           login.style.zIndex = '2147483647';
         }
-      }, 12000);
+      }, 20000);
     })();
   </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14119,6 +14131,7 @@ function updateAutoDialBtn() {
     // Hide the static warning only after all startup initializers have completed.
     var bootFallbackNotice = document.getElementById("bootFallbackNotice");
     window.__BHP_BOOT_OK = true;
+    try { window.sessionStorage.removeItem('bhp_boot_retry'); } catch (e) { /* ignore */ }
     if (bootFallbackNotice) bootFallbackNotice.style.display = "none";
 
   })();
