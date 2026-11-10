@@ -81,6 +81,7 @@ export const LEARN_TIME_MATRIX_HTML = `
           <li>减少无效刷视频</li>
           <li>屏蔽无效的社交沟通</li>
           <li>减少反复做无价值的事情</li>
+          <li>及时调整毫无状态的电话开发</li>
         </ul>
         <div class="time-q-goal"><b>核心目标：</b>减少时间浪费，把精力留给真正能产生业绩的事情</div>
       </section>
