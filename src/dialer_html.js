@@ -2563,15 +2563,6 @@
     }
     .db-overlay.mobile-layout #dbMobileBtn { display: none !important; }
     .db-overlay.mobile-layout #dbClose { display: flex !important; }
-    .db-overlay.mobile-layout #dbAccountStats {
-      max-height: 34vh;
-      overflow-y: auto;
-      flex-shrink: 0;
-    }
-    .db-overlay.mobile-layout #dbAccountStatsContent {
-      align-items: flex-start;
-      padding: 8px 10px;
-    }
     .db-overlay.mobile-layout .crm-shortcut-bar {
       padding: 7px 9px;
       gap: 6px;
@@ -3447,24 +3438,6 @@
       </div>
     </div>
 
-    <!-- Account Stats Bar (master only, collapsed by default) -->
-    <div id="dbAccountStats" style="display:none; flex-direction:column; gap:0; border-bottom:0.5px solid var(--card-border); background:var(--btn-bg); font-size:0.7rem; font-weight:700; color:var(--text-soft);">
-      <button id="dbAccountStatsToggle" type="button" aria-expanded="false" style="width:100%; min-height:38px; padding:7px 16px; display:flex; align-items:center; justify-content:space-between; gap:8px; border:0; background:transparent; color:var(--text-main); font-size:0.72rem; font-weight:800; text-align:left; cursor:pointer;">
-        <span>各账户上传统计 <span id="dbAccountStatsSummary" style="font-size:0.65rem;font-weight:600;color:var(--text-soft);">（点击下拉查看）</span></span>
-        <span id="dbAccountStatsArrow" aria-hidden="true" style="font-size:0.85rem;transition:transform .18s;">▼</span>
-      </button>
-      <div id="dbAccountStatsContent" style="display:none; padding:6px 16px 10px; align-items:center; gap:10px; flex-wrap:wrap;">
-        <span id="dbAccountStatsList" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"></span>
-        <span style="margin-left:auto; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-          <button id="dbMigrateBtn" style="display:none; height:26px; padding:0 10px; font-size:0.65rem; border:none; box-shadow:var(--shadow-card); background:rgba(230,126,34,0.12); color:#e67e22; border-radius:3px; font-weight:700; cursor:pointer;">归属主账户</button>
-          <span>查看：</span>
-          <select id="dbViewAccountSel" style="height:26px; padding:0 6px; font-size:0.68rem; border:0.5px solid var(--card-border); border-radius:3px; font-weight:700; background:var(--card-bg); color:var(--text-main); cursor:pointer;">
-            <option value="">我的数据</option>
-          </select>
-        </span>
-      </div>
-    </div>
-
     <!-- CRM Shortcut Filters -->
     <div class="crm-shortcut-bar">
       <button class="crm-shortcut-btn active" data-shortcut="all">全部</button>
@@ -3472,6 +3445,13 @@
       <button class="crm-shortcut-btn" data-shortcut="never">从未跟进</button>
       <button class="crm-shortcut-btn" data-shortcut="3days">3天以上未跟进</button>
       <span class="crm-shortcut-add" title="添加快捷过滤">(+)</span>
+      <span id="dbAccountViewControls" style="display:none;align-items:center;gap:5px;margin-left:auto;">
+        <span style="font-size:.65rem;color:var(--text-soft);white-space:nowrap;">查看</span>
+        <select id="dbViewAccountSel" aria-label="选择查看的账号数据" style="height:27px;max-width:145px;padding:0 5px;font-size:.68rem;border:0.5px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);">
+          <option value="">我的数据</option>
+        </select>
+        <button id="dbMigrateBtn" type="button" style="display:none;height:27px;padding:0 8px;font-size:.63rem;border:0;border-radius:5px;background:rgba(230,126,34,.12);color:#e67e22;font-weight:700;white-space:nowrap;">归属主账户</button>
+      </span>
       <button class="crm-shortcut-toggle" id="crmToggleSearchBtn" title="展开/收起搜索区域">收起搜索</button>
     </div>
 
@@ -10413,63 +10393,63 @@ function updateAutoDialBtn() {
     var _viewAccountId = '';
 
     function loadAccountStats() {
-      var bar = document.getElementById('dbAccountStats');
-      if (!bar) return;
-      if (!canManageTeam()) { bar.style.display = 'none'; return; }
-      bar.style.display = 'flex';
-      var statsToggle = document.getElementById('dbAccountStatsToggle');
-      var statsContent = document.getElementById('dbAccountStatsContent');
-      var statsArrow = document.getElementById('dbAccountStatsArrow');
-      if (statsToggle && !statsToggle._wired) {
-        statsToggle._wired = true;
-        statsToggle.addEventListener('click', function() {
-          var opening = !statsContent || statsContent.style.display === 'none';
-          if (statsContent) statsContent.style.display = opening ? 'flex' : 'none';
-          statsToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
-          if (statsArrow) statsArrow.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
-          var summary = document.getElementById('dbAccountStatsSummary');
-          if (summary) summary.textContent = opening ? '（点击收起）' : '（点击下拉查看）';
-        });
-      }
-      var list = document.getElementById('dbAccountStatsList');
+      // 上传数量已显示在账号管理卡片中；看板这里只保留数据范围切换和异常数据归属操作。
+      var controls = document.getElementById('dbAccountViewControls');
       var sel = document.getElementById('dbViewAccountSel');
-      if (!list) return;
-      list.textContent = '加载中...';
-      fetch('/api/dialer/stats/accounts')
+      var migrateBtn = document.getElementById('dbMigrateBtn');
+      if (!canManageTeam()) {
+        if (controls) controls.style.display = 'none';
+        return;
+      }
+      if (controls) controls.style.display = 'inline-flex';
+      fetch('/api/dialer/stats/accounts', { cache: 'no-store' })
         .then(function(r) { return r.json(); })
         .then(function(res) {
-          if (!res.stats || res.stats.length === 0) {
-            list.textContent = '暂无数据';
-            return;
+          var stats = res.stats || [];
+          if (sel) {
+            var current = sel.value || _viewAccountId || '';
+            sel.innerHTML = '<option value="">我的数据</option>';
+            stats.forEach(function(a) {
+              if (!a.is_master) {
+                var name = (a.role === 'manager' ? '组长·' : '组员·') + (a.real_name || a.account_name || a.label || String(a.account_id || '').slice(0, 10));
+                var option = document.createElement('option');
+                option.value = a.account_id;
+                option.textContent = name;
+                sel.appendChild(option);
+              }
+            });
+            sel.value = current;
+            if (sel.value !== current) {
+              sel.value = '';
+              _viewAccountId = '';
+            }
+            if (!sel._wired) {
+              sel._wired = true;
+              sel.addEventListener('change', function() {
+                _viewAccountId = this.value;
+                DB.page = 1;
+                DB.selectedIds = {};
+                dbFetch();
+              });
+            }
           }
-          list.innerHTML = res.stats.map(function(s) {
-            var name = (s.real_name ? s.real_name + '（' + (s.account_name || s.label || s.account_id.slice(0, 10)) + '）' : (s.account_name || s.label || s.account_id.slice(0, 10)));
-            var badge = s.is_master ? ' [主]' : '';
-            var inactive = !s.active ? ' [禁用]' : '';
-            return '<span style="background:var(--card-bg); padding:2px 8px; border-radius:3px; white-space:nowrap;">'
-              + name + badge + inactive
-              + ' <strong style="color:var(--accent-wechat);">' + s.upload_count + '</strong>'
-              + '</span>';
-          }).join(' ');
-          // Show migrate button if orphan records exist
-          var migrateBtn = document.getElementById('dbMigrateBtn');
           if (migrateBtn) {
-            if (isSessionMaster() && res.unknown_count > 0) {
+            if (isSessionMaster() && Number(res.unknown_count || 0) > 0) {
               migrateBtn.style.display = 'inline-block';
-              migrateBtn.textContent = '归属主账户 (' + res.unknown_count + ')';
+              migrateBtn.textContent = '归属主账户 (' + Number(res.unknown_count) + ')';
               migrateBtn.onclick = function() {
-                if (!confirm('将 ' + res.unknown_count + ' 条无归属客户数据归属到主账户？')) return;
+                if (!confirm('将 ' + Number(res.unknown_count) + ' 条无归属客户数据归属到主账户？')) return;
                 migrateBtn.disabled = true;
                 migrateBtn.textContent = '迁移中...';
                 fetch('/api/dialer/stats/migrate', { method: 'POST' })
                   .then(function(r) { return r.json(); })
-                  .then(function(r2) {
-                    if (r2.success) {
+                  .then(function(result) {
+                    if (result.success) {
                       migrateBtn.style.display = 'none';
                       loadAccountStats();
                       dbFetch();
                     } else {
-                      alert('迁移失败: ' + (r2.error || '未知错误'));
+                      alert('迁移失败: ' + (result.error || '未知错误'));
                     }
                   })
                   .catch(function() { alert('网络错误'); })
@@ -10479,31 +10459,9 @@ function updateAutoDialBtn() {
               migrateBtn.style.display = 'none';
             }
           }
-          // Populate view selector
-          if (sel) {
-            sel.value = '';
-            sel.innerHTML = '<option value="">我的数据</option>';
-            res.stats.forEach(function(s) {
-              if (!s.is_master) {
-                var name = (s.role === 'manager' ? '组长·' : '组员·') + (s.real_name || s.account_name || s.label || s.account_id.slice(0, 10));
-                sel.innerHTML += '<option value="' + s.account_id + '">' + name + '</option>';
-              }
-            });
-            // Wire change handler (only once)
-            if (!sel._wired) {
-              sel._wired = true;
-              sel.addEventListener('change', function() {
-                _viewAccountId = this.value;
-                DB.page = 1;
-                DB.selectedIds = {};
-                dbFetch();
-                // 分配选项在任意视图都显示：切换子账号视图后仍可把当前视图数据分配给其他账号
-              });
-            }
-          }
         })
         .catch(function() {
-          list.textContent = '加载失败';
+          if (sel && !sel.options.length) sel.innerHTML = '<option value="">我的数据</option>';
         });
     }
 
