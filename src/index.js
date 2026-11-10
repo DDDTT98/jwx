@@ -558,7 +558,7 @@ export default {
       });
     }
 
-    // ==================== 花朵 / 宇宙星空壁纸搜索 ====================
+    // ==================== 多图库壁纸搜索（风景 / 花朵 / 宇宙星空） ====================
     // 多源顺序：Openverse（开放授权图库） -> Wikimedia Commons -> Wallhaven。
     if (path === '/api/wallpaper/search' && request.method === 'GET') {
       try {
@@ -721,9 +721,9 @@ export default {
                   if (!assetResp.ok) continue;
                   const assets = await assetResp.json();
                   if (!Array.isArray(assets)) continue;
-                  const assetUrl = assets.find(value => /~orig\\.(jpg|jpeg|png|webp)$/i.test(String(value || '')))
-                    || assets.find(value => /~large\\.(jpg|jpeg|png|webp)$/i.test(String(value || '')))
-                    || assets.find(value => /\\.(jpg|jpeg|png|webp)$/i.test(String(value || '')));
+                  const assetUrl = assets.find(value => /~orig\.(jpg|jpeg|png|webp)$/i.test(String(value || '')))
+                    || assets.find(value => /~large\.(jpg|jpeg|png|webp)$/i.test(String(value || '')))
+                    || assets.find(value => /\.(jpg|jpeg|png|webp)$/i.test(String(value || '')));
                   if (!isHttps(assetUrl)) continue;
                   const sourceUrl = String((Array.isArray(item.links) && item.links[0] && item.links[0].href) || manifestUrl);
                   return new Response(JSON.stringify({
@@ -755,7 +755,7 @@ export default {
             const flickrUrl = new URL('https://www.flickr.com/services/feeds/photos_public.gne');
             flickrUrl.searchParams.set('format', 'json');
             flickrUrl.searchParams.set('nojsoncallback', '1');
-            flickrUrl.searchParams.set('tags', query.split(/\\s+/).filter(Boolean).join(','));
+            flickrUrl.searchParams.set('tags', query.split(/\s+/).filter(Boolean).join(','));
             flickrUrl.searchParams.set('tagmode', 'any');
             const flickrResp = await fetch(flickrUrl.toString(), { headers });
             if (flickrResp.ok) {
@@ -771,7 +771,7 @@ export default {
                 if (!isThemeMatch(tagText) || !['1','2','3','4','5','6','7','8','9','10'].includes(licenseId)) continue;
                 const thumb = String(item.media && item.media.m || '');
                 if (!isHttps(thumb)) continue;
-                const fileUrl = thumb.replace(/_m(\\.[a-z0-9]+)$/i, '_b$1');
+                const fileUrl = thumb.replace(/_m(\.[a-z0-9]+)$/i, '_h$1');
                 const sourceUrl = String(item.link || '');
                 if (!isHttps(sourceUrl)) continue;
                 return new Response(JSON.stringify({
@@ -782,7 +782,7 @@ export default {
                     provider: 'flickr-cc',
                     purity: 'sfw',
                     category: 'general',
-                    resolution: 'up to 1024px',
+                    resolution: 'up to 1600px',
                     is_mobile: true,
                     tags: toTags([item.title || '', item.tags || '', query]),
                     attribution: String(item.author || ''),
