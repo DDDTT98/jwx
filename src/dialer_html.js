@@ -3932,7 +3932,14 @@
           if(r.ok) return;
           return r.json().catch(function(){return {};}).then(function(res){
             var msg=String(res&&res.error||'');
-            // 心跳可能因临时数据源错误返回 401；只有明确的会话失效/账号停用/设备数超限才退出，避免刚登录就被误清会话。
+            // 设备被主账号禁止：立即隐藏工作界面并回到 PIN 锁屏，保留会话以便后续重新验证。
+            if(msg.indexOf('DEVICE_BANNED:')===0){
+              showLockScreen();
+              var lockError=document.getElementById('lockScreenError');
+              if(lockError) lockError.textContent=msg.replace(/^DEVICE_BANNED:/,'')||'该设备已被主账号禁止登录';
+              return;
+            }
+            // 只有明确的认证/账号/设备数限制错误才退出；内部异常（500）不清理会话。
             if(msg==='会话已失效，请重新登录'||msg==='账号已停用'||msg.indexOf('设备数量已达到上限')===0){clearSession();showAuthScreen();}
           });
         }).catch(function(){});
@@ -13847,11 +13854,18 @@ function updateAutoDialBtn() {
           return r.json().catch(function() { return {}; }).then(function(res) {
             // 设备被主账号禁止登录：保留 PIN 锁屏和当前会话提示，不跳账号登录弹窗。
             var errMsg = res && res.error ? String(res.error) : '';
-            if (r.status === 401 && (errMsg.indexOf('DEVICE_BANNED:') === 0 || errMsg.indexOf('设备已被主账号禁止登录') >= 0)) {
+            if ((r.status === 401 || r.status === 403) && (errMsg.indexOf('DEVICE_BANNED:') === 0 || errMsg.indexOf('设备已被主账号禁止登录') >= 0)) {
               error.textContent = errMsg.replace(/^DEVICE_BANNED:/, '') || '该设备已被主账号禁止登录';
               pinInput.value = '';
-              unlockBtn.disabled = true;
-              unlockBtn.textContent = '设备已禁止登录';
+              unlockBtn.disabled = false;
+              unlockBtn.textContent = '重新验证';
+              return null;
+            }
+            // 账号停用或账户不存在：返回账号登录界面；仅设备禁用保留当前 PIN 锁屏会话。
+            if (r.status === 403 && (errMsg === '账号已停用' || errMsg === '账户不存在')) {
+              sessionStorage.removeItem('dialer_locked');
+              clearSession();
+              showAuthScreen();
               return null;
             }
             // 只有真正的会话失效才清理会话并返回账号登录界面。

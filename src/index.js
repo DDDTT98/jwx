@@ -725,8 +725,13 @@ export default {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        var unlockError = String(e && e.message || '解锁失败');
+        var unlockStatus = 500;
+        if (unlockError.indexOf('DEVICE_BANNED:') === 0 || unlockError === '账号已停用' || unlockError === '账户不存在') unlockStatus = 403;
+        else if (unlockError === '会话已过期，请重新登录') unlockStatus = 401;
+        else if (unlockError === 'PIN 格式不正确') unlockStatus = 400;
+        return new Response(JSON.stringify({ error: unlockError }), {
+          status: unlockStatus, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
     }
@@ -860,7 +865,13 @@ export default {
         hSession.last_seen=new Date().toISOString();
         await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));
         return new Response(JSON.stringify({success:true,last_seen:hSession.last_seen}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
-      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message.indexOf('DEVICE_BANNED:')===0?403:401,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+      } catch(e) {
+        var heartbeatError = String(e && e.message || '设备心跳失败');
+        var heartbeatStatus = 500;
+        if (heartbeatError.indexOf('DEVICE_BANNED:') === 0 || heartbeatError === '账号已停用' || heartbeatError.indexOf('设备数量已达到上限') === 0) heartbeatStatus = 403;
+        else if (heartbeatError === '会话已失效，请重新登录') heartbeatStatus = 401;
+        return new Response(JSON.stringify({success:false,error:heartbeatError}),{status:heartbeatStatus,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      }
     }
 
     if (path === '/api/dialer/auth/devices' && request.method === 'GET') {
