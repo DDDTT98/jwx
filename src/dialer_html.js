@@ -988,8 +988,9 @@
     .auth-overlay .auth-pin-input { letter-spacing: 6px; }
     .auth-pin-mask { -webkit-text-security: disc; }
     .auth-overlay .auth-input:focus {
-      border-color: rgba(255,130,180,0.8);
-      box-shadow: 0 0 20px rgba(255,150,200,0.2), 0 0 0 4px rgba(255,180,210,0.08);
+      border-color: rgba(120,130,145,0.35);
+      box-shadow: none;
+      outline: none;
       background: rgba(255,255,255,0.8);
     }
     .auth-overlay .auth-input::placeholder {
@@ -1002,8 +1003,9 @@
       color: #e0d0e0;
     }
     body.dark-mode .auth-overlay .auth-input:focus {
-      border-color: rgba(220,130,190,0.7);
-      box-shadow: 0 0 24px rgba(200,120,180,0.18), 0 0 0 4px rgba(180,120,170,0.08);
+      border-color: rgba(255,255,255,0.28);
+      box-shadow: none;
+      outline: none;
       background: rgba(50,30,50,0.7);
     }
 
@@ -1017,7 +1019,8 @@
     #lockUnlockBtn {
       background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
       color: #4b5563;
-      border: 1px solid rgba(120,130,145,0.28);
+      border: 0;
+      outline: none;
       border-radius: 22px;
       font-weight: 600;
       letter-spacing: 4px;
@@ -1037,7 +1040,8 @@
     body.dark-mode #lockUnlockBtn {
       background: linear-gradient(180deg, #f5f6f7 0%, #dfe3e7 100%);
       color: #374151;
-      border-color: rgba(255,255,255,0.24);
+      border-color: transparent;
+      outline: none;
       box-shadow: 0 4px 16px rgba(0,0,0,0.24);
     }
     body.dark-mode #lockUnlockBtn:hover {
@@ -1048,7 +1052,8 @@
     #authLoginBtn {
       background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
       color: #4b5563;
-      border: 1px solid rgba(120,130,145,0.28);
+      border: 0;
+      outline: none;
       border-radius: 22px;
       font-weight: 600;
       letter-spacing: 4px;
@@ -1068,7 +1073,8 @@
     body.dark-mode #authLoginBtn {
       background: linear-gradient(180deg, #f5f6f7 0%, #dfe3e7 100%);
       color: #374151;
-      border-color: rgba(255,255,255,0.24);
+      border-color: transparent;
+      outline: none;
       box-shadow: 0 4px 16px rgba(0,0,0,0.24);
     }
     body.dark-mode #authLoginBtn:hover {
