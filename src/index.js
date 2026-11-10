@@ -836,9 +836,8 @@ export default {
         var hDeviceId=validDeviceId(hBody.device_id)?hBody.device_id:(hSession.device_id||'');
         if(!hDeviceId) throw new Error('设备标识无效');
         if(hSession.account_id && await env.DATA_STORE.get('dialer:device-ban:' + hSession.account_id + ':' + hDeviceId) === '1') {
-          hSession.revoked=true; hSession.revoked_at=new Date().toISOString();
-          await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));
-          throw new Error('该设备已被主账号禁止登录');
+          // 保留会话供 PIN 解锁接口返回 DEVICE_BANNED，前端继续停留在 PIN 锁屏提示禁用原因。
+          throw new Error('DEVICE_BANNED:该设备已被主账号禁止登录');
         }
         var hAccounts=await dialerGetAccounts(env), hAccount=hAccounts.find(function(a){return a.account_id===hSession.account_id;});
         if(!hAccount || hAccount.active===false) throw new Error('账号已停用');
@@ -861,7 +860,7 @@ export default {
         hSession.last_seen=new Date().toISOString();
         await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));
         return new Response(JSON.stringify({success:true,last_seen:hSession.last_seen}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
-      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:401,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message.indexOf('DEVICE_BANNED:')===0?403:401,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
     }
 
     if (path === '/api/dialer/auth/devices' && request.method === 'GET') {
@@ -896,8 +895,8 @@ export default {
           if(!validDeviceId(targetDevice) || targetAccount===kCaller.account_id || !kAccounts.some(function(a){return a.account_id===targetAccount&&a.is_master===false;})) throw new Error('目标设备无效');
           var banKey='dialer:device-ban:'+targetAccount+':'+targetDevice;
           if(kBody.banned) {
+            // 只设置设备封禁标记，不撤销会话；这样被封设备的 PIN 解锁请求能明确显示封禁原因。
             await env.DATA_STORE.put(banKey,'1');
-            for(var bi=0;bi<kRows.length;bi++){var bp=kRows[bi].payload||{};if(bp.account_id===targetAccount&&bp.device_id===targetDevice&&bp.revoked!==true){bp.revoked=true;bp.revoked_at=new Date().toISOString();await env.DATA_STORE.put('dialer:session:'+kRows[bi].session_token,JSON.stringify(bp));}}
           } else {
             await env.DATA_STORE.delete(banKey);
           }
