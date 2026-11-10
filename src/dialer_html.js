@@ -4824,27 +4824,38 @@
       var payload = serializeCustomersForSupabase(customers);
       var accountId = getOrCreateAccountId();
       var autoDeleteAfterDial = !!(document.getElementById('autoDeleteBatchAfterDial') && document.getElementById('autoDeleteBatchAfterDial').checked);
-      return fetch("/api/dialer/upload-customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customers: payload, batch_label: label, account_id: accountId, auto_delete_after_dial: autoDeleteAfterDial })
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (!data.success) {
-          alert('上传失败: ' + (data.error || '未知错误'));
-          console.error("Supabase upload failed:", data.error || "未知错误");
-        } else {
-          showCheckToast();
-          // 轮次改为按「每完成一轮（转公海）」累计，见 recordRoundTransferred
-          console.log("Supabase upload: 成功上传 " + data.count + " 条客户数据到云端" + (data.skipped > 0 ? " (其中 " + data.skipped + " 条已跳过)" : ""));
-          refreshAccountDataCount(); // 导入后「更多」菜单账户数量同步
+      var headers = { "Content-Type": "application/json" };
+      function postImport(body) {
+        return fetch("/api/dialer/import-jobs", { method: "POST", headers: headers, body: JSON.stringify(body) }).then(function(res) {
+          return res.json().then(function(data) { if (!res.ok || !data.success) throw new Error(data.error || ('HTTP ' + res.status)); return data; });
+        });
+      }
+      function retryStage(body, attempt) {
+        return postImport(body).catch(function(err) {
+          if (attempt >= 3) throw err;
+          return new Promise(function(resolve) { setTimeout(resolve, 500 * Math.pow(2, attempt)); }).then(function() { return retryStage(body, attempt + 1); });
+        });
+      }
+      return postImport({ action: 'start', total: payload.length, batch_label: label, auto_delete_after_dial: autoDeleteAfterDial, category: (payload[0] && payload[0].category) || '公海客户' })
+      .then(function(started) {
+        var jobId = started.job_id;
+        var chain = Promise.resolve();
+        for (var offset = 0; offset < payload.length; offset += 500) {
+          (function(startAt) {
+            var chunk = payload.slice(startAt, startAt + 500);
+            chain = chain.then(function() { return retryStage({ action: 'stage', job_id: jobId, offset: startAt, customers: chunk }, 0); });
+          })(offset);
         }
-        return data;
+        return chain.then(function() { return postImport({ action: 'finalize', job_id: jobId }); }).then(function() {
+          showCheckToast();
+          showCopyLimitToast('已安全接收 ' + payload.length + ' 条客户，后台开始分批入库；可关闭页面，任务会继续执行');
+          refreshAccountDataCount();
+          return { success: true, queued: true, job_id: jobId, count: payload.length };
+        });
       })
       .catch(function(err) {
-        alert('上传失败: 网络错误，请检查连接后重试');
-        console.error("Supabase upload error:", err);
+        alert('导入暂存未完成：' + err.message + '。已暂存的数据保留在数据库中，修复网络后可重新提交原文件。');
+        console.error("Supabase import staging failed:", err);
         return { success: false, error: err.message };
       });
     }
@@ -5473,6 +5484,9 @@
     function executeAIImportVcf() {
       if (!canStartNextImportBatch()) return;
       if (!tempImportData || tempImportData.length === 0) return;
+      var vcfContacts = tempImportData.map(function(c) { return { name: c.name || '', phone: c.phone || c.mobile || '', mobile: c.mobile || c.phone || '', company: c.company || c.company_name || '' }; });
+      var invalidVcf = vcfContacts.findIndex(function(c) { return !String(c.name || '').trim() || String(c.name || '').trim() === '未知姓名' || !isPhone(cleanPhone(c.phone)) || !String(c.company || '').trim(); });
+      if (invalidVcf !== -1) { alert('导入已拦截：VCF 第 ' + (invalidVcf + 1) + ' 条记录缺少姓名、有效手机号或单位名称。请先补全所有必备字段。'); return; }
       var batchLabel = (document.getElementById('batchLabelInput').value || '').trim();
       var defaultCat = document.getElementById('importCategorySelect') ? document.getElementById('importCategorySelect').value : '公海客户';
       // Tag each client with the batch label and category
