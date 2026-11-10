@@ -3440,6 +3440,39 @@
 
 <!-- Customer Database Dashboard (v2) -->
 <!-- Customer Database Dashboard (v2) -->
+<!-- 主账号自定义设置 -->
+<div class="modal-overlay" id="dbCustomSettingsOverlay" style="z-index:100008;align-items:center;justify-content:center;">
+  <div class="modal-card" style="width:min(92vw,390px);max-height:82vh;overflow-y:auto;text-align:left;gap:12px;padding:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:.92rem;font-weight:900;color:var(--text-main);">自定义设置</span>
+      <button type="button" id="dbCustomSettingsClose" style="border:0;background:transparent;color:var(--text-soft);font-size:1rem;padding:4px 7px;">关闭</button>
+    </div>
+    <section style="padding:10px;border:1px solid var(--card-border);border-radius:10px;background:var(--card-bg);">
+      <div style="font-size:.76rem;font-weight:900;color:var(--text-main);margin-bottom:8px;">客户卡片显示</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:.74rem;color:var(--text-main);">
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" checked disabled style="accent-color:var(--accent-wechat);width:16px;height:16px;">姓名 <span style="font-size:.58rem;color:var(--text-soft);">必需</span></label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" checked disabled style="accent-color:var(--accent-wechat);width:16px;height:16px;">手机号 <span style="font-size:.58rem;color:var(--text-soft);">必需</span></label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowCompany" style="accent-color:var(--accent-wechat);width:16px;height:16px;">单位名称</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowFund" style="accent-color:var(--accent-wechat);width:16px;height:16px;">公积金</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowInstitution" style="accent-color:var(--accent-wechat);width:16px;height:16px;">在库机构</label>
+      </div>
+      <div style="font-size:.6rem;color:var(--text-soft);margin-top:8px;line-height:1.5;">姓名、手机号固定显示；其他字段可按需要开启或隐藏，修改后立即应用到客户卡片。</div>
+    </section>
+    <section style="padding:10px;border:1px solid var(--card-border);border-radius:10px;background:var(--card-bg);">
+      <div style="font-size:.76rem;font-weight:900;color:var(--text-main);margin-bottom:8px;">壁纸抓取类型</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:.74rem;color:var(--text-main);">
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="landscape" style="accent-color:var(--accent-wechat);width:16px;height:16px;">风景</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="space" style="accent-color:var(--accent-wechat);width:16px;height:16px;">星空</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="people" style="accent-color:var(--accent-wechat);width:16px;height:16px;">人物</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="plants" style="accent-color:var(--accent-wechat);width:16px;height:16px;">植物</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" data-wallpaper-category="anime" style="accent-color:var(--accent-wechat);width:16px;height:16px;">二次元</label>
+      </div>
+      <div style="font-size:.6rem;color:var(--text-soft);margin-top:8px;line-height:1.5;">可同时勾选多个类型；壁纸只从已选类型中随机抓取，抓取内容限定为安全级别（SFW）。</div>
+      <button type="button" id="dbWallpaperRefreshBtn" style="width:100%;height:34px;margin-top:10px;border:0;border-radius:8px;background:var(--accent-wechat);color:#fff;font-size:.72rem;font-weight:800;">按所选类型立即更换壁纸</button>
+    </section>
+  </div>
+</div>
+
 <!-- DB Password Gate -->
 <div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:100005; align-items:center; justify-content:center;">
   <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
@@ -3464,6 +3497,7 @@
       <div class="crm-tab" data-tab="uploadLog">上传记录</div>
       <div class="crm-tab" data-tab="masterPullLog">主账号补充</div>
       <div class="crm-tabs-right">
+        <button class="db-close" id="dbCustomSettingsBtn" type="button" title="自定义设置" aria-label="自定义设置" style="display:none;padding:0 10px;font-size:.68rem;font-weight:800;color:var(--text-main);">⚙ 自定义设置</button>
         <button class="db-close" id="dbMobileBtn" type="button" title="手机版界面" aria-label="手机版界面" style="background:rgba(74,108,247,0.1);color:#4a6cf7;padding:0 9px;font-size:0;">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
         </button>
@@ -3927,12 +3961,34 @@
     function getSessionAccountId() { return localStorage.getItem(SESS_AID_K) || ''; }
     function isSessionMaster() { return localStorage.getItem(SESS_MASTER_K) === '1'; }
     function getSessionRole() { return localStorage.getItem(SESS_ROLE_K) || (isSessionMaster() ? 'master' : 'member'); }
+    var DB_CUSTOM_SETTINGS_K = 'dialer_custom_settings:';
+    function getDbCustomSettingsKey() { return DB_CUSTOM_SETTINGS_K + (getSessionAccountId() || getOrCreateAccountId()); }
+    function getDbCustomSettings() {
+      var defaults = { company: true, fund: true, institution: true, wallpaperCategories: ['landscape','space','people','plants','anime'] };
+      try {
+        var saved = JSON.parse(localStorage.getItem(getDbCustomSettingsKey()) || 'null');
+        if (!saved || typeof saved !== 'object') return defaults;
+        return {
+          company: saved.company !== false,
+          fund: saved.fund !== false,
+          institution: saved.institution !== false,
+          wallpaperCategories: Array.isArray(saved.wallpaperCategories) && saved.wallpaperCategories.length
+            ? saved.wallpaperCategories.filter(function(v) { return ['landscape','space','people','plants','anime'].indexOf(v) >= 0; })
+            : defaults.wallpaperCategories
+        };
+      } catch (e) { return defaults; }
+    }
+    function saveDbCustomSettings(settings) {
+      try { localStorage.setItem(getDbCustomSettingsKey(), JSON.stringify(settings)); } catch (e) {}
+    }
     function isSessionManager() { return getSessionRole() === 'manager'; }
     function canManageTeam() { return isSessionMaster() || isSessionManager(); }
 
     // 子账号隐藏仅限主账号使用的管理栏目（桌面与手机版同步）
     function syncManagerTabVisibility() {
       var master = isSessionMaster();
+      var customSettingsBtn = document.getElementById('dbCustomSettingsBtn');
+      if (customSettingsBtn) customSettingsBtn.style.display = master ? '' : 'none';
       var desktopBackup = document.querySelector('.crm-tab[data-tab="backupMgr"]');
       var desktopContent = document.querySelector('.crm-tab[data-tab="contentConfig"]');
       var mobileBackup = document.querySelector('.dbm-mgr-tab[data-mgrtab="backup"]');
@@ -8382,10 +8438,10 @@
               '</div>' +
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
-              (showClientInfo ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company' + (c.note_copied ? ' privacy-action-done' : '') + '" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">' + (c.note_copied ? '已复制' : '复制备注') + '</span>') +
+              (showClientInfo && getDbCustomSettings().company ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company' + (c.note_copied ? ' privacy-action-done' : '') + '" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">' + (c.note_copied ? '已复制' : '复制备注') + '</span>') +
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
-              (showClientInfo && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
-              (showClientInfo && (c.storage_institution || c.storageInstitution) ? '<span class="client-card-tag" title="机构名称" style="background:rgba(33,150,243,0.08);color:#1976d2;font-weight:700;">' + esc(c.storage_institution || c.storageInstitution) + '</span>' : '') +
+              (showClientInfo && getDbCustomSettings().fund && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
+              (showClientInfo && getDbCustomSettings().institution && (c.storage_institution || c.storageInstitution) ? '<span class="client-card-tag" title="机构名称" style="background:rgba(33,150,243,0.08);color:#1976d2;font-weight:700;">' + esc(c.storage_institution || c.storageInstitution) + '</span>' : '') +
               (function() {
                 var customHtml = '';
                 if (c.custom && typeof c.custom === 'object') {
@@ -10559,6 +10615,55 @@ function updateAutoDialBtn() {
       callback();
     }
 
+    function initDbCustomSettings() {
+      var overlay = document.getElementById('dbCustomSettingsOverlay');
+      var openBtn = document.getElementById('dbCustomSettingsBtn');
+      if (!overlay || overlay.dataset.bound === '1') return;
+      overlay.dataset.bound = '1';
+      var company = document.getElementById('dbCardShowCompany');
+      var fund = document.getElementById('dbCardShowFund');
+      var institution = document.getElementById('dbCardShowInstitution');
+      var wallpaperChecks = overlay.querySelectorAll('[data-wallpaper-category]');
+      function sync() {
+        var settings = getDbCustomSettings();
+        if (company) company.checked = settings.company;
+        if (fund) fund.checked = settings.fund;
+        if (institution) institution.checked = settings.institution;
+        wallpaperChecks.forEach(function(cb) { cb.checked = settings.wallpaperCategories.indexOf(cb.dataset.wallpaperCategory) >= 0; });
+      }
+      function persistCardFields() {
+        var settings = getDbCustomSettings();
+        settings.company = !!(company && company.checked);
+        settings.fund = !!(fund && fund.checked);
+        settings.institution = !!(institution && institution.checked);
+        saveDbCustomSettings(settings);
+        if (typeof renderDialCards === 'function') renderDialCards();
+      }
+      [company, fund, institution].forEach(function(cb) { if (cb) cb.addEventListener('change', persistCardFields); });
+      wallpaperChecks.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+          var settings = getDbCustomSettings();
+          settings.wallpaperCategories = Array.prototype.filter.call(wallpaperChecks, function(item) { return item.checked; }).map(function(item) { return item.dataset.wallpaperCategory; });
+          if (!settings.wallpaperCategories.length) {
+            cb.checked = true;
+            settings.wallpaperCategories = [cb.dataset.wallpaperCategory];
+          }
+          saveDbCustomSettings(settings);
+        });
+      });
+      function close() { overlay.classList.remove('active'); }
+      if (openBtn) openBtn.addEventListener('click', function() { if (!isSessionMaster()) return; sync(); overlay.classList.add('active'); });
+      var closeBtn = document.getElementById('dbCustomSettingsClose');
+      if (closeBtn) closeBtn.addEventListener('click', close);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
+      var refreshBtn = document.getElementById('dbWallpaperRefreshBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', function() {
+        close();
+        _wallpaperLoaded = false;
+        loadWallpaper(true);
+      });
+    }
+
     function openDBDashboard(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
       if (dbPwdSessionAuthed) {
@@ -10744,6 +10849,7 @@ function updateAutoDialBtn() {
         });
       }
       syncManagerTabVisibility();
+      initDbCustomSettings();
       ov.classList.add('active'); DB.page=1;
       // Reset view account and load stats for master
       _viewAccountId = '';
@@ -13858,16 +13964,16 @@ function updateAutoDialBtn() {
       }
     }
 
-    function loadWallpaper() {
-      if (_wallpaperLoaded) return;
-
-      // 1. 先从 localStorage 恢复上次壁纸，立即显示
+    function loadWallpaper(forceRefresh) {
+      if (_wallpaperLoaded && !forceRefresh) return;
       var cached = localStorage.getItem('bhp_wp_url');
-      if (cached) { applyWallpaper(cached); }
-
-      // 2. 后台拉取新壁纸
-      // 高清自然风景壁纸：Unsplash 原图 CDN，按屏幕比例裁切并优先提供高分辨率
-      var wallUrls = [
+      if (cached && !forceRefresh) applyWallpaper(cached);
+      var settings = getDbCustomSettings();
+      var categories = settings.wallpaperCategories && settings.wallpaperCategories.length ? settings.wallpaperCategories.slice() : ['landscape'];
+      var queries = { landscape: 'landscape nature mountain', space: 'space stars galaxy night sky', people: 'portrait people', plants: 'plants botanical flowers', anime: 'anime illustration' };
+      var query = queries[categories[Math.floor(Math.random() * categories.length)]] || queries.landscape;
+      var endpoint = 'https://wallhaven.cc/api/v1/search?q=' + encodeURIComponent(query) + '&sorting=random&purity=100&categories=111&atleast=1920x1080';
+      var fallbackUrls = [
         'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=2560&q=90',
         'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2560&q=90',
         'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2560&q=90',
@@ -13877,23 +13983,30 @@ function updateAutoDialBtn() {
         'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2560&q=90',
         'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=2560&q=90'
       ];
-
-      var url = wallUrls[Math.floor(Math.random() * wallUrls.length)];
-      var img = new Image();
-      img.onload = function() {
-        localStorage.setItem('bhp_wp_url', url);
-        applyWallpaper(url);
-      };
-      img.onerror = function() {
-        // Try next API
-        wallUrls.splice(wallUrls.indexOf(url), 1);
-        if (wallUrls.length > 0) {
-          url = wallUrls[Math.floor(Math.random() * wallUrls.length)];
-          img.src = url;
-        }
-      };
-      img.src = url;
+      function verifyAndApply(url) {
+        if (!url) return;
+        var img = new Image();
+        img.onload = function() { localStorage.setItem('bhp_wp_url', url); applyWallpaper(url); };
+        img.onerror = function() {
+          if (categories.indexOf('landscape') >= 0 && fallbackUrls.length) {
+            var fallback = fallbackUrls.splice(Math.floor(Math.random() * fallbackUrls.length), 1)[0];
+            verifyAndApply(fallback);
+          }
+        };
+        img.src = url;
+      }
       _wallpaperLoaded = true;
+      fetch(endpoint).then(function(r) {
+        if (!r.ok) throw new Error('wallpaper api ' + r.status);
+        return r.json();
+      }).then(function(res) {
+        var data = res && Array.isArray(res.data) ? res.data : [];
+        if (!data.length) throw new Error('no wallpaper results');
+        var item = data[Math.floor(Math.random() * data.length)];
+        verifyAndApply(item && item.path);
+      }).catch(function() {
+        if (categories.indexOf('landscape') >= 0 && fallbackUrls.length) verifyAndApply(fallbackUrls[Math.floor(Math.random() * fallbackUrls.length)]);
+      });
     }
 
     function syncAllOverlayWallpapers() {
