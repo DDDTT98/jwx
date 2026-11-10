@@ -9,10 +9,19 @@ export const LEARN_TIME_MATRIX_HTML = `
     .time-matrix-focus{font-size:.68rem;font-weight:800;color:#166534;background:#dcfce7;border-radius:999px;padding:5px 9px;white-space:nowrap}
     .time-matrix-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
     .time-quadrant{min-width:0;padding:13px 12px;border-radius:13px;background:#fff;border:1px solid #e5eaf2;box-shadow:0 2px 8px rgba(30,50,90,.04)}
+    .time-quadrant.q1{background:#fff3ef;border:1.5px solid #f5b5a4;box-shadow:0 3px 10px rgba(220,88,58,.07)}
     .time-quadrant.q2{background:#effaf3;border:1.5px solid #86d6a4;box-shadow:0 4px 14px rgba(22,163,74,.09)}
+    .time-quadrant.q3{background:#fff9e9;border:1.5px solid #f2d58a}
+    .time-quadrant.q4{background:#f4f6f8;border:1.5px solid #d8dee7}
     .time-q-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
     .time-q-no{font-size:.66rem;font-weight:900;padding:3px 7px;border-radius:6px;background:#e8edf5;color:#475569}
+    .q1 .time-q-no{background:#e56b52;color:white}
     .q2 .time-q-no{background:#16a34a;color:white}
+    .q3 .time-q-no{background:#d69a22;color:white}
+    .q4 .time-q-no{background:#64748b;color:white}
+    .q1 .time-q-strategy{color:#c45139}
+    .q3 .time-q-strategy{color:#a87512}
+    .q4 .time-q-strategy{color:#64748b}
     .time-q-name{font-size:.8rem;font-weight:900;line-height:1.35}
     .time-q-strategy{font-size:.68rem;font-weight:800;color:#2563eb;margin:0 0 8px}
     .q2 .time-q-strategy{color:#15803d}
@@ -23,7 +32,7 @@ export const LEARN_TIME_MATRIX_HTML = `
     .time-matrix-axes{display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-size:.65rem;color:#64748b;font-weight:700}
     .time-matrix-foot{font-size:.7rem;color:#64748b;line-height:1.6;margin-top:10px}
     @media(max-width:420px){.time-matrix{padding:13px}.time-matrix-grid{gap:7px}.time-quadrant{padding:10px 9px}.time-q-name{font-size:.74rem}.time-quadrant ul{font-size:.68rem;padding-left:14px}.time-q-goal{font-size:.64rem}.time-matrix-focus{font-size:.62rem;padding:4px 7px}}
-    @media(prefers-color-scheme:dark){.time-matrix{background:linear-gradient(145deg,#202b3c,#1d2938);border-color:#35445a;color:#f1f5f9}.time-quadrant{background:#273244;border-color:#3b4a60}.time-quadrant.q2{background:#1d382d;border-color:#347b51}.time-q-no{background:#39475b;color:#dbeafe}.time-q-name{color:#f1f5f9}.time-quadrant ul,.time-q-goal,.time-matrix-sub,.time-matrix-foot,.time-matrix-axes{color:#bdc9d8}.time-q-goal{border-color:#435168}.time-q-goal b{color:#e2e8f0}.q2 .time-q-strategy{color:#86efac}}
+    @media(prefers-color-scheme:dark){.time-matrix{background:linear-gradient(145deg,#202b3c,#1d2938);border-color:#35445a;color:#f1f5f9}.time-quadrant{background:#273244;border-color:#3b4a60}.time-quadrant.q1{background:#402b2b;border-color:#925044}.time-quadrant.q2{background:#1d382d;border-color:#347b51}.time-quadrant.q3{background:#3c3524;border-color:#80652e}.time-quadrant.q4{background:#303846;border-color:#4b5563}.time-q-no{background:#39475b;color:#dbeafe}.time-q-name{color:#f1f5f9}.time-quadrant ul,.time-q-goal,.time-matrix-sub,.time-matrix-foot,.time-matrix-axes{color:#bdc9d8}.time-q-goal{border-color:#435168}.time-q-goal b{color:#e2e8f0}.q1 .time-q-strategy{color:#fca18c}.q2 .time-q-strategy{color:#86efac}.q3 .time-q-strategy{color:#f4d17a}.q4 .time-q-strategy{color:#cbd5e1}}
   </style>
   <section class="time-matrix" aria-label="贷款客户开发四象限时间管理图">
     <div class="time-matrix-head">
