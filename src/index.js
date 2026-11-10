@@ -626,6 +626,7 @@ export default {
         var accountId = account.account_id;
         var deviceId = validDeviceId(body.device_id) ? body.device_id : '';
         if (!deviceId) throw new Error('设备标识无效，请刷新页面后重试');
+        if (account.is_master === false && await env.DATA_STORE.get('dialer:device-ban:' + accountId + ':' + deviceId) === '1') throw new Error('该设备已被主账号禁止登录');
         var deviceName = String(body.device_name || '').slice(0, 80);
         var nowIso = new Date().toISOString();
         if (account.is_master === false) {
@@ -834,6 +835,11 @@ export default {
         var hBody=await request.json().catch(function(){return {};});
         var hDeviceId=validDeviceId(hBody.device_id)?hBody.device_id:(hSession.device_id||'');
         if(!hDeviceId) throw new Error('设备标识无效');
+        if(hSession.account_id && await env.DATA_STORE.get('dialer:device-ban:' + hSession.account_id + ':' + hDeviceId) === '1') {
+          hSession.revoked=true; hSession.revoked_at=new Date().toISOString();
+          await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));
+          throw new Error('该设备已被主账号禁止登录');
+        }
         var hAccounts=await dialerGetAccounts(env), hAccount=hAccounts.find(function(a){return a.account_id===hSession.account_id;});
         if(!hAccount || hAccount.active===false) throw new Error('账号已停用');
         var hWasOnline=!!(hSession.last_seen && Date.now()-new Date(hSession.last_seen).getTime()<=120000);
@@ -868,7 +874,8 @@ export default {
         var dRows=await listDialerDeviceSessions(env), nowMs=Date.now();
         var devices=await Promise.all(dRows.filter(function(row){var p=row.payload||{};return !!childMap[p.account_id]&&!!p.device_id;}).map(async function(row){
           var p=row.payload||{}, last=p.last_seen||p.created_at||row.created_at||null, lastMs=last?new Date(last).getTime():0;
-          return {account_id:p.account_id,account_name:childMap[p.account_id].account_name||childMap[p.account_id].label||p.account_id,real_name:childMap[p.account_id].real_name||'',device_id:p.device_id,device_name:p.device_name||'未知设备',device_type:p.device_type||'未知设备',browser:p.browser||'未知浏览器',user_agent:p.user_agent||'',created_at:p.created_at||row.created_at||null,last_seen:last,online:!p.revoked&&lastMs>0&&nowMs-lastMs<=120000,revoked:!!p.revoked,session_id:await dialerSessionFingerprint(row.session_token)};
+          var banned=await env.DATA_STORE.get('dialer:device-ban:'+p.account_id+':'+p.device_id)==='1';
+          return {account_id:p.account_id,account_name:childMap[p.account_id].account_name||childMap[p.account_id].label||p.account_id,real_name:childMap[p.account_id].real_name||'',device_id:p.device_id,device_name:p.device_name||'未知设备',device_type:p.device_type||'未知设备',browser:p.browser||'未知浏览器',user_agent:p.user_agent||'',created_at:p.created_at||row.created_at||null,last_seen:last,online:!p.revoked&&!banned&&lastMs>0&&nowMs-lastMs<=120000,revoked:!!p.revoked,banned:banned,session_id:await dialerSessionFingerprint(row.session_token)};
         }));
         devices.sort(function(a,b){return (b.online-a.online)||String(b.last_seen||'').localeCompare(String(a.last_seen||''));});
         var accountSummaries=dAccounts.filter(function(a){return a.is_master===false;}).map(function(a){return {account_id:a.account_id,account_name:a.account_name||a.label||a.account_id,real_name:a.real_name||'',max_devices:Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||3)),online_count:devices.filter(function(d){return d.account_id===a.account_id&&d.online;}).length};});
@@ -882,9 +889,23 @@ export default {
         var kSession=await dialerValidateSession(env,kToken); if(!kSession) throw new Error('未登录');
         var kAccounts=await dialerGetAccounts(env), kCaller=kAccounts.find(function(a){return a.account_id===kSession.account_id;});
         if(!kCaller || kCaller.is_master===false) throw new Error('只有主账号可以强制下线设备');
-        var kBody=await request.json(), targetFingerprint=String(kBody.session_id||'');
+        var kBody=await request.json();
+        var kRows=await listDialerDeviceSessions(env);
+        if (kBody.account_id && kBody.device_id && typeof kBody.banned === 'boolean') {
+          var targetAccount=String(kBody.account_id), targetDevice=String(kBody.device_id);
+          if(!validDeviceId(targetDevice) || targetAccount===kCaller.account_id || !kAccounts.some(function(a){return a.account_id===targetAccount&&a.is_master===false;})) throw new Error('目标设备无效');
+          var banKey='dialer:device-ban:'+targetAccount+':'+targetDevice;
+          if(kBody.banned) {
+            await env.DATA_STORE.put(banKey,'1');
+            for(var bi=0;bi<kRows.length;bi++){var bp=kRows[bi].payload||{};if(bp.account_id===targetAccount&&bp.device_id===targetDevice&&bp.revoked!==true){bp.revoked=true;bp.revoked_at=new Date().toISOString();await env.DATA_STORE.put('dialer:session:'+kRows[bi].session_token,JSON.stringify(bp));}}
+          } else {
+            await env.DATA_STORE.delete(banKey);
+          }
+          return new Response(JSON.stringify({success:true,banned:!!kBody.banned}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+        }
+        var targetFingerprint=String(kBody.session_id||'');
         if(!/^[a-f0-9]{64}$/.test(targetFingerprint)) throw new Error('设备会话标识无效');
-        var kRows=await listDialerDeviceSessions(env), targetRow=null;
+        var targetRow=null;
         for(var ki=0;ki<kRows.length;ki++){if(await dialerSessionFingerprint(kRows[ki].session_token)===targetFingerprint){targetRow=kRows[ki];break;}}
         var targetSession=targetRow&&(targetRow.payload||{});
         if(!targetSession || targetSession.revoked===true || targetSession.account_id===kCaller.account_id || !kAccounts.some(function(a){return a.account_id===targetSession.account_id&&a.is_master===false;})) throw new Error('目标设备会话不存在或已失效');
