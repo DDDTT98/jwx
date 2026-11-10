@@ -2916,7 +2916,6 @@
     <div class="auth-card">
       <div id="bootFallbackNotice" role="alert" style="padding:10px 12px;margin-bottom:12px;border-radius:10px;background:rgba(255,149,0,0.12);color:#9a5b00;font-size:13px;text-align:center;">页面正在启动。如果此提示持续显示，说明页面脚本未能正常启动，请刷新页面或联系管理员。</div>
       <form autocomplete="off" style="margin:0;">
-        <div style="position:absolute;opacity:0;pointer-events:none;height:0;overflow:hidden" aria-hidden="true"><input type="text" name="username" autocomplete="username" tabindex="-1"><input type="password" name="password" autocomplete="current-password" tabindex="-1"></div>
         <input type="text" id="authLoginAccountName" class="auth-input" placeholder="账号" autocomplete="off" spellcheck="false" data-lpignore="true" readonly>
         <input type="text" id="authLoginPin" class="auth-input auth-pin-input auth-pin-mask" maxlength="6" inputmode="numeric" placeholder="PIN" autocomplete="off" spellcheck="false" data-lpignore="true" readonly>
         <div id="authLoginError" class="auth-error"></div>
@@ -2935,7 +2934,6 @@
     <div class="lock-wallpaper-overlay"></div>
     <div class="auth-card">
       <form autocomplete="off" style="margin:0;">
-        <div style="position:absolute;opacity:0;pointer-events:none;height:0;overflow:hidden" aria-hidden="true"><input type="password" name="password" autocomplete="current-password" tabindex="-1"></div>
         <input type="text" id="lockPinInput" class="auth-input auth-pin-input auth-pin-mask" maxlength="12" inputmode="numeric" placeholder="输入 PIN 解锁" autocomplete="off" spellcheck="false" data-lpignore="true" readonly>
         <div id="lockScreenError" class="auth-error"></div>
         <div id="tsLockWidget" style="height:0;overflow:hidden;pointer-events:none;" aria-hidden="true"></div>
