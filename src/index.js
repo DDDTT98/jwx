@@ -565,7 +565,7 @@ export default {
         const type = String(url.searchParams.get('type') || 'flowers').trim().toLowerCase();
         const query = String(url.searchParams.get('q') || '').trim().toLowerCase();
         const flowerQueries = ['flowers', 'flower', 'floral', 'bouquet', 'blossom'];
-        const spaceQueries = ['outer space universe galaxy stars nebula', 'deep space cosmos milky way planets starfield', 'galaxy nebula', 'universe cosmos'];
+        const spaceQueries = ['galaxy', 'nebula', 'universe', 'outer space', 'cosmos', 'milky way', 'starfield', 'planets'];
         const allowed = type === 'space' ? spaceQueries : (type === 'flowers' ? flowerQueries : []);
         if (allowed.indexOf(query) < 0) {
           return new Response(JSON.stringify({ success: false, message: '不支持的壁纸搜索关键词' }), {
@@ -599,6 +599,9 @@ export default {
               const tags = (Array.isArray(item.tags) ? item.tags : []).map(tag => ({
                 name: String(tag && tag.name || ''), alias: ''
               }));
+              // 前端也会检查 tags；始终把已通过主题校验的标题和搜索词加入，避免被二次过滤误杀。
+              tags.unshift({ name: String(item.title || query), alias: '' });
+              tags.push({ name: query, alias: '' });
               const tagText = [item.title || '', ...(tags.map(tag => tag.name))].join(' ');
               const fileUrl = String(item.url || item.thumbnail || '');
               if (!isHttps(fileUrl) || !isHttps(item.foreign_landing_url)) continue;
@@ -682,7 +685,8 @@ export default {
 
         // Source 3: Wallhaven 兜底，仅当上面两个图库都没有合格图片时使用。
         try {
-          const whQuery = type === 'space' ? 'space galaxy nebula universe' : 'flowers floral bouquet';
+          // 使用单个主题词搜索；Wallhaven 的组合词容易变成 AND 条件，导致结果集为空。
+          const whQuery = query;
           const whUrl = new URL('https://wallhaven.cc/api/v1/search');
           whUrl.searchParams.set('q', whQuery);
           whUrl.searchParams.set('categories', '100');
