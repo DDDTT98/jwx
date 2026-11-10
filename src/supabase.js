@@ -1108,10 +1108,10 @@ export function createSupabaseClient(env) {
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
 
       var colSets = [
-        'name,mobile,company_name,category,note,fund,batch_label,created_at,last_operation,pulled_at,account_id',
-        'name,mobile,company_name,category,note,fund,created_at,last_operation,pulled_at,account_id',
-        'name,mobile,company_name,category,note,batch_label,created_at,pulled_at,account_id',
-        'name,mobile,company_name,category,note,created_at,pulled_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,last_operation,pulled_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,fund,created_at,last_operation,pulled_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,batch_label,created_at,pulled_at,account_id',
+        'name,mobile,company_name,storage_institution,category,note,created_at,pulled_at,account_id',
         'name,mobile,company_name,created_at,pulled_at,account_id',
         '*'
       ];
