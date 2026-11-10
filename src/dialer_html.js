@@ -14035,7 +14035,8 @@ function updateAutoDialBtn() {
               var data = payload && payload.data;
               if (!payload || payload.success !== true || !data ||
                   String(data.file_url || '').toLowerCase().indexOf('https://') !== 0 ||
-                  !/^https?:\/\/wallhaven\.cc\/w\//i.test(String(data.source_url || '')) ||
+                  (String(data.source_url || '').toLowerCase().indexOf('https://wallhaven.cc/w/') !== 0 &&
+                   String(data.source_url || '').toLowerCase().indexOf('http://wallhaven.cc/w/') !== 0) ||
                   String(data.purity || '').toLowerCase() !== 'sfw' ||
                   String(data.category || '').toLowerCase() !== 'general' ||
                   data.is_mobile !== true ||
