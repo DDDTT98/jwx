@@ -14004,7 +14004,7 @@ function updateAutoDialBtn() {
         landscape: ['landscape nature mountain', 'scenic nature mountains lake'],
         space: ['outer space galaxy stars nebula', 'planet starfield astronomy'],
         people: ['portrait photography people', 'street portrait people photography'],
-        // 植物类拆成更容易命中 Wallhaven 标签的短关键词，逐个轮询提高召回率。
+        // 植物类使用短关键词逐个轮询，避免长组合词过度限制搜索结果。
         plants: ['flowers', 'plants', 'forest', 'trees', 'leaves'],
         anime: ['anime illustration wallpaper', 'anime art character illustration']
       };
@@ -14012,27 +14012,6 @@ function updateAutoDialBtn() {
       var variants = queries[category] || queries.landscape;
       var attempt = 0;
       var maxAttempts = category === 'plants' ? variants.length * 2 : Math.max(4, variants.length);
-      var requestId = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-      function validWallpaperResult(payload) {
-        if (!payload || payload.success !== true || !payload.data || typeof payload.data !== 'object') return false;
-        var data = payload.data;
-        if (typeof data.file_url !== 'string' || !/^https:\/\//i.test(data.file_url)) return false;
-        if (typeof data.source_url !== 'string' || !/^https?:\/\/wallhaven\.cc\/w\//i.test(data.source_url)) return false;
-        if (String(data.purity || '').toLowerCase() !== 'sfw') return false;
-        if (String(data.category || '').toLowerCase() !== 'general') return false;
-        if (data.is_mobile !== true) return false;
-        var match = String(data.resolution || '').match(/^(\d+)x(\d+)$/i);
-        if (!match || Number(match[2]) <= Number(match[1])) return false;
-        // 如果上游未来提供标签字段，则再做植物语义校验；当前接口未提供 tags 时，
-        // 以植物专用关键词搜索 + General/SFW/竖屏/Wallhaven 来源元数据作为准入条件。
-        if (category === 'plants' && Array.isArray(data.tags) && data.tags.length) {
-          var tagText = data.tags.map(function(tag) {
-            return typeof tag === 'string' ? tag : (tag && (tag.name || tag.alias) || '');
-          }).join(' ').toLowerCase();
-          if (!/(flower|plant|forest|tree|leaf|leaves|botanical|flora|garden)/i.test(tagText)) return false;
-        }
-        return true;
-      }
       function tryNext() {
         if (attempt >= maxAttempts) {
           _wallpaperLoaded = false;
@@ -14041,37 +14020,59 @@ function updateAutoDialBtn() {
         }
         var query = variants[attempt % variants.length];
         attempt++;
+        if (category === 'plants') {
+          // 植物类通过同源 Worker 查询 Wallhaven，并以壁纸详情中的 tags 做语义校验。
+          fetch('/api/wallpaper/search?q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
+          })
+            .then(function(response) {
+              if (!response.ok) throw new Error('植物壁纸搜索失败：' + response.status);
+              return response.json();
+            })
+            .then(function(payload) {
+              var data = payload && payload.data;
+              if (!payload || payload.success !== true || !data ||
+                  !/^https:\/\//i.test(String(data.file_url || '')) ||
+                  !/^https?:\/\/wallhaven\.cc\/w\//i.test(String(data.source_url || '')) ||
+                  String(data.purity || '').toLowerCase() !== 'sfw' ||
+                  String(data.category || '').toLowerCase() !== 'general' ||
+                  data.is_mobile !== true ||
+                  !Array.isArray(data.tags) ||
+                  !/(flower|plant|forest|tree|leaf|leaves|botanical|flora|garden)/i.test(
+                    data.tags.map(function(tag) { return String(tag.name || '') + ' ' + String(tag.alias || ''); }).join(' ')
+                  )) {
+                tryNext();
+                return;
+              }
+              var img = new Image();
+              img.onload = function() {
+                _wallpaperLoaded = true;
+                localStorage.setItem('bhp_wp_url_v2', data.file_url);
+                applyWallpaper(data.file_url);
+              };
+              img.onerror = tryNext;
+              img.src = data.file_url;
+            })
+            .catch(function(error) {
+              console.warn('[wallpaper] 植物关键词未命中，继续尝试：' + query, error);
+              tryNext();
+            });
+          return;
+        }
+        // 其他分类继续使用原有图片重定向接口，不改变原来的搜索与抓取路径。
         var endpoint = 'https://hub.saintic.com/openservice/wallhavenpic?q=' +
-          encodeURIComponent(query) + '&category=general&mobile&json=1&_wp_retry=' +
-          requestId + '_' + attempt;
-        fetch(endpoint, { method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store' })
-          .then(function(response) {
-            if (!response.ok) throw new Error('壁纸接口 HTTP ' + response.status);
-            return response.json();
-          })
-          .then(function(payload) {
-            if (!validWallpaperResult(payload)) {
-              console.warn('[wallpaper] 结果未通过类型/元数据校验，尝试下一个关键词：' + query);
-              tryNext();
-              return;
-            }
-            var imageUrl = payload.data.file_url;
-            var img = new Image();
-            img.onload = function() {
-              _wallpaperLoaded = true;
-              localStorage.setItem('bhp_wp_url_v2', imageUrl);
-              applyWallpaper(imageUrl);
-            };
-            img.onerror = function() {
-              console.warn('[wallpaper] 图片加载失败，尝试下一个关键词：' + query);
-              tryNext();
-            };
-            img.src = imageUrl;
-          })
-          .catch(function(error) {
-            console.warn('[wallpaper] 搜索/校验请求失败，尝试下一个关键词：' + query, error);
-            tryNext();
-          });
+          encodeURIComponent(query) + '&category=general,anime,people&mobile&_wp_retry=' +
+          Date.now() + '_' + attempt;
+        var img = new Image();
+        img.onload = function() {
+          _wallpaperLoaded = true;
+          localStorage.setItem('bhp_wp_url_v2', endpoint);
+          applyWallpaper(endpoint);
+        };
+        img.onerror = tryNext;
+        img.src = endpoint;
       }
       _wallpaperLoaded = false;
       tryNext();
