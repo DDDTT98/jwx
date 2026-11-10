@@ -725,7 +725,7 @@ export function createSupabaseClient(env) {
 
       // Try column sets from most to least specific
       var colSets = [
-        'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,unit_nature,category,note,fund,batch_label,created_at,last_operation,account_id',
         'name,mobile,company_name,storage_institution,category,note,fund,created_at,last_operation,account_id',
         'name,mobile,company_name,storage_institution,category,note,batch_label,created_at,account_id',
         'name,mobile,company_name,storage_institution,category,note,created_at,account_id',
@@ -832,6 +832,7 @@ export function createSupabaseClient(env) {
         name: (c.name || '').trim() || '未知姓名',
         mobile: (c.mobile || c.phone || '').trim(),
         company_name: (c.company || c.company_name || '').trim(),
+        unit_nature: String(c.unit_nature || c.unitNature || '').trim() || null,
         note: noteVal,
         category: (c.category || '').trim() || '公海客户',
         batch_label: (c.batch_label || '').trim(),
@@ -1648,7 +1649,7 @@ export function createSupabaseClient(env) {
     while (true) {
       var to = from + pageSize - 1;
       var colSets = [
-        'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,last_operation,account_id',
+        'name,mobile,company_name,storage_institution,unit_nature,category,note,fund,batch_label,created_at,last_operation,account_id',
         'name,mobile,company_name,storage_institution,category,note,fund,batch_label,created_at,account_id',
         'name,mobile,company_name,category,note,created_at,account_id',
         '*'
