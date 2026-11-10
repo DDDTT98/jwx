@@ -61,8 +61,9 @@ export function createSupabaseStore(env) {
     if (parts[0] === 'work_stats' && parts.length === 3) return { kind: 'work', accountId: parts[1], date: parts[2] };
     if (parts[0] === 'work_stats_cd' && parts.length >= 4) return { kind: 'cooldown', accountId: parts[1], date: parts[2], deviceId: parts.slice(3).join(':') };
     if (parts[0] === 'upload_log' && parts.length >= 3) return { kind: 'upload' };
-    if ((parts[0] === 'client_ops_all' || parts[0] === 'client_ops_dial') && parts.length >= 4) {
-      return { kind: 'operation', operationType: parts[0] === 'client_ops_dial' ? 'dial' : 'all', accountId: parts[1], date: parts[2] };
+    if ((parts[0] === 'client_ops_all' || parts[0] === 'client_ops_dial' || parts[0] === 'client_ops_copy') && parts.length >= 4) {
+      const operationType = parts[0] === 'client_ops_dial' ? 'dial' : (parts[0] === 'client_ops_copy' ? 'copy' : 'all');
+      return { kind: 'operation', operationType: operationType, accountId: parts[1], date: parts[2] };
     }
     if (keyName === 'diet:config') return { kind: 'diet_config' };
     if (parts[0] === 'diet' && parts.length === 2 && /^\d{4}-\d{2}-\d{2}$/.test(parts[1])) return { kind: 'diet_date', date: parts[1] };
@@ -283,8 +284,7 @@ export function createSupabaseStore(env) {
   }
   function listDescriptor(prefix) {
     if (prefix && prefix.indexOf('upload_log:') === 0) return { kind: 'upload', table: 'dialer_upload_logs', field: 'log_key', select: 'log_key,payload' };
-    if (prefix && prefix.indexOf('client_ops_all:') === 0) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
-    if (prefix && prefix.indexOf('client_ops_dial:') === 0) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
+    if (prefix && (prefix.indexOf('client_ops_all:') === 0 || prefix.indexOf('client_ops_dial:') === 0 || prefix.indexOf('client_ops_copy:') === 0)) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
     if (prefix && prefix.indexOf('dialer:bgjob:') === 0) return { kind: 'job', table: 'dialer_background_jobs', field: 'job_id', select: 'job_id,payload,expires_at' };
     if (prefix && prefix.indexOf('diet:') === 0 && prefix !== 'diet:config') return { kind: 'diet', table: 'diet_daily_entries', field: 'entry_date', select: 'entry_date,data' };
     return null;
@@ -371,7 +371,7 @@ export function createSupabaseStore(env) {
       const params = new URLSearchParams({ select: mapped.select, order: mapped.field + '.asc', limit: String(limit), offset: String(offset) });
       if (mapped.kind === 'operation') {
         const parts = String(opts.prefix).split(':');
-        params.set('operation_type', 'eq.' + (parts[0] === 'client_ops_dial' ? 'dial' : 'all'));
+        params.set('operation_type', 'eq.' + (parts[0] === 'client_ops_dial' ? 'dial' : (parts[0] === 'client_ops_copy' ? 'copy' : 'all')));
         if (parts[1]) params.set('account_id', 'eq.' + parts[1]);
         if (parts[2]) params.set('operation_date', 'eq.' + parts[2]);
         params.set('order', 'operation_date.asc,mobile.asc');
