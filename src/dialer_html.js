@@ -8392,6 +8392,7 @@
       });
 
       if (isMobileDevice) {
+        var cardDisplaySettings = getDbCustomSettings();
         // Mobile View: Render Cards (resembling older versions)
         var cardsHtml = sorted.map(function(c, displayIdx) {
           var i = importedClients.indexOf(c);
@@ -8438,10 +8439,10 @@
               '</div>' +
             '</div>' +
             '<div class="client-card-tags" style="margin-top: 2px;">' +
-              (showClientInfo && getDbCustomSettings().company ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company' + (c.note_copied ? ' privacy-action-done' : '') + '" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">' + (c.note_copied ? '已复制' : '复制备注') + '</span>') +
+              (showClientInfo && cardDisplaySettings.company ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company' + (c.note_copied ? ' privacy-action-done' : '') + '" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">' + (c.note_copied ? '已复制' : '复制备注') + '</span>') +
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
-              (showClientInfo && getDbCustomSettings().fund && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
-              (showClientInfo && getDbCustomSettings().institution && (c.storage_institution || c.storageInstitution) ? '<span class="client-card-tag" title="机构名称" style="background:rgba(33,150,243,0.08);color:#1976d2;font-weight:700;">' + esc(c.storage_institution || c.storageInstitution) + '</span>' : '') +
+              (showClientInfo && cardDisplaySettings.fund && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
+              (showClientInfo && cardDisplaySettings.institution && (c.storage_institution || c.storageInstitution) ? '<span class="client-card-tag" title="机构名称" style="background:rgba(33,150,243,0.08);color:#1976d2;font-weight:700;">' + esc(c.storage_institution || c.storageInstitution) + '</span>' : '') +
               (function() {
                 var customHtml = '';
                 if (c.custom && typeof c.custom === 'object') {
