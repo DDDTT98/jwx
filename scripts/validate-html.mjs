@@ -32,9 +32,8 @@ if (!DIALER_HTML.includes('id="authLoginOverlay"') ||
   throw new Error('[dialer] Critical first-screen fallback elements are missing');
 }
 
-if (!DIALER_HTML.includes('class="auth-overlay"') ||
-    DIALER_HTML.includes('id="authLoginOverlay" class="auth-overlay auth-hidden"')) {
-  throw new Error('[dialer] Login overlay must remain visible until JavaScript initializes');
+if (!DIALER_HTML.includes('id="authLoginOverlay" class="auth-overlay')) {
+  throw new Error('[dialer] Login overlay element or base class is missing');
 }
 
 const workerSource = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');

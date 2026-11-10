@@ -3525,6 +3525,12 @@
         <label id="dbAssignLeaderRow" style="display:none;align-items:center;gap:7px;margin:4px 0 7px;font-size:.72rem;font-weight:700;color:var(--text-soft);"><input type="checkbox" id="dbAssignLeaderCheck" style="width:16px;height:16px;"> 指定小组长</label>
         <select id="dbSubAccountParentInput" style="display:none;width:100%;height:34px;margin-bottom:6px;padding:0 8px;font-size:.75rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);"><option value="">主账号默认组</option></select>
         <div id="dbSubAccountList" style="display:flex; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; margin-bottom:8px;"></div>
+        <div id="dbDeviceMonitor" style="border-top:0.5px solid var(--card-border);padding-top:10px;margin:8px 0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;"><div style="font-size:.78rem;font-weight:800;color:var(--text-main);">子账号设备监控 <span id="dbDeviceOnlineCount" style="font-size:.66rem;font-weight:600;color:var(--text-soft);">在线 0 台</span></div><button id="dbDeviceRefreshBtn" type="button" class="btn-secondary" style="height:26px;padding:0 9px;font-size:.62rem;">刷新</button></div>
+          <div style="font-size:.62rem;line-height:1.45;color:var(--text-soft);margin-bottom:6px;">设备心跳每分钟更新；超过 2 分钟无心跳显示为离线。设备按浏览器标识统计，不等同于真实硬件数量。</div>
+          <div id="dbDeviceAccountSummary" style="display:flex;flex-direction:column;gap:4px;margin-bottom:7px;"></div>
+          <div id="dbDeviceList" style="display:flex;flex-direction:column;gap:5px;"><div style="font-size:.66rem;color:var(--text-light);padding:6px;text-align:center;">加载设备信息中…</div></div>
+        </div>
         <div style="display:flex; gap:6px; margin-bottom:6px;">
           <input type="text" id="dbSubAccountRealNameInput" maxlength="20" placeholder="真实姓名（必填）" style="width:100%; height:32px; padding:0 8px; font-size:0.75rem; border:0.5px solid var(--card-border); border-radius:4px; font-weight:700; outline:none; background:var(--card-bg); color:var(--text-main);">
         </div>
@@ -3943,6 +3949,13 @@
       }
     }
 
+    function sendDeviceHeartbeat() {
+      var token=getSessionToken(); if(!token) return;
+      fetch('/api/dialer/auth/heartbeat',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({device_id:getDeviceId(),device_name:(navigator.platform||'设备')+' · '+(/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)?'移动浏览器':'桌面浏览器')})})
+        .then(function(r){if(r.status===401){clearSession();showAuthScreen();}}).catch(function(){});
+    }
+    if(!window._bhpDeviceHeartbeatTimer){sendDeviceHeartbeat();window._bhpDeviceHeartbeatTimer=setInterval(sendDeviceHeartbeat,60000);}
+
     function saveSession(acct) {
       localStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
       localStorage.setItem(SESS_AID_K, acct.account_id || '');
@@ -3950,6 +3963,7 @@
       localStorage.setItem(SESS_ROLE_K, acct.role || (acct.is_master ? 'master' : 'member'));
       localStorage.setItem(SESS_LABEL_K, acct.label || '');
       localStorage.setItem(SESS_TS_K, Date.now().toString());
+      sendDeviceHeartbeat();
     }
 
     // WeChat count tracking (like megz daily work)
@@ -11021,7 +11035,7 @@ function updateAutoDialBtn() {
     // ==================== 手机版管理面板（复用桌面面板 DOM） ====================
     // 面板 ID 映射：手机 tab → 桌面面板元素 + 数据加载函数
     var DBM_PANELS = [
-      { tab: 'account', panelId: 'dbAccountMgrPanel', load: function() { loadSubAccounts(); loadAccountStats(); } },
+      { tab: 'account', panelId: 'dbAccountMgrPanel', load: function() { loadSubAccounts(); loadAccountStats(); loadDeviceSessions(); } },
       { tab: 'backup', panelId: 'dbBackupMgrPanel', load: function() { loadBackupConfig(); } },
       { tab: 'content', panelId: 'dbContentConfigPanel', load: function() { loadContentConfig(); } },
       { tab: 'upload', panelId: 'dbUploadLogPanel', load: function() { loadUploadLog('day'); } },
@@ -11513,7 +11527,7 @@ function updateAutoDialBtn() {
             if (tb) tb.style.display = 'none';
             if (sc) sc.style.display = 'none';
             if (tl) tl.style.display = 'none';
-            if (tabName === 'accountMgr') { loadSubAccounts(); loadAccountStats(); }
+            if (tabName === 'accountMgr') { loadSubAccounts(); loadAccountStats(); loadDeviceSessions(); }
             if (tabName === 'backupMgr') { loadBackupConfig(); }
             if (tabName === 'contentConfig') { loadContentConfig(); }
             if (tabName === 'uploadLog') { loadUploadLog('day'); }
@@ -13353,6 +13367,35 @@ function updateAutoDialBtn() {
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function loadDeviceSessions() {
+      var list=document.getElementById('dbDeviceList'), count=document.getElementById('dbDeviceOnlineCount');
+      if(!list || !isSessionMaster()) return;
+      var btn=document.getElementById('dbDeviceRefreshBtn'); if(btn) btn.disabled=true;
+      fetch('/api/dialer/auth/devices',{headers:{'Authorization':'Bearer '+getSessionToken()},cache:'no-store'})
+        .then(function(r){return r.json();}).then(function(res){
+          if(!res.success) throw new Error(res.error||'设备列表加载失败');
+          var devices=res.devices||[], summary=document.getElementById('dbDeviceAccountSummary');
+          if(count) count.textContent='在线 '+(res.online_count||0)+' 台 · 记录 '+devices.length+' 台';
+          if(summary) summary.innerHTML=(res.accounts||[]).map(function(a){return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 7px;background:var(--btn-bg);border-radius:4px;font-size:.61rem;color:var(--text-main)"><span>'+escHtml(a.real_name||a.account_name)+'</span><span>'+a.online_count+' / '+a.max_devices+' 台在线</span></div>';}).join('');
+          if(!devices.length){list.innerHTML='<div style="font-size:.66rem;color:var(--text-light);padding:8px;text-align:center;">暂无设备记录。子账号登录后会自动登记设备。</div>';return;}
+          list.innerHTML=devices.map(function(d){
+            var status=d.online?'<span style="color:#07a35a;font-weight:700">在线</span>':'<span style="color:var(--text-soft)">'+(d.revoked?'已强制下线':'离线')+'</span>';
+            var ua=(d.user_agent||'').slice(0,180);
+            var first=d.created_at?new Date(d.created_at).toLocaleString():'未知';
+            var last=d.last_seen?new Date(d.last_seen).toLocaleString():'未知';
+            return '<div style="padding:8px;border:0.5px solid var(--card-border);border-radius:5px;background:var(--card-bg)"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:.69rem;font-weight:800;color:var(--text-main);min-width:0">'+escHtml(d.account_name||'子账号')+' · '+escHtml(d.real_name||'')+' <span style="font-weight:500">'+status+'</span></div>'+(!d.revoked?'<button class="device-kick-btn" data-session="'+escHtml(d.session_id||'')+'" type="button" style="height:25px;padding:0 8px;border:0;border-radius:4px;background:rgba(231,76,60,.08);color:#e74c3c;font-size:.6rem;flex-shrink:0">强制下线</button>':'')+'</div><div style="font-size:.65rem;color:var(--text-main);margin-top:4px">'+escHtml(d.device_name||'未知设备')+'</div><div style="font-size:.57rem;line-height:1.4;color:var(--text-soft);margin-top:3px;word-break:break-all">'+escHtml(ua)+'</div><div style="font-size:.57rem;color:var(--text-soft);margin-top:4px">首次登录：'+escHtml(first)+'<br>最后活跃：'+escHtml(last)+'</div></div>';
+          }).join('');
+          list.querySelectorAll('.device-kick-btn').forEach(function(kick){kick.addEventListener('click',function(){
+            if(!confirm('确定强制该设备下线？该设备下一次请求时会被要求重新登录。')) return;
+            kick.disabled=true; kick.textContent='处理中…';
+            fetch('/api/dialer/auth/devices/kick',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getSessionToken()},body:JSON.stringify({session_id:kick.dataset.session})})
+              .then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'操作失败');loadDeviceSessions();})
+              .catch(function(e){alert('强制下线失败：'+e.message);kick.disabled=false;kick.textContent='强制下线';});
+          });});
+        }).catch(function(e){list.innerHTML='<div style="font-size:.66rem;color:#e74c3c;padding:8px">设备列表加载失败：'+escHtml(e.message)+'</div>';})
+        .finally(function(){if(btn)btn.disabled=false;});
+    }
+
     function loadSubAccounts() {
       var list=document.getElementById('dbSubAccountList'); if(!list)return;
       var token=getSessionToken(), parentSel=document.getElementById('dbSubAccountParentInput');
@@ -13364,6 +13407,7 @@ function updateAutoDialBtn() {
           parentSel.innerHTML='<option value="'+(res.caller_account_id||'')+'">主账号默认组</option>'+accounts.filter(function(a){return a.role==='manager'&&a.active!==false;}).map(function(m){return '<option value="'+m.account_id+'">'+escHtml(m.group_name||m.account_name||m.label||m.account_id)+'</option>';}).join('');
         }
         var assignRow=document.getElementById('dbAssignLeaderRow');if(assignRow)assignRow.style.display=callerRole==='master'?'flex':'none';
+        var deviceMonitor=document.getElementById('dbDeviceMonitor');if(deviceMonitor)deviceMonitor.style.display=callerRole==='master'?'block':'none';
         var shown=accounts.filter(function(a){return a.account_id!==(res.caller_account_id||getSessionAccountId());});
         if(!shown.length){list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);text-align:center;padding:8px;">暂无下级账号</div>';return;}
         function render(a){
@@ -13378,11 +13422,25 @@ function updateAutoDialBtn() {
             });
             groupSelect='<select class="sub-group-select" data-id="'+a.account_id+'" aria-label="调整所属小组" style="max-width:125px;height:26px;font-size:.58rem;border:1px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main);">'+options+'</select>';
           }
-          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:var(--btn-bg);border-radius:5px;'+(a.active?'':'opacity:.5;')+'"><div style="min-width:0;flex:1"><div style="font-size:.74rem;font-weight:800;color:var(--text-main)">'+(mgr?'小组：'+escHtml(a.group_name||a.account_name||'未命名小组')+' · 组长：':'组员：')+escHtml(a.real_name||'未登记姓名')+'</div><div style="font-size:.62rem;color:var(--text-soft)">登录账号：'+escHtml(a.account_name||a.label||a.account_id)+' · '+escHtml(sub)+(a.active?'':' · 已禁用')+'</div>'+(groupSelect?'<div style="margin-top:5px;display:flex;align-items:center;gap:4px;font-size:.58rem;color:var(--text-soft)">调整所属小组 '+groupSelect+'</div>':'')+'</div><div style="display:flex;gap:4px;flex-shrink:0"><button class="sub-edit-name-btn" data-id="'+a.account_id+'" data-name="'+escHtml(a.real_name||'')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:var(--text-main)">姓名</button><button class="sub-toggle-btn" data-id="'+a.account_id+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'禁用':'启用')+'</button><button class="sub-delete-btn" data-id="'+a.account_id+'" data-role="'+(a.role||'member')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:#e74c3c">删除</button></div></div>';
+          var deviceLimit='';
+          if(callerRole==='master'){
+            var selectedLimit=Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||3));
+            deviceLimit='<div style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:.58rem;color:var(--text-soft)">同时在线设备上限 <select class="sub-max-devices" data-id="'+a.account_id+'" style="height:25px;padding:0 5px;font-size:.62rem;border:1px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main)">'+[1,2,3,4,5,6,8,10,15,20].map(function(n){return '<option value="'+n+'"'+(n===selectedLimit?' selected':'')+'>'+n+' 台</option>';}).join('')+'</select></div>';
+          }
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:var(--btn-bg);border-radius:5px;'+(a.active?'':'opacity:.5;')+'"><div style="min-width:0;flex:1"><div style="font-size:.74rem;font-weight:800;color:var(--text-main)">'+(mgr?'小组：'+escHtml(a.group_name||a.account_name||'未命名小组')+' · 组长：':'组员：')+escHtml(a.real_name||'未登记姓名')+'</div><div style="font-size:.62rem;color:var(--text-soft)">登录账号：'+escHtml(a.account_name||a.label||a.account_id)+' · '+escHtml(sub)+(a.active?'':' · 已禁用')+'</div>'+(groupSelect?'<div style="margin-top:5px;display:flex;align-items:center;gap:4px;font-size:.58rem;color:var(--text-soft)">调整所属小组 '+groupSelect+'</div>':'')+deviceLimit+'</div><div style="display:flex;gap:4px;flex-shrink:0"><button class="sub-edit-name-btn" data-id="'+a.account_id+'" data-name="'+escHtml(a.real_name||'')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:var(--text-main)">姓名</button><button class="sub-toggle-btn" data-id="'+a.account_id+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'禁用':'启用')+'</button><button class="sub-delete-btn" data-id="'+a.account_id+'" data-role="'+(a.role||'member')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:#e74c3c">删除</button></div></div>';
         }
         var managers=shown.filter(function(a){return a.role==='manager';}),members=shown.filter(function(a){return a.role!=='manager';});
         list.innerHTML=(managers.length?'<div style="font-size:.68rem;font-weight:800;padding:5px 2px;color:var(--text-main)">小组及组长</div>'+managers.map(render).join(''):'')+(members.length?'<div style="font-size:.68rem;font-weight:800;padding:7px 2px 5px;color:var(--text-main)">组员账号</div>'+members.map(render).join(''):'');
         list.querySelectorAll('.sub-edit-name-btn').forEach(function(btn){btn.addEventListener('click',function(){var next=prompt('登记真实姓名',btn.dataset.name||'');if(next===null)return;next=next.trim();if(!next){alert('姓名不能为空');return;}fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,real_name:next})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();}).catch(function(e){alert(e.message);});});});
+        list.querySelectorAll('.sub-max-devices').forEach(function(sel){
+          sel.addEventListener('change',function(){
+            var nextLimit=parseInt(sel.value,10); sel.disabled=true;
+            fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,max_devices:nextLimit})})
+              .then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'设备上限设置失败');loadSubAccounts();})
+              .catch(function(e){alert('设备上限设置失败：'+e.message);loadSubAccounts();})
+              .finally(function(){sel.disabled=false;});
+          });
+        });
         list.querySelectorAll('.sub-group-select').forEach(function(sel){
           sel.addEventListener('change',function(){
             var nextParent=sel.value;
@@ -13408,6 +13466,8 @@ function updateAutoDialBtn() {
     // ========== Auth Flow ==========
 
     function initAuth() {
+      var deviceRefresh=document.getElementById('dbDeviceRefreshBtn');
+      if(deviceRefresh) deviceRefresh.addEventListener('click',loadDeviceSessions);
       // Turnstile 后台人机验证 — 不阻塞登录/解锁按钮，token 仅用于服务端高危接口校验
       // 未配置 TURNSTILE_SECRET 时服务端放行；配置后 token 缺失/无效则接口拒绝
       window._tsToken = '';
@@ -13848,7 +13908,7 @@ function updateAutoDialBtn() {
       fetch('/api/dialer/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_name: accountName, pin: pin, turnstileToken: window._tsToken || '' })
+        body: JSON.stringify({ account_name: accountName, pin: pin, device_id: getDeviceId(), device_name: (navigator.platform||'设备')+' · '+(/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)?'移动浏览器':'桌面浏览器'), turnstileToken: window._tsToken || '' })
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {
@@ -13955,7 +14015,7 @@ function updateAutoDialBtn() {
       fetch('/api/dialer/auth/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account_name: accountName, pin: pin, label: label, turnstileToken: window._tsToken || '' })
+        body: JSON.stringify({ account_name: accountName, pin: pin, label: label, device_id: getDeviceId(), device_name: (navigator.platform||'设备')+' · '+(/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)?'移动浏览器':'桌面浏览器'), turnstileToken: window._tsToken || '' })
       })
       .then(function(r) { return r.json(); })
       .then(function(res) {

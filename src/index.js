@@ -64,7 +64,21 @@ async function dialerValidateSession(env, token) {
     await env.DATA_STORE.delete('dialer:session:' + token);
     return null;
   }
+  if (session.revoked === true) return null;
   return session;
+}
+
+async function listDialerDeviceSessions(env) {
+  var url = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_sessions?select=session_token,payload,created_at,expires_at&order=created_at.desc&limit=1000';
+  var resp = await fetch(url, { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY } });
+  if (!resp.ok) throw new Error('读取设备会话失败：' + resp.status);
+  var rows = await resp.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function dialerSessionFingerprint(token) {
+  var digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(token || '')));
+  return Array.from(new Uint8Array(digest)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
 }
 
 // Turnstile 人机验证 — 调用 Cloudflare siteverify 校验 token
@@ -610,8 +624,29 @@ export default {
         await env.DATA_STORE.delete(loginFailKey);
 
         var accountId = account.account_id;
+        var deviceId = validDeviceId(body.device_id) ? body.device_id : '';
+        if (!deviceId) throw new Error('设备标识无效，请刷新页面后重试');
+        var deviceName = String(body.device_name || '').slice(0, 80);
+        var nowIso = new Date().toISOString();
+        if (account.is_master === false) {
+          var maxDevices = Math.max(1, Math.min(20, parseInt(account.max_devices||2, 10) || 3));
+          var deviceRows = await listDialerDeviceSessions(env);
+          var onlineDeviceIds = new Set();
+          for (var di = 0; di < deviceRows.length; di++) {
+            var row = deviceRows[di], p = row.payload || {};
+            if (p.account_id !== accountId || p.revoked === true || !p.device_id) continue;
+            if (p.device_id === deviceId) {
+              p.revoked = true; p.revoked_at = nowIso;
+              await env.DATA_STORE.put('dialer:session:' + row.session_token, JSON.stringify(p));
+              continue;
+            }
+            var lastSeen = new Date(p.last_seen || p.created_at || row.created_at || 0).getTime();
+            if (lastSeen && Date.now() - lastSeen <= 120000) onlineDeviceIds.add(p.device_id);
+          }
+          if (onlineDeviceIds.size >= maxDevices) throw new Error('设备数量已达到上限（' + maxDevices + ' 台），请联系主账号调整设备限制');
+        }
         var token = dialerGenToken();
-        await env.DATA_STORE.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: new Date().toISOString() }));
+        await env.DATA_STORE.put('dialer:session:' + token, JSON.stringify({ account_id: accountId, created_at: nowIso, device_id: deviceId, device_name: deviceName, user_agent: request.headers.get('User-Agent') || '', last_seen: nowIso }));
 
         return new Response(JSON.stringify({
           success: true, account_id: accountId, is_master: account.is_master !== false,
@@ -704,7 +739,7 @@ export default {
           account_id:a.account_id,account_name:a.account_name||'',real_name:a.real_name||'',label:a.label||'',group_name:a.group_name||'',is_master:a.is_master!==false,
           role:a.is_master!==false?'master':(a.role==='manager'?'manager':'member'),
           parent_account_id:a.parent_account_id||(a.is_master===false?(root||{}).account_id||'':''),
-          active:a.active!==false,created_at:a.created_at
+          active:a.active!==false,created_at:a.created_at,max_devices:Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||3))
         };}),caller_role:role,caller_account_id:caller.account_id}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
     }
@@ -751,6 +786,7 @@ export default {
         if(body.active!==undefined)target.active=!!body.active;
         if(body.label!==undefined)target.label=String(body.label).trim();
         if(body.real_name!==undefined){var rn=String(body.real_name||'').trim();if(!rn)throw new Error('姓名不能为空');if(rn.length>20)throw new Error('姓名不能超过20个字');target.real_name=rn;}
+        if(body.max_devices!==undefined){if(cr!=='master')throw new Error('只有主账号可以设置设备数量限制');var md=parseInt(body.max_devices,10);if(!Number.isInteger(md)||md<1||md>20)throw new Error('设备上限必须为 1-20 台');target.max_devices=md;}
         if(cr==='master'&&body.parent_account_id!==undefined&&target.role!=='manager'){
           var p=String(body.parent_account_id||caller.account_id);
           if(p!==caller.account_id&&!aa.some(function(a){return a.account_id===p&&a.is_master===false&&a.role==='manager'&&a.active!==false;}))throw new Error('目标小组不存在或组长已停用');
@@ -783,6 +819,72 @@ export default {
         await dialerSaveAccounts(env,aa.filter(function(a){return a.account_id!==targetId;}));
         return new Response(JSON.stringify({success:true,migrated:migrated,destination_account_id:destination}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
+    }
+
+    // 设备心跳：每 60 秒更新一次，超过 2 分钟未心跳视为离线。
+    if (path === '/api/dialer/auth/heartbeat' && request.method === 'POST') {
+      try {
+        var hToken=(request.headers.get('Authorization')||'').replace(/^Bearer\s+/,'');
+        var hSession=await dialerValidateSession(env,hToken); if(!hSession) throw new Error('会话已失效，请重新登录');
+        var hBody=await request.json().catch(function(){return {};});
+        var hDeviceId=validDeviceId(hBody.device_id)?hBody.device_id:(hSession.device_id||'');
+        if(!hDeviceId) throw new Error('设备标识无效');
+        var hAccounts=await dialerGetAccounts(env), hAccount=hAccounts.find(function(a){return a.account_id===hSession.account_id;});
+        if(!hAccount || hAccount.active===false) throw new Error('账号已停用');
+        var hWasOnline=!!(hSession.last_seen && Date.now()-new Date(hSession.last_seen).getTime()<=120000);
+        if(hAccount.is_master===false && !hWasOnline){
+          var hMax=Math.max(1,Math.min(20,parseInt(hAccount.max_devices||2,10)||3)), hRows=await listDialerDeviceSessions(env), hOnline=new Set();
+          for(var hi=0;hi<hRows.length;hi++){
+            var hr=hRows[hi], hp=hr.payload||{};
+            if(hr.session_token===hToken || hp.account_id!==hSession.account_id || hp.revoked===true || !hp.device_id || hp.device_id===hDeviceId) continue;
+            var hLast=new Date(hp.last_seen||hp.created_at||hr.created_at||0).getTime();
+            if(hLast && Date.now()-hLast<=120000) hOnline.add(hp.device_id);
+          }
+          if(hOnline.size>=hMax){hSession.revoked=true;hSession.revoked_at=new Date().toISOString();await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));throw new Error('设备数量已达到上限（'+hMax+' 台），请联系主账号调整设备限制');}
+        }
+        hSession.device_id=hDeviceId;
+        hSession.device_name=String(hBody.device_name||hSession.device_name||'未知设备').slice(0,80);
+        hSession.user_agent=String(request.headers.get('User-Agent')||hSession.user_agent||'').slice(0,300);
+        hSession.last_seen=new Date().toISOString();
+        await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));
+        return new Response(JSON.stringify({success:true,last_seen:hSession.last_seen}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:401,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+    }
+
+    if (path === '/api/dialer/auth/devices' && request.method === 'GET') {
+      try {
+        var dToken=(request.headers.get('Authorization')||'').replace(/^Bearer\s+/,'');
+        var dSession=await dialerValidateSession(env,dToken); if(!dSession) throw new Error('未登录');
+        var dAccounts=await dialerGetAccounts(env), dCaller=dAccounts.find(function(a){return a.account_id===dSession.account_id;});
+        if(!dCaller || dCaller.is_master===false) throw new Error('只有主账号可以查看设备');
+        var childMap={}; dAccounts.forEach(function(a){if(a.is_master===false)childMap[a.account_id]=a;});
+        var dRows=await listDialerDeviceSessions(env), nowMs=Date.now();
+        var devices=await Promise.all(dRows.filter(function(row){var p=row.payload||{};return !!childMap[p.account_id]&&!!p.device_id;}).map(async function(row){
+          var p=row.payload||{}, last=p.last_seen||p.created_at||row.created_at||null, lastMs=last?new Date(last).getTime():0;
+          return {account_id:p.account_id,account_name:childMap[p.account_id].account_name||childMap[p.account_id].label||p.account_id,real_name:childMap[p.account_id].real_name||'',device_id:p.device_id,device_name:p.device_name||'未知设备',user_agent:p.user_agent||'',created_at:p.created_at||row.created_at||null,last_seen:last,online:!p.revoked&&lastMs>0&&nowMs-lastMs<=120000,revoked:!!p.revoked,session_id:await dialerSessionFingerprint(row.session_token)};
+        }));
+        devices.sort(function(a,b){return (b.online-a.online)||String(b.last_seen||'').localeCompare(String(a.last_seen||''));});
+        var accountSummaries=dAccounts.filter(function(a){return a.is_master===false;}).map(function(a){return {account_id:a.account_id,account_name:a.account_name||a.label||a.account_id,real_name:a.real_name||'',max_devices:Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||3)),online_count:devices.filter(function(d){return d.account_id===a.account_id&&d.online;}).length};});
+        return new Response(JSON.stringify({success:true,devices:devices,accounts:accountSummaries,online_count:devices.filter(function(d){return d.online;}).length}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+    }
+
+    if (path === '/api/dialer/auth/devices/kick' && request.method === 'POST') {
+      try {
+        var kToken=(request.headers.get('Authorization')||'').replace(/^Bearer\s+/,'');
+        var kSession=await dialerValidateSession(env,kToken); if(!kSession) throw new Error('未登录');
+        var kAccounts=await dialerGetAccounts(env), kCaller=kAccounts.find(function(a){return a.account_id===kSession.account_id;});
+        if(!kCaller || kCaller.is_master===false) throw new Error('只有主账号可以强制下线设备');
+        var kBody=await request.json(), targetFingerprint=String(kBody.session_id||'');
+        if(!/^[a-f0-9]{64}$/.test(targetFingerprint)) throw new Error('设备会话标识无效');
+        var kRows=await listDialerDeviceSessions(env), targetRow=null;
+        for(var ki=0;ki<kRows.length;ki++){if(await dialerSessionFingerprint(kRows[ki].session_token)===targetFingerprint){targetRow=kRows[ki];break;}}
+        var targetSession=targetRow&&(targetRow.payload||{});
+        if(!targetSession || targetSession.revoked===true || targetSession.account_id===kCaller.account_id || !kAccounts.some(function(a){return a.account_id===targetSession.account_id&&a.is_master===false;})) throw new Error('目标设备会话不存在或已失效');
+        targetSession.revoked=true; targetSession.revoked_at=new Date().toISOString();
+        await env.DATA_STORE.put('dialer:session:'+targetRow.session_token,JSON.stringify(targetSession));
+        return new Response(JSON.stringify({success:true}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:403,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
     }
 
     if (path === '/api/dialer/auth/change-pin' && request.method === 'POST') {
