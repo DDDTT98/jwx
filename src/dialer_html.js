@@ -13998,7 +13998,7 @@ function updateAutoDialBtn() {
       var categories = (settings.wallpaperCategories || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
       if (!categories.length) categories = ['landscape'];
       var queries = {
-        landscape: ['landscape nature mountain', 'scenic nature mountains lake'],
+        landscape: ['landscape nature mountain', 'scenic nature mountains lake', 'mountain landscape', 'forest landscape', 'lake landscape', 'waterfall landscape', 'coastal landscape', 'nature scenery'],
         space: ['galaxy', 'nebula', 'universe', 'outer space', 'cosmos', 'milky way', 'starfield', 'planets'],
         people: ['portrait photography people', 'street portrait people photography'],
         // 花朵类使用短关键词逐个轮询，避免长组合词过度限制搜索结果。
