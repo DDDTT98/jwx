@@ -13807,12 +13807,16 @@ function updateAutoDialBtn() {
       if (cached) { applyWallpaper(cached); }
 
       // 2. 后台拉取新壁纸
+      // 高清自然风景壁纸：Unsplash 原图 CDN，按屏幕比例裁切并优先提供高分辨率
       var wallUrls = [
-        'https://api.ixiaowai.cn/api/api.php',
-        'https://api.ixiaowai.cn/gqapi/gqapi.php',
-        'https://www.dmoe.cc/random.php',
-        'https://t.alcy.cc/mp',
-        'https://t.alcy.cc/pc'
+        'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2560&q=90',
+        'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=2560&q=90'
       ];
 
       var url = wallUrls[Math.floor(Math.random() * wallUrls.length)];
