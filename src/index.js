@@ -385,7 +385,35 @@ async function processCrmBackgroundJobs(env) {
       job.status = 'running';
       job.updated_at = new Date().toISOString();
       var done = false;
-      if (job.kind === 'batch_type') {
+      if (job.kind === 'customer_import') {
+        var importItemsUrl = env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?select=row_no,customer&job_id=eq.' + encodeURIComponent(job.id) + '&status=eq.pending&order=row_no.asc&limit=500';
+        var importItemsResp = await fetch(importItemsUrl, { headers: hdr });
+        if (!importItemsResp.ok) throw new Error('读取导入暂存数据失败：' + (await importItemsResp.text()).slice(0, 240));
+        var importItems = await importItemsResp.json();
+        if (!Array.isArray(importItems) || !importItems.length) {
+          done = true;
+        } else {
+          var importCustomers = importItems.map(function(item) { return item.customer; });
+          var importResult = await createSupabaseClient(env).upsertCustomers(importCustomers, job.account_id);
+          var rowNos = importItems.map(function(item) { return item.row_no; });
+          var markUrl = env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?job_id=eq.' + encodeURIComponent(job.id) + '&row_no=in.(' + rowNos.join(',') + ')';
+          var markResp = await fetch(markUrl, { method: 'PATCH', headers: Object.assign({}, hdr, { Prefer: 'return=minimal' }), body: JSON.stringify({ status: 'completed', updated_at: new Date().toISOString() }) });
+          if (!markResp.ok) throw new Error('确认导入批次失败：' + (await markResp.text()).slice(0, 240));
+          job.processed = Number(job.processed || 0) + importItems.length;
+          job.succeeded = Number(job.succeeded || 0) + Number(importResult.count || 0);
+          job.skipped = Number(job.skipped || 0) + Number(importResult.skipped || 0);
+          job.cursor = job.processed;
+          if (Array.isArray(importResult.new_customers) && importResult.new_customers.length) {
+            try {
+              var importAccounts = await dialerGetAccounts(env);
+              var importAccount = importAccounts.find(function(a) { return a.account_id === job.account_id; });
+              var importAccountName = importAccount ? (importAccount.account_name || importAccount.label || '') : '';
+              await notifyNewCustomers(env, importAccountName, importResult.new_customers);
+            } catch (notifyImportErr) { console.error('[import-job] notification failed:', notifyImportErr.message); }
+          }
+          done = job.processed >= Number(job.total || 0);
+        }
+      } else if (job.kind === 'batch_type') {
         var start = Number(job.cursor || 0);
         var chunk = (job.mobiles || []).slice(start, start + 20);
         if (!chunk.length) done = true;
@@ -453,7 +481,14 @@ async function processCrmBackgroundJobs(env) {
       job.updated_at = new Date().toISOString();
       await env.DATA_STORE.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
     } catch (err) {
-      job.status = 'failed'; job.error = err.message || String(err); job.updated_at = new Date().toISOString();
+      if (job.kind === 'customer_import') {
+        job.attempts = Number(job.attempts || 0) + 1;
+        job.last_error = err.message || String(err);
+        job.status = job.attempts >= 3 ? 'failed' : 'queued';
+      } else {
+        job.status = 'failed'; job.error = err.message || String(err);
+      }
+      job.updated_at = new Date().toISOString();
       await env.DATA_STORE.put(key, JSON.stringify(job), { expirationTtl: 60 * 60 * 24 * 30 });
     }
   }
@@ -2145,6 +2180,84 @@ export default {
     }
 
     // ==================== Data API ====================
+
+    // Durable customer import staging API. Data is staged in Supabase before background processing begins.
+    if (path === '/api/dialer/import-jobs' && (request.method === 'POST' || request.method === 'GET')) {
+      try {
+        if (!_session) throw new Error('未登录');
+        var importJobAccounts = await dialerGetAccounts(env);
+        var importCaller = importJobAccounts.find(function(a) { return a.account_id === _session.account_id; });
+        if (!importCaller) throw new Error('账户不存在');
+        var importIsMaster = importCaller.is_master !== false;
+        if (request.method === 'GET') {
+          var statusJobId = url.searchParams.get('id') || '';
+          if (!/^crm_[a-z0-9_]+$/i.test(statusJobId)) throw new Error('任务编号无效');
+          var statusJob = await env.DATA_STORE.get('dialer:bgjob:' + statusJobId, 'json');
+          if (!statusJob) throw new Error('导入任务不存在');
+          if (statusJob.created_by !== _session.account_id && !importIsMaster) throw new Error('无权查看此任务');
+          return new Response(JSON.stringify({ success: true, job: statusJob }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+        }
+        var importBody = await request.json();
+        var importAction = String(importBody.action || '');
+        if (importAction === 'start') {
+          var importTotal = Number(importBody.total);
+          var importLabel = String(importBody.batch_label || '').trim();
+          if (!Number.isSafeInteger(importTotal) || importTotal < 1 || importTotal > 100000) throw new Error('导入数量无效（最多 100000 条）');
+          if (importBody.auto_delete_after_dial && !importLabel) throw new Error('自动删除批次必须设置批次标签');
+          var newImportJob = await createCrmBackgroundJob(env, {
+            kind: 'customer_import', status: 'staging', created_by: _session.account_id,
+            account_id: _dialerAccountId, batch_label: importLabel, total: importTotal,
+            processed: 0, succeeded: 0, skipped: 0, failed: 0, staged_count: 0,
+            auto_delete_after_dial: importBody.auto_delete_after_dial === true,
+            category: String(importBody.category || '公海客户')
+          });
+          newImportJob.status = 'staging';
+          await env.DATA_STORE.put('dialer:bgjob:' + newImportJob.id, JSON.stringify(newImportJob), { expirationTtl: 60 * 60 * 24 * 30 });
+          return new Response(JSON.stringify({ success: true, job_id: newImportJob.id, total: importTotal }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' } });
+        }
+        var stageJobId = String(importBody.job_id || '');
+        if (!/^crm_[a-z0-9_]+$/i.test(stageJobId)) throw new Error('任务编号无效');
+        var stageJob = await env.DATA_STORE.get('dialer:bgjob:' + stageJobId, 'json');
+        if (!stageJob || stageJob.kind !== 'customer_import') throw new Error('导入任务不存在');
+        if (stageJob.created_by !== _session.account_id && !importIsMaster) throw new Error('无权操作此任务');
+        if (importAction === 'stage') {
+          if (stageJob.status !== 'staging') throw new Error('当前任务不接受暂存数据');
+          var stageOffset = Number(importBody.offset);
+          var stageCustomers = Array.isArray(importBody.customers) ? importBody.customers : [];
+          if (!Number.isSafeInteger(stageOffset) || stageOffset < 0 || stageCustomers.length < 1 || stageCustomers.length > 500 || stageOffset + stageCustomers.length > stageJob.total) throw new Error('暂存批次范围无效（每批最多 500 条）');
+          stageCustomers.forEach(function(c, index) {
+            var nm = String(c && c.name || '').trim();
+            var mb = String(c && (c.mobile || c.phone) || '').replace(/\\D/g, '').replace(/^86(?=1[3-9]\\d{9}$)/, '');
+            var co = String(c && (c.company || c.company_name) || '').trim();
+            if (!nm || nm === '未知姓名' || !/^1[3-9]\\d{9}$/.test(mb) || !co) throw new Error('第 ' + (stageOffset + index + 1) + ' 条记录不合格：姓名、有效手机号、单位名称必须齐全');
+            c.mobile = mb;
+            c.phone = mb;
+            c.batch_label = stageJob.batch_label;
+            c.category = stageJob.category;
+          });
+          var stageRows = stageCustomers.map(function(customer, index) { return { job_id: stageJobId, row_no: stageOffset + index, customer: customer, status: 'pending' }; });
+          var stageResp = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_import_job_items?on_conflict=job_id,row_no', {
+            method: 'POST', headers: Object.assign({}, hdr, { Prefer: 'resolution=merge-duplicates,return=minimal' }), body: JSON.stringify(stageRows)
+          });
+          if (!stageResp.ok) throw new Error('暂存导入数据失败：' + (await stageResp.text()).slice(0, 300));
+          stageJob.staged_count = Math.max(Number(stageJob.staged_count || 0), stageOffset + stageCustomers.length);
+          stageJob.updated_at = new Date().toISOString();
+          await env.DATA_STORE.put('dialer:bgjob:' + stageJobId, JSON.stringify(stageJob), { expirationTtl: 60 * 60 * 24 * 30 });
+          return new Response(JSON.stringify({ success: true, staged_count: stageJob.staged_count }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' } });
+        }
+        if (importAction === 'finalize') {
+          if (stageJob.status !== 'staging') throw new Error('任务已提交或已结束');
+          if (Number(stageJob.staged_count || 0) !== Number(stageJob.total || 0)) throw new Error('暂存数据不完整：已暂存 ' + (stageJob.staged_count || 0) + '/' + stageJob.total);
+          stageJob.status = 'queued';
+          stageJob.updated_at = new Date().toISOString();
+          await env.DATA_STORE.put('dialer:bgjob:' + stageJobId, JSON.stringify(stageJob), { expirationTtl: 60 * 60 * 24 * 30 });
+          return new Response(JSON.stringify({ success: true, job_id: stageJobId, status: 'queued', total: stageJob.total }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' } });
+        }
+        throw new Error('不支持的导入任务操作');
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), { status: e.message === '未登录' ? 401 : 400, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' } });
+      }
+    }
 
     // Upload customers
     if (path === '/api/dialer/upload-customers' && request.method === 'POST') {
