@@ -768,7 +768,7 @@ export default {
         var parent=role==='manager'?caller.account_id:(cr==='manager'?caller.account_id:String(body.parent_account_id||caller.account_id));
         if(parent!==caller.account_id&&!aa.some(function(a){return a.account_id===parent&&a.is_master===false&&a.role==='manager'&&a.active!==false;}))throw new Error('指定的小组长不存在或已停用');
         var id='sub_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
-        aa.push({account_id:id,account_name:name,real_name:realName,pin_hash:dialerHashPin(pin),label:label,group_name:role==='manager'?groupName:'',is_master:false,role:role,parent_account_id:parent,active:true,created_at:new Date().toISOString()});
+        aa.push({account_id:id,account_name:name,real_name:realName,pin_hash:dialerHashPin(pin),label:label,group_name:role==='manager'?groupName:'',is_master:false,role:role,parent_account_id:parent,active:true,max_devices:2,created_at:new Date().toISOString()});
         await dialerSaveAccounts(env,aa);
         return new Response(JSON.stringify({success:true,account_id:id,label:label,group_name:role==='manager'?groupName:'',role:role,parent_account_id:parent}),{headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}}); }
@@ -844,6 +844,8 @@ export default {
         }
         hSession.device_id=hDeviceId;
         hSession.device_name=String(hBody.device_name||hSession.device_name||'未知设备').slice(0,80);
+        hSession.device_type=String(hBody.device_type||hSession.device_type||'未知设备').slice(0,40);
+        hSession.browser=String(hBody.browser||hSession.browser||'未知浏览器').slice(0,40);
         hSession.user_agent=String(request.headers.get('User-Agent')||hSession.user_agent||'').slice(0,300);
         hSession.last_seen=new Date().toISOString();
         await env.DATA_STORE.put('dialer:session:'+hToken,JSON.stringify(hSession));
@@ -861,7 +863,7 @@ export default {
         var dRows=await listDialerDeviceSessions(env), nowMs=Date.now();
         var devices=await Promise.all(dRows.filter(function(row){var p=row.payload||{};return !!childMap[p.account_id]&&!!p.device_id;}).map(async function(row){
           var p=row.payload||{}, last=p.last_seen||p.created_at||row.created_at||null, lastMs=last?new Date(last).getTime():0;
-          return {account_id:p.account_id,account_name:childMap[p.account_id].account_name||childMap[p.account_id].label||p.account_id,real_name:childMap[p.account_id].real_name||'',device_id:p.device_id,device_name:p.device_name||'未知设备',user_agent:p.user_agent||'',created_at:p.created_at||row.created_at||null,last_seen:last,online:!p.revoked&&lastMs>0&&nowMs-lastMs<=120000,revoked:!!p.revoked,session_id:await dialerSessionFingerprint(row.session_token)};
+          return {account_id:p.account_id,account_name:childMap[p.account_id].account_name||childMap[p.account_id].label||p.account_id,real_name:childMap[p.account_id].real_name||'',device_id:p.device_id,device_name:p.device_name||'未知设备',device_type:p.device_type||'未知设备',browser:p.browser||'未知浏览器',user_agent:p.user_agent||'',created_at:p.created_at||row.created_at||null,last_seen:last,online:!p.revoked&&lastMs>0&&nowMs-lastMs<=120000,revoked:!!p.revoked,session_id:await dialerSessionFingerprint(row.session_token)};
         }));
         devices.sort(function(a,b){return (b.online-a.online)||String(b.last_seen||'').localeCompare(String(a.last_seen||''));});
         var accountSummaries=dAccounts.filter(function(a){return a.is_master===false;}).map(function(a){return {account_id:a.account_id,account_name:a.account_name||a.label||a.account_id,real_name:a.real_name||'',max_devices:Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||3)),online_count:devices.filter(function(d){return d.account_id===a.account_id&&d.online;}).length};});

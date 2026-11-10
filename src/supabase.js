@@ -300,6 +300,17 @@ export function createSupabaseStore(env) {
     return Number.isFinite(expiresAt) && expiresAt <= Date.now();
   }
   async function get(keyName, type) {
+    // Always read dialer sessions from Postgres: a master account's remote revoke
+    // must be visible immediately across Worker isolates, not hidden by rowCache.
+    const sessionDescriptor = parseKey(keyName);
+    if (sessionDescriptor && sessionDescriptor.kind === 'session') {
+      let sessionRow = await getTypedRow(keyName, sessionDescriptor);
+      if (isExpiredRow(sessionRow)) {
+        await deleteTyped(keyName, sessionDescriptor);
+        sessionRow = null;
+      }
+      return decodeRow(sessionRow, type);
+    }
     if (rowCache.has(keyName)) {
       const cached = rowCache.get(keyName);
       if (isExpiredRow(cached)) {
