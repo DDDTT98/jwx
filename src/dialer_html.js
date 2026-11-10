@@ -13994,7 +13994,7 @@ function updateAutoDialBtn() {
 
     function loadWallpaper(forceRefresh) {
       if (_wallpaperLoaded && !forceRefresh) return;
-      var cached = localStorage.getItem('bhp_wp_url');
+      var cached = localStorage.getItem('bhp_wp_url_v2');
       if (cached && !forceRefresh) applyWallpaper(cached);
       var settings = getDbCustomSettings();
       var allowed = ['landscape', 'space', 'people', 'plants', 'anime'];
@@ -14004,36 +14004,74 @@ function updateAutoDialBtn() {
         landscape: ['landscape nature mountain', 'scenic nature mountains lake'],
         space: ['outer space galaxy stars nebula', 'planet starfield astronomy'],
         people: ['portrait photography people', 'street portrait people photography'],
-        plants: ['botanical plants flowers macro', 'green plants leaves garden'],
+        // 植物类拆成更容易命中 Wallhaven 标签的短关键词，逐个轮询提高召回率。
+        plants: ['flowers', 'plants', 'forest', 'trees', 'leaves'],
         anime: ['anime illustration wallpaper', 'anime art character illustration']
       };
       var category = categories[Math.floor(Math.random() * categories.length)];
       var variants = queries[category] || queries.landscape;
       var attempt = 0;
-      var maxAttempts = 4;
+      var maxAttempts = category === 'plants' ? variants.length * 2 : Math.max(4, variants.length);
+      var requestId = Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      function validWallpaperResult(payload) {
+        if (!payload || payload.success !== true || !payload.data || typeof payload.data !== 'object') return false;
+        var data = payload.data;
+        if (typeof data.file_url !== 'string' || !/^https:\/\//i.test(data.file_url)) return false;
+        if (typeof data.source_url !== 'string' || !/^https?:\/\/wallhaven\.cc\/w\//i.test(data.source_url)) return false;
+        if (String(data.purity || '').toLowerCase() !== 'sfw') return false;
+        if (String(data.category || '').toLowerCase() !== 'general') return false;
+        if (data.is_mobile !== true) return false;
+        var match = String(data.resolution || '').match(/^(\d+)x(\d+)$/i);
+        if (!match || Number(match[2]) <= Number(match[1])) return false;
+        // 如果上游未来提供标签字段，则再做植物语义校验；当前接口未提供 tags 时，
+        // 以植物专用关键词搜索 + General/SFW/竖屏/Wallhaven 来源元数据作为准入条件。
+        if (category === 'plants' && Array.isArray(data.tags) && data.tags.length) {
+          var tagText = data.tags.map(function(tag) {
+            return typeof tag === 'string' ? tag : (tag && (tag.name || tag.alias) || '');
+          }).join(' ').toLowerCase();
+          if (!/(flower|plant|forest|tree|leaf|leaves|botanical|flora|garden)/i.test(tagText)) return false;
+        }
+        return true;
+      }
       function tryNext() {
         if (attempt >= maxAttempts) {
           _wallpaperLoaded = false;
-          console.warn('[wallpaper] 所选类型抓取失败：' + category + '，未回退到风景壁纸');
+          console.warn('[wallpaper] 所选类型抓取失败或结果未通过校验：' + category + '，未回退到其他类型');
           return;
         }
         var query = variants[attempt % variants.length];
         attempt++;
-        // 图片接口通过重定向返回图片；每次重试都更换关键词并增加随机参数，避免命中失败缓存。
         var endpoint = 'https://hub.saintic.com/openservice/wallhavenpic?q=' +
-          encodeURIComponent(query) + '&category=general,anime,people&mobile&_wp_retry=' +
-          Date.now() + '_' + attempt;
-        var img = new Image();
-        img.onload = function() {
-          _wallpaperLoaded = true;
-          localStorage.setItem('bhp_wp_url', endpoint);
-          applyWallpaper(endpoint);
-        };
-        img.onerror = function() {
-          // 只在用户选中的同一类型内重试，绝不静默替换成风景。
-          tryNext();
-        };
-        img.src = endpoint;
+          encodeURIComponent(query) + '&category=general&mobile&json=1&_wp_retry=' +
+          requestId + '_' + attempt;
+        fetch(endpoint, { method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+          .then(function(response) {
+            if (!response.ok) throw new Error('壁纸接口 HTTP ' + response.status);
+            return response.json();
+          })
+          .then(function(payload) {
+            if (!validWallpaperResult(payload)) {
+              console.warn('[wallpaper] 结果未通过类型/元数据校验，尝试下一个关键词：' + query);
+              tryNext();
+              return;
+            }
+            var imageUrl = payload.data.file_url;
+            var img = new Image();
+            img.onload = function() {
+              _wallpaperLoaded = true;
+              localStorage.setItem('bhp_wp_url_v2', imageUrl);
+              applyWallpaper(imageUrl);
+            };
+            img.onerror = function() {
+              console.warn('[wallpaper] 图片加载失败，尝试下一个关键词：' + query);
+              tryNext();
+            };
+            img.src = imageUrl;
+          })
+          .catch(function(error) {
+            console.warn('[wallpaper] 搜索/校验请求失败，尝试下一个关键词：' + query, error);
+            tryNext();
+          });
       }
       _wallpaperLoaded = false;
       tryNext();
