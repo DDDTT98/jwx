@@ -14079,7 +14079,7 @@ function updateAutoDialBtn() {
 
     function syncAllOverlayWallpapers() {
       // 优先从缓存恢复
-      var cached = localStorage.getItem('bhp_wp_url');
+      var cached = localStorage.getItem('bhp_wp_url_v2') || localStorage.getItem('bhp_wp_url');
       if (cached) { applyWallpaper(cached); return; }
       var globalEl = document.getElementById('globalWallpaper');
       if (!globalEl) return;
