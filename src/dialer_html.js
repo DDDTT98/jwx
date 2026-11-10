@@ -13997,28 +13997,46 @@ function updateAutoDialBtn() {
       var cached = localStorage.getItem('bhp_wp_url');
       if (cached && !forceRefresh) applyWallpaper(cached);
       var settings = getDbCustomSettings();
-      var categories = settings.wallpaperCategories && settings.wallpaperCategories.length ? settings.wallpaperCategories.slice() : ['landscape'];
-      var queries = { landscape: 'landscape nature mountain', space: 'space stars galaxy night sky', people: 'portrait people', plants: 'plants botanical flowers', anime: 'anime illustration' };
-      var category = categories[Math.floor(Math.random() * categories.length)] || 'landscape';
-      var query = queries[category] || queries.landscape;
-      // 通过图片跳转接口加载，不直接 fetch 跨域 JSON，避免浏览器 CORS 拦截。
-      var endpoint = 'https://hub.saintic.com/openservice/wallhavenpic?q=' + encodeURIComponent(query) + '&category=general,anime,people&mobile';
-      function verifyAndApply(url) {
-        if (!url) return;
+      var allowed = ['landscape', 'space', 'people', 'plants', 'anime'];
+      var categories = (settings.wallpaperCategories || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
+      if (!categories.length) categories = ['landscape'];
+      var queries = {
+        landscape: ['landscape nature mountain', 'scenic nature mountains lake'],
+        space: ['outer space galaxy stars nebula', 'planet starfield astronomy'],
+        people: ['portrait photography people', 'street portrait people photography'],
+        plants: ['botanical plants flowers macro', 'green plants leaves garden'],
+        anime: ['anime illustration wallpaper', 'anime art character illustration']
+      };
+      var category = categories[Math.floor(Math.random() * categories.length)];
+      var variants = queries[category] || queries.landscape;
+      var attempt = 0;
+      var maxAttempts = 4;
+      function tryNext() {
+        if (attempt >= maxAttempts) {
+          _wallpaperLoaded = false;
+          console.warn('[wallpaper] 所选类型抓取失败：' + category + '，未回退到风景壁纸');
+          return;
+        }
+        var query = variants[attempt % variants.length];
+        attempt++;
+        // 图片接口通过重定向返回图片；每次重试都更换关键词并增加随机参数，避免命中失败缓存。
+        var endpoint = 'https://hub.saintic.com/openservice/wallhavenpic?q=' +
+          encodeURIComponent(query) + '&category=general,anime,people&mobile&_wp_retry=' +
+          Date.now() + '_' + attempt;
         var img = new Image();
-        img.onload = function() { localStorage.setItem('bhp_wp_url', url); applyWallpaper(url); };
-        img.onerror = function() {
-          if (category !== 'landscape') {
-            var fallback = 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=2560&q=90';
-            var fallbackImg = new Image();
-            fallbackImg.onload = function() { localStorage.setItem('bhp_wp_url', fallback); applyWallpaper(fallback); };
-            fallbackImg.src = fallback;
-          }
+        img.onload = function() {
+          _wallpaperLoaded = true;
+          localStorage.setItem('bhp_wp_url', endpoint);
+          applyWallpaper(endpoint);
         };
-        img.src = url;
+        img.onerror = function() {
+          // 只在用户选中的同一类型内重试，绝不静默替换成风景。
+          tryNext();
+        };
+        img.src = endpoint;
       }
-      _wallpaperLoaded = true;
-      verifyAndApply(endpoint);
+      _wallpaperLoaded = false;
+      tryNext();
     }
 
     function syncAllOverlayWallpapers() {
