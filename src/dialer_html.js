@@ -13399,67 +13399,80 @@ function updateAutoDialBtn() {
     function loadSubAccounts() {
       var list=document.getElementById('dbSubAccountList'); if(!list)return;
       var token=getSessionToken(), parentSel=document.getElementById('dbSubAccountParentInput');
-      fetch('/api/dialer/auth/accounts',{headers:{'Authorization':'Bearer '+token}}).then(function(r){return r.json();}).then(function(res){
+      list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);padding:10px;text-align:center;">正在加载账号信息…</div>';
+      Promise.all([
+        fetch('/api/dialer/auth/accounts',{headers:{'Authorization':'Bearer '+token},cache:'no-store'}).then(function(r){return r.json();}),
+        fetch('/api/dialer/stats/accounts',{headers:{'Authorization':'Bearer '+token},cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};}),
+        fetch('/api/dialer/auth/devices',{headers:{'Authorization':'Bearer '+token},cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {};})
+      ]).then(function(results){
+        var res=results[0]||{}, statsRes=results[1]||{}, devicesRes=results[2]||{};
         if(res.error)throw new Error(res.error);
         var accounts=res.accounts||[], callerRole=res.caller_role||getSessionRole();
+        var statsMap={},deviceMap={};
+        (statsRes.stats||[]).forEach(function(s){statsMap[s.account_id]=Number(s.upload_count||0);});
+        (devicesRes.accounts||[]).forEach(function(d){deviceMap[d.account_id]=d;});
         if(parentSel){
           parentSel.style.display='none';
-          parentSel.innerHTML='<option value="'+(res.caller_account_id||'')+'">主账号默认组</option>'+accounts.filter(function(a){return a.role==='manager'&&a.active!==false;}).map(function(m){return '<option value="'+m.account_id+'">'+escHtml(m.group_name||m.account_name||m.label||m.account_id)+'</option>';}).join('');
+          parentSel.innerHTML='<option value="'+escHtml(res.caller_account_id||'')+'">主账号默认组</option>'+accounts.filter(function(a){return a.role==='manager'&&a.active!==false;}).map(function(m){return '<option value="'+escHtml(m.account_id)+'">'+escHtml(m.group_name||m.account_name||m.label||m.account_id)+'</option>';}).join('');
         }
         var assignRow=document.getElementById('dbAssignLeaderRow');if(assignRow)assignRow.style.display=callerRole==='master'?'flex':'none';
         var deviceMonitor=document.getElementById('dbDeviceMonitor');if(deviceMonitor)deviceMonitor.style.display=callerRole==='master'?'block':'none';
         var shown=accounts.filter(function(a){return a.account_id!==(res.caller_account_id||getSessionAccountId());});
-        if(!shown.length){list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);text-align:center;padding:8px;">暂无下级账号</div>';return;}
+        if(!shown.length){list.innerHTML='<div style="font-size:.68rem;color:var(--text-light);text-align:center;padding:12px;">暂无下级账号</div>';return;}
         function render(a){
-          var mgr=a.role==='manager', manager=accounts.find(function(x){return x.account_id===a.parent_account_id;});
-          var sub=mgr?('组长登录：'+(a.account_name||a.label||a.account_id)):('归属：'+(manager?(manager.group_name||manager.account_name||manager.label):'主账号默认组'));
+          var mgr=a.role==='manager';
+          var manager=accounts.find(function(x){return x.account_id===a.parent_account_id;});
+          var groupName=mgr?(a.group_name||a.account_name||'未命名小组'):(manager?(manager.group_name||manager.account_name||manager.label):'主账号默认组');
+          var accountName=a.account_name||a.label||a.account_id;
+          var realName=a.real_name||'未登记姓名';
+          var count=statsMap[a.account_id]||0;
+          var device=deviceMap[a.account_id]||{};
+          var online=Number(device.online_count||0);
+          var limit=Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||2));
+          var statusText=a.active===false?'已禁用':(online>0?'在线 '+online+' 台':'当前离线');
+          var statusColor=a.active===false?'#e67e22':(online>0?'#07a35a':'var(--text-soft)');
           var groupSelect='';
           if(!mgr&&callerRole==='master'){
             var rootId=res.caller_account_id||getSessionAccountId();
-            var options='<option value="'+rootId+'"'+(a.parent_account_id===rootId?' selected':'')+'>主账号默认组</option>';
+            var options='<option value="'+escHtml(rootId)+'"'+(a.parent_account_id===rootId?' selected':'')+'>主账号默认组</option>';
             accounts.filter(function(x){return x.role==='manager'&&x.active!==false;}).forEach(function(x){
-              options+='<option value="'+x.account_id+'"'+(a.parent_account_id===x.account_id?' selected':'')+'>'+escHtml(x.group_name||x.account_name||x.label||x.account_id)+'</option>';
+              options+='<option value="'+escHtml(x.account_id)+'"'+(a.parent_account_id===x.account_id?' selected':'')+'>'+escHtml(x.group_name||x.account_name||x.label||x.account_id)+'</option>';
             });
-            groupSelect='<select class="sub-group-select" data-id="'+a.account_id+'" aria-label="调整所属小组" style="max-width:125px;height:26px;font-size:.58rem;border:1px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main);">'+options+'</select>';
+            groupSelect='<select class="sub-group-select" data-id="'+escHtml(a.account_id)+'" aria-label="归属小组" style="width:100%;height:30px;padding:0 7px;font-size:.68rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);">'+options+'</select>';
           }
           var deviceLimit='';
           if(callerRole==='master'){
-            var selectedLimit=Math.max(1,Math.min(20,parseInt(a.max_devices||2,10)||3));
-            deviceLimit='<div style="display:flex;align-items:center;gap:5px;margin-top:5px;font-size:.58rem;color:var(--text-soft)">同时在线设备上限 <select class="sub-max-devices" data-id="'+a.account_id+'" style="height:25px;padding:0 5px;font-size:.62rem;border:1px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text-main)">'+[1,2,3,4,5,6,8,10,15,20].map(function(n){return '<option value="'+n+'"'+(n===selectedLimit?' selected':'')+'>'+n+' 台</option>';}).join('')+'</select></div>';
+            deviceLimit='<select class="sub-max-devices" data-id="'+escHtml(a.account_id)+'" aria-label="设备限制" style="width:100%;height:30px;padding:0 7px;font-size:.68rem;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main)">'+[1,2,3,4,5,6,8,10,15,20].map(function(n){return '<option value="'+n+'"'+(n===limit?' selected':'')+'>'+n+' 台</option>';}).join('')+'</select>';
+          }else{
+            deviceLimit='<div style="font-size:.72rem;font-weight:700;color:var(--text-main)">'+limit+' 台</div>';
           }
-          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;background:var(--btn-bg);border-radius:5px;'+(a.active?'':'opacity:.5;')+'"><div style="min-width:0;flex:1"><div style="font-size:.74rem;font-weight:800;color:var(--text-main)">'+(mgr?'小组：'+escHtml(a.group_name||a.account_name||'未命名小组')+' · 组长：':'组员：')+escHtml(a.real_name||'未登记姓名')+'</div><div style="font-size:.62rem;color:var(--text-soft)">登录账号：'+escHtml(a.account_name||a.label||a.account_id)+' · '+escHtml(sub)+(a.active?'':' · 已禁用')+'</div>'+(groupSelect?'<div style="margin-top:5px;display:flex;align-items:center;gap:4px;font-size:.58rem;color:var(--text-soft)">调整所属小组 '+groupSelect+'</div>':'')+deviceLimit+'</div><div style="display:flex;gap:4px;flex-shrink:0"><button class="sub-edit-name-btn" data-id="'+a.account_id+'" data-name="'+escHtml(a.real_name||'')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:var(--text-main)">姓名</button><button class="sub-toggle-btn" data-id="'+a.account_id+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'禁用':'启用')+'</button><button class="sub-delete-btn" data-id="'+a.account_id+'" data-role="'+(a.role||'member')+'" style="font-size:.6rem;padding:3px 7px;border:0;border-radius:4px;background:var(--card-bg);color:#e74c3c">删除</button></div></div>';
+          var leader='<label style="display:flex;align-items:center;gap:5px;font-size:.68rem;font-weight:700;color:var(--text-main)"><input type="checkbox" disabled '+(mgr?'checked':'')+' style="width:15px;height:15px;accent-color:var(--accent-wechat)"> 小组长</label>';
+          return '<article style="padding:11px;border:1px solid var(--card-border);border-radius:10px;background:var(--card-bg);box-shadow:var(--shadow-card);'+(a.active===false?'opacity:.65;':'')+'">'
+            +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:9px">'
+              +'<div style="min-width:0;flex:1"><div style="font-size:.86rem;font-weight:900;color:var(--text-main);line-height:1.35;overflow-wrap:anywhere">'+escHtml(realName)+'</div>'
+              +'<div style="font-size:.66rem;color:var(--text-soft);margin-top:3px">'+(mgr?'小组长账号':'组员账号')+' · '+(a.active===false?'已停用':'正常')+'</div></div>'
+              +'<span style="flex-shrink:0;padding:3px 7px;border-radius:20px;background:'+(online>0?'rgba(7,193,96,.10)':'var(--btn-bg)')+';color:'+statusColor+';font-size:.62rem;font-weight:800">'+escHtml(statusText)+'</span>'
+            +'</div>'
+            +'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'
+              +'<div style="padding:7px 8px;border-radius:7px;background:var(--btn-bg);min-width:0"><div style="font-size:.58rem;color:var(--text-soft);margin-bottom:3px">账号名</div><div style="font-size:.72rem;font-weight:750;color:var(--text-main);overflow-wrap:anywhere">'+escHtml(accountName)+'</div></div>'
+              +'<div style="padding:7px 8px;border-radius:7px;background:var(--btn-bg)"><div style="font-size:.58rem;color:var(--text-soft);margin-bottom:3px">PIN</div><div style="font-size:.7rem;font-weight:750;color:var(--text-main)">•••• · 已加密</div></div>'
+              +'<div style="padding:7px 8px;border-radius:7px;background:var(--btn-bg);min-width:0"><div style="font-size:.58rem;color:var(--text-soft);margin-bottom:3px">归属小组</div>'+(groupSelect||'<div style="font-size:.72rem;font-weight:750;color:var(--text-main);overflow-wrap:anywhere">'+escHtml(groupName)+'</div>')+'</div>'
+              +'<div style="padding:7px 8px;border-radius:7px;background:var(--btn-bg)"><div style="font-size:.58rem;color:var(--text-soft);margin-bottom:3px">小组长</div>'+leader+'</div>'
+              +'<div style="padding:7px 8px;border-radius:7px;background:var(--btn-bg)"><div style="font-size:.58rem;color:var(--text-soft);margin-bottom:3px">账号数据量</div><div style="font-size:.82rem;font-weight:900;color:var(--accent-wechat)">'+count.toLocaleString()+' <span style="font-size:.58rem;font-weight:600;color:var(--text-soft)">条上传数据</span></div></div>'
+              +'<div style="padding:7px 8px;border-radius:7px;background:var(--btn-bg)"><div style="font-size:.58rem;color:var(--text-soft);margin-bottom:3px">设备限制</div>'+deviceLimit+'</div>'
+            +'</div>'
+            +'<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:9px;padding-top:8px;border-top:1px solid var(--card-border)">'
+              +'<div style="font-size:.63rem;color:'+statusColor+';font-weight:750">设备状态：'+escHtml(statusText)+' <span style="color:var(--text-soft);font-weight:500">/ 上限 '+limit+' 台</span></div>'
+              +'<div style="display:flex;gap:5px;flex-shrink:0"><button class="sub-edit-name-btn" data-id="'+escHtml(a.account_id)+'" data-name="'+escHtml(a.real_name||'')+'" style="font-size:.62rem;padding:5px 8px;border:1px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main)">改姓名</button><button class="sub-toggle-btn" data-id="'+escHtml(a.account_id)+'" data-active="'+(a.active?'1':'0')+'" style="font-size:.62rem;padding:5px 8px;border:0;border-radius:5px;background:var(--btn-bg);color:'+(a.active?'#e74c3c':'#07c160')+'">'+(a.active?'停用':'启用')+'</button><button class="sub-delete-btn" data-id="'+escHtml(a.account_id)+'" data-role="'+(a.role||'member')+'" style="font-size:.62rem;padding:5px 8px;border:0;border-radius:5px;background:rgba(231,76,60,.08);color:#e74c3c">删除</button></div>'
+            +'</div></article>';
         }
         var managers=shown.filter(function(a){return a.role==='manager';}),members=shown.filter(function(a){return a.role!=='manager';});
-        list.innerHTML=(managers.length?'<div style="font-size:.68rem;font-weight:800;padding:5px 2px;color:var(--text-main)">小组及组长</div>'+managers.map(render).join(''):'')+(members.length?'<div style="font-size:.68rem;font-weight:800;padding:7px 2px 5px;color:var(--text-main)">组员账号</div>'+members.map(render).join(''):'');
+        list.innerHTML=(managers.length?'<div style="font-size:.7rem;font-weight:900;padding:4px 2px;color:var(--text-main)">小组长 / 小组</div>'+managers.map(render).join(''):'')+(members.length?'<div style="font-size:.7rem;font-weight:900;padding:7px 2px 4px;color:var(--text-main)">组员账号</div>'+members.map(render).join(''):'');
         list.querySelectorAll('.sub-edit-name-btn').forEach(function(btn){btn.addEventListener('click',function(){var next=prompt('登记真实姓名',btn.dataset.name||'');if(next===null)return;next=next.trim();if(!next){alert('姓名不能为空');return;}fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,real_name:next})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();}).catch(function(e){alert(e.message);});});});
-        list.querySelectorAll('.sub-max-devices').forEach(function(sel){
-          sel.addEventListener('change',function(){
-            var nextLimit=parseInt(sel.value,10); sel.disabled=true;
-            fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,max_devices:nextLimit})})
-              .then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'设备上限设置失败');loadSubAccounts();})
-              .catch(function(e){alert('设备上限设置失败：'+e.message);loadSubAccounts();})
-              .finally(function(){sel.disabled=false;});
-          });
-        });
-        list.querySelectorAll('.sub-group-select').forEach(function(sel){
-          sel.addEventListener('change',function(){
-            var nextParent=sel.value;
-            sel.disabled=true;
-            fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,parent_account_id:nextParent})})
-              .then(function(r){return r.json();})
-              .then(function(x){if(!x.success)throw new Error(x.error||'分组调整失败');loadSubAccounts();loadAccountStats();})
-              .catch(function(e){alert('调整所属小组失败：'+e.message);loadSubAccounts();})
-              .finally(function(){sel.disabled=false;});
-          });
-        });
-        list.querySelectorAll('.sub-toggle-btn').forEach(function(btn){btn.addEventListener('click',function(){
-          var active=btn.dataset.active==='1';btn.disabled=true;
-          fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,active:!active})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();}).catch(function(e){alert(e.message);btn.disabled=false;});
-        });});
-        list.querySelectorAll('.sub-delete-btn').forEach(function(btn){btn.addEventListener('click',function(){
-          if(!confirm(btn.dataset.role==='manager'?'确定删除该小组长账号？该小组必须先清空成员。':'确定删除该普通子账号？其客户数据将迁回所属上级。'))return;btn.disabled=true;
-          fetch('/api/dialer/auth/accounts',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();if(x.migrated)alert('已迁移 '+x.migrated+' 条客户数据');}).catch(function(e){alert(e.message);btn.disabled=false;});
-        });});
+        list.querySelectorAll('.sub-max-devices').forEach(function(sel){sel.addEventListener('change',function(){var nextLimit=parseInt(sel.value,10);sel.disabled=true;fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,max_devices:nextLimit})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'设备上限设置失败');loadSubAccounts();}).catch(function(e){alert('设备上限设置失败：'+e.message);loadSubAccounts();}).finally(function(){sel.disabled=false;});});});
+        list.querySelectorAll('.sub-group-select').forEach(function(sel){sel.addEventListener('change',function(){var nextParent=sel.value;sel.disabled=true;fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:sel.dataset.id,parent_account_id:nextParent})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error||'分组调整失败');loadSubAccounts();loadAccountStats();}).catch(function(e){alert('调整所属小组失败：'+e.message);loadSubAccounts();}).finally(function(){sel.disabled=false;});});});
+        list.querySelectorAll('.sub-toggle-btn').forEach(function(btn){btn.addEventListener('click',function(){var active=btn.dataset.active==='1';btn.disabled=true;fetch('/api/dialer/auth/accounts',{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id,active:!active})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();}).catch(function(e){alert(e.message);btn.disabled=false;});});});
+        list.querySelectorAll('.sub-delete-btn').forEach(function(btn){btn.addEventListener('click',function(){if(!confirm(btn.dataset.role==='manager'?'确定删除该小组长账号？该小组必须先清空成员。':'确定删除该普通子账号？其客户数据将迁回所属上级。'))return;btn.disabled=true;fetch('/api/dialer/auth/accounts',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({target_account_id:btn.dataset.id})}).then(function(r){return r.json();}).then(function(x){if(!x.success)throw new Error(x.error);loadSubAccounts();loadAccountStats();if(x.migrated)alert('已迁移 '+x.migrated+' 条客户数据');}).catch(function(e){alert(e.message);btn.disabled=false;});});});
       }).catch(function(e){list.innerHTML='<div style="font-size:.68rem;color:#e74c3c;padding:8px;">加载失败：'+escHtml(e.message)+'</div>';});
     }
 
