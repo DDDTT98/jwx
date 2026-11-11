@@ -518,7 +518,6 @@ export const LEARN_HTML = `<!DOCTYPE html>
   <div class="learn-header">
     <a class="learn-back-btn" href="/">返回</a>
     <span class="learn-header-title">学习中心</span>
-    <a class="learn-back-btn" href="/learn/dialog" style="margin-left:auto;background:#e4f5e9;color:#168348;">💬 对话话术模拟</a>
   </div>
   <div class="learn-body">
     <div class="learn-article"><!--LEARN_CONTENT--></div>
