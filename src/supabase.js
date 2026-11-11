@@ -1075,6 +1075,38 @@ export function createSupabaseClient(env) {
    * Never-pulled customers come first (newest first), then oldest-pulled come back.
    * This naturally implements "沉底" (sink to bottom) without key-value database cursors.
    */
+
+  /**
+   * Atomically claim a dialer batch in PostgreSQL. Row-level locks and SKIP LOCKED
+   * ensure concurrent devices/accounts cannot claim the same customer.
+   */
+  async function claimCustomersForDialer(sourceAccountId, targetAccountId, deviceId, batchId, limit, excludeMobiles, masterQuota) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!sourceAccountId || !targetAccountId || !deviceId || !batchId) {
+      throw new Error('缺少客户认领所需的账号、设备或批次标识');
+    }
+    var resp = await fetch(baseUrl + '/rest/v1/rpc/claim_dialer_customers', {
+      method: 'POST',
+      headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }),
+      body: JSON.stringify({
+        p_source_account_id: String(sourceAccountId),
+        p_target_account_id: String(targetAccountId),
+        p_device_id: String(deviceId),
+        p_batch_id: String(batchId),
+        p_limit: Math.max(1, Math.min(parseInt(limit, 10) || 50, 200)),
+        p_exclude_mobiles: Array.isArray(excludeMobiles) ? excludeMobiles.map(function(m) { return String(m || '').trim(); }).filter(Boolean) : [],
+        p_master_quota: Math.max(1, parseInt(masterQuota, 10) || 600)
+      })
+    });
+    if (!resp.ok) {
+      var err = await resp.text();
+      throw new Error('数据库原子认领客户失败 [' + resp.status + ']：' + err.slice(0, 400));
+    }
+    var rows = await resp.json();
+    if (!Array.isArray(rows)) throw new Error('数据库原子认领返回格式异常');
+    return { data: rows, total: rows.length };
+  }
+
   async function getCustomersForDialer(limit, excludeMobiles, accountId) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
@@ -1434,6 +1466,7 @@ export function createSupabaseClient(env) {
     getAllCustomers: getAllCustomers,
     updateCustomer: updateCustomer,
     getCustomersForDialer: getCustomersForDialer,
+    claimCustomersForDialer: claimCustomersForDialer,
     reserveCustomersForDialer: reserveCustomersForDialer,
     batchSetPulledAt: batchSetPulledAt,
     batchUpdateCategory: batchUpdateCategory,
