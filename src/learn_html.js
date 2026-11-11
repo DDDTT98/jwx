@@ -940,12 +940,15 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     if(delMessage){
       if(!isMaster)return;
       var message=delMessage.closest('.msg');if(!message)return;
-      var messageId=message.getAttribute('data-message-id')||'';
+      var pair=message.closest('.conversation-pair,.custom-pair');
       var customPair=message.closest('.custom-pair');
       var wasStaff=message.classList.contains('staff');
       message.remove();
+      // 删除组内最后一条消息时，同时移除外层对话模块，避免留下空白绿框。
+      if(pair&&!pair.querySelector('.msg'))pair.remove();
       if(customPair)saveDialogs();
       if(wasStaff)saveAlternatives();
+      saveClientWindows();
       return;
     }
     var add=e.target.closest('.reply-add');
