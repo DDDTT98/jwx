@@ -1188,8 +1188,9 @@ export function createSupabaseClient(env) {
     var added = [], skippedPublic = [], skippedCooldown = [], skippedMissing = [];
     unique.forEach(function(m) {
       var row = byMobile[m];
-      if (!row || String(row.account_id || '') !== String(accountId)) { skippedMissing.push(m); return; }
+      if (!row) { skippedMissing.push(m); return; }
       if (String(row.category || '') === '公海客户' || !row.account_id) { skippedPublic.push(m); return; }
+      if (String(row.account_id || '') !== String(accountId)) { skippedMissing.push(m); return; }
       var pulledAt = row.pulled_at ? Date.parse(row.pulled_at) : 0;
       if (pulledAt && Number.isFinite(pulledAt) && now - pulledAt < cooldownMs) { skippedCooldown.push(m); return; }
       added.push(m);
