@@ -1500,7 +1500,7 @@
       color: #e74c3c;
     }
 
-    /* Android browser: centered, brief copy-success hint in the app theme green. */
+    /* Android browser: brief copy hint styled like the customer cards. */
     .android-switch-hint {
       position: fixed;
       z-index: 100020;
@@ -1510,26 +1510,35 @@
       max-width: calc(100vw - 40px);
       box-sizing: border-box;
       display: none;
-      padding: 12px 18px 8px;
-      border-radius: 12px;
+      padding: 14px 18px 9px;
+      border: 1px solid rgba(7, 193, 96, .32);
+      border-radius: var(--radius-sm, 10px);
       transform: translate(-50%, -50%);
-      background: var(--accent-wechat, #07c160);
-      color: #fff;
-      box-shadow: 0 5px 20px rgba(0,0,0,.2);
+      background: var(--card-bg, #fff);
+      color: var(--text-main, #222);
+      box-shadow: 0 2px 12px rgba(0,0,0,.08), 0 0 0 0.5px rgba(7,193,96,.12);
       text-align: center;
       font-size: 14px;
-      line-height: 1.45;
+      line-height: 1.55;
       font-weight: 700;
       pointer-events: none;
     }
     .android-switch-hint.show { display: block; }
+    .android-switch-hint .switch-hint-title {
+      color: var(--accent-wechat, #07c160);
+      font-weight: 800;
+    }
     .android-switch-hint .switch-arrow {
       display: block;
-      margin: 3px auto 0;
-      color: #fff;
+      margin: 4px auto 0;
+      color: var(--accent-wechat, #07c160);
       font-size: 22px;
       line-height: 1;
       font-weight: 900;
+    }
+    body.dark-mode .android-switch-hint {
+      border-color: rgba(7,193,96,.38);
+      box-shadow: 0 2px 14px rgba(0,0,0,.22), 0 0 0 0.5px rgba(7,193,96,.16);
     }
 
     /* Copy limit toast */
@@ -2949,7 +2958,7 @@
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
-    已复制，左右滑动切换微信粘贴
+    <span class="switch-hint-title">已复制</span>，请底部屏幕边缘悬浮条左右滑动切换微信粘贴
     <span class="switch-arrow" aria-hidden="true">↓</span>
   </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
