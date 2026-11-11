@@ -13168,7 +13168,8 @@ function updateAutoDialBtn() {
         }).catch(function(e){twofaStatus.style.color='#e74c3c';twofaStatus.textContent=e.message||'读取 2FA 状态失败';});
       }
       if(twofaToggle){
-        loadTwofaStatus();
+        var accountMgrTab=document.querySelector('.crm-tab[data-tab="accountMgr"]');
+        if(accountMgrTab) accountMgrTab.addEventListener('click',loadTwofaStatus);
         twofaToggle.addEventListener('change',function(){
           twofaCode.style.display='block';twofaAction.style.display='block';twofaCode.value='';
           if(twofaToggle.checked){
