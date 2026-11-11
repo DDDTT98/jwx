@@ -585,6 +585,10 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
  .composer-entry .entry-note{min-height:45px}
  .composer-entry-delete{margin-left:auto;border:0;background:transparent;color:#c65b5b;padding:5px 8px;font-size:12px}
 .actions{display:flex;align-items:center;gap:8px;margin-top:10px}
+.add-entry-action{margin-top:12px!important}
+.add-entry-button{width:100%;min-height:46px;border:2px dashed #249653;border-radius:10px;background:#eaf8ef;color:#137a3d;font-size:15px;font-weight:800;letter-spacing:.2px;cursor:pointer;box-shadow:0 2px 6px rgba(24,160,88,.10)}
+.add-entry-button:active{background:#d9f1e2;transform:scale(.99)}
+.add-entry-hint{color:#b45309;font-size:12px;font-weight:700;margin-top:6px}
 .save-dialog{border:0;border-radius:8px;background:#18a058;color:#fff;padding:9px 15px;font-size:13px;font-weight:700}
 .cancel-dialog{border:0;background:transparent;color:#888;padding:8px;font-size:12px}
 .form-hint{font-size:11px;color:#999;margin-top:7px}
@@ -620,7 +624,8 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
    <div class="composer-title">添加下一组对话</div>
    <div class="form-hint">一组对话可以包含多条消息；每条消息都能单独选择客户或业务员，先后顺序和连续发言次数不限。</div>
    <div id="composerEntries"></div>
-   <div class="actions"><button class="cancel-dialog" id="addComposerEntry" type="button">＋ 添加下一条（自动切换发言方）</button></div>
+   <div class="actions add-entry-action"><button class="add-entry-button" id="addComposerEntry" type="button">＋ 添加下一条消息（必填）</button></div>
+   <div class="add-entry-hint">必须至少添加两条消息，并填写每一条，才能添加到聊天；点击上方按钮继续添加客户/业务员对话。</div>
    <div class="form-hint">业务员消息可填写话术注释；注释显示在绿色气泡下方，不会随话术一起复制。</div>
    <div class="actions"><button class="save-dialog" id="saveDialog" type="button">添加到聊天</button><button class="cancel-dialog" id="cancelDialog" type="button">取消</button></div>
  </section>
@@ -926,7 +931,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       if(!content){alert('请填写第'+(i+1)+'条消息内容');entries[i].querySelector('.entry-message').focus();return;}
       messages.push({role:role,text:content,note:annotation});
     }
-    if(!messages.length){alert('请至少添加一条消息');return;}
+    if(messages.length<2){alert('请点击“添加下一条消息（必填）”，至少添加并填写两条消息后才能添加到聊天');return;}
     addConversationGroup(messages,true);resetComposer();
   });
   chat.addEventListener('click',function(e){
