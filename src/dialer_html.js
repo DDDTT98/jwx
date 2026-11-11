@@ -4103,6 +4103,22 @@
     var DARK_K = 'standalone_dialer_dark';
     var ACCOUNT_ID_K = 'standalone_dialer_account_id';
     var ACCOUNT_LABEL_K = 'standalone_dialer_account_label';
+    var DEVICE_ID_K = 'standalone_dialer_device_id';
+    function getOrCreateDeviceId() {
+      try {
+        var id = localStorage.getItem(DEVICE_ID_K);
+        if (!id) {
+          id = 'device_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+          localStorage.setItem(DEVICE_ID_K, id);
+        }
+        return id;
+      } catch (e) {
+        return 'device_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+      }
+    }
+    function createDialerBatchId() {
+      return 'batch_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+    }
 
     // Session keys (localStorage — persists across browser restarts)
     var SESS_TOKEN_K = 'dialer_sess_token';
@@ -11899,6 +11915,8 @@ function updateAutoDialBtn() {
 
       var retryCount = 0;
       var maxRetries = 5;
+      var deviceId = getOrCreateDeviceId();
+      var batchId = createDialerBatchId();
 
       function doPull() {
         try {
@@ -11919,7 +11937,7 @@ function updateAutoDialBtn() {
       	      fetch('/api/dialer/customers/random', {
       	        method: 'POST',
       	        headers: { 'Content-Type': 'application/json' },
-      	        body: JSON.stringify({ limit: 50, exclude: excludeMobiles, account_id: getOrCreateAccountId() }),
+      	        body: JSON.stringify({ limit: 50, exclude: excludeMobiles, account_id: getOrCreateAccountId(), device_id: deviceId, batch_id: batchId }),
                 signal: controller.signal
             })
               .then(function(r) { clearTimeout(timeoutId); return r.json(); })
