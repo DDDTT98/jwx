@@ -8579,7 +8579,7 @@
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</span>' +
+                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;' + (c.phone_copied ? 'color:#e53935 !important;font-weight:800 !important;text-shadow:0 0 6px rgba(229,57,53,.14);' : '') + '">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</span>' +
                   (function() {
                     if (!showClientInfo || !c.company || !isWhitelistListVisible()) return '';
                     var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
@@ -8669,6 +8669,10 @@
             // 隐私模式下点击添加VX后立即显示并持久记录“已添加”
             b.textContent = isClientInfoVisible() ? '已复制' : '已添加';
             b.classList.add('copied');
+            // 直接给当前点击元素设置最高优先级，避免移动端/内联主题样式覆盖红色状态。
+            b.style.setProperty('color', document.body.classList.contains('dark-mode') ? '#ff6b65' : '#e53935', 'important');
+            b.style.setProperty('font-weight', '800', 'important');
+            b.style.setProperty('text-shadow', '0 0 6px rgba(229,57,53,.14)', 'important');
             var card = document.getElementById('xdc_' + idx);
             if (card) card.classList.add('copied-card');
 
