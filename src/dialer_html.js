@@ -14139,9 +14139,9 @@ function updateAutoDialBtn() {
           try{
             window._tsWidgetIds[widgetId] = turnstile.render(el,{
               sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',
-              callback:'_tsCallback',
-              'expired-callback':'_tsExpiredCallback',
-              'error-callback':'_tsExpiredCallback',
+              callback:window._tsCallback,
+              'expired-callback':window._tsExpiredCallback,
+              'error-callback':window._tsExpiredCallback,
               theme:'auto',
               appearance:'interaction-only'
             });
