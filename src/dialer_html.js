@@ -686,6 +686,12 @@
       border-radius: var(--radius-sm);
       transition: all 0.2s;
     }
+    /* 点击添加手机号/添加VX后，红色状态随 phone_copied 写入本地列表，重绘/刷新后仍保持。 */
+    .client-phone-btn.copied {
+      color: #e53935 !important;
+      font-weight: 800 !important;
+      text-shadow: 0 0 6px rgba(229,57,53,.14);
+    }
     /* 隐私模式快捷操作统一为无边框、透明底样式，与“复制备注”保持一致 */
     .client-phone-btn.privacy-add-vx {
       min-height: 34px;
@@ -4359,13 +4365,18 @@
       if (_reminderShown) return;
       if (!client) return;
       var roundSize = isNewMode() ? 10 : 50;
-      // 每次姓名/单位/备注复制后都检查本轮前 50/10 位；
-      // 不依赖触发复制的客户恰好是数组最后一位，避免排序、筛选或先后操作导致漏触发。
+      // 必须实际操作到当前轮次的最后一个位置（普通第50位 / 新号第10位），
+      // 同时前 50/10 位中至少 40/8 位完成姓名、单位或备注操作。
       if (importedClients.length < roundSize) return;
+      var boundaryClient = importedClients[roundSize - 1];
+      if (!boundaryClient) return;
+      var clientIndex = importedClients.indexOf(client);
+      if (clientIndex === roundSize - 1) boundaryClient.round_boundary_operated = true;
+      if (!boundaryClient.round_boundary_operated) return;
       var roundClients = importedClients.slice(0, roundSize);
       var qualifiedCount = roundClients.filter(function(c) { return c.name_copied || c.company_copied || c.note_copied; }).length;
       var requiredCount = Math.ceil(roundSize * 0.8);
-      if (qualifiedCount < requiredCount) return;
+      if (qualifiedCount < requiredCount) { saveState(); return; }
       window._roundTransferBlocked = true;
       _pendingReminderClient = client;
       if (document.hidden) return; // 不在页面时等待 visibilitychange 重新触发
@@ -4706,6 +4717,8 @@
         return res;
       }).catch(function(err) {
         console.warn('[timeline] record failed:', err);
+        if (type === 'add_wechat') showCopyLimitToast('添加VX云端转移失败：' + (err && err.message ? err.message : '请检查网络后重试'), true);
+        else if (type === 'add') showCopyLimitToast('添加记录未能同步到云端，请检查网络', true);
         return null;
       });
     }
@@ -4912,10 +4925,18 @@
       // 不得把后续轮次中提前操作的客户一并转入公海。
       var roundSize = isNewMode() ? 10 : 50;
       var roundClients = importedClients.slice(0, roundSize);
+      var boundaryClient = roundClients[roundSize - 1];
+      var requiredCount = Math.ceil(roundSize * 0.8);
       var operatedClients = roundClients.filter(function(c) {
         return c.name_copied || c.company_copied || c.note_copied;
       });
-      if (operatedClients.length === 0) return;
+      if (!boundaryClient || !boundaryClient.round_boundary_operated || operatedClients.length < requiredCount) {
+        window._roundTransferBlocked = false;
+        window._roundTransferPending = false;
+        _reminderShown = false;
+        _pendingReminderClient = null;
+        return;
+      }
 
       var mobiles = [];
       var mobileSet = {};
@@ -9609,7 +9630,7 @@ function updateAutoDialBtn() {
           var invalidRows = [];
           clients.forEach(function(client, index) {
             var raw = client && (client.phone || client.mobile || client.tel || client.telephone);
-            var mobile = String(raw || '').replace(/\\D/g, '');
+            var mobile = String(raw || '').replace(/\D/g, '');
             if (!mobile) {
               invalidRows.push(index + 1);
               return;
@@ -12072,65 +12093,63 @@ function updateAutoDialBtn() {
         };
       }
 
-      // Toolbar action: 添加到待拨打
+      // Toolbar action: 添加到待拨打。10天冷却与公海拦截由服务端校验，localStorage 仅作界面辅助。
       var addToDialBtn = document.getElementById('crmAddToDialBtn');
       if (addToDialBtn) {
-        addToDialBtn.onclick = function() {
+        addToDialBtn.onclick = async function() {
           var selectedMobiles = Object.keys(DB.selectedIds);
           if (selectedMobiles.length === 0) { alert('请先勾选需要添加到待拨打的客户'); return; }
-
-          var addedCount = 0;
-          var skippedCooldown = 0;
-          var skippedExists = 0;
-          var addedMobiles = [];
-          selectedMobiles.forEach(function(m) {
-            var clientData = DB.allData.find(function(c) { return c.mobile === m; });
-            if (clientData) {
-              var exists = importedClients.some(function(ic) { return (ic.mobile || ic.phone) === m; });
-              if (exists) {
-                skippedExists++;
-                return;
-              }
-              if (!canAddToDialList(m)) {
-                skippedCooldown++;
-                return;
-              }
+          var pending = selectedMobiles.filter(function(m) {
+            return !importedClients.some(function(ic) { return String(ic.mobile || ic.phone || '') === String(m); });
+          });
+          var skippedExists = selectedMobiles.length - pending.length;
+          if (!pending.length) { alert('选中的客户已在待拨打列表中'); return; }
+          var originalText = addToDialBtn.textContent;
+          addToDialBtn.disabled = true;
+          addToDialBtn.textContent = '正在校验…';
+          try {
+            var addResp = await fetch('/api/dialer/add-to-list', {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
+              body: JSON.stringify({ mobiles: pending })
+            });
+            var addResult = await addResp.json();
+            if (!addResp.ok || !addResult || !addResult.success) throw new Error((addResult && addResult.error) || '服务端添加校验失败');
+            var accepted = Array.isArray(addResult.added) ? addResult.added : [];
+            var addedMobiles = [];
+            accepted.forEach(function(m) {
+              var clientData = DB.allData.find(function(c) { return String(c.mobile || '') === String(m); });
+              if (!clientData || String(clientData.category || '') === '公海客户') return;
               var parsed = parseCustomerNote(clientData);
               importedClients.push({
-                name: clientData.name || '未知',
-                phone: clientData.mobile,
-                mobile: clientData.mobile,
-                company: clientData.company_name || '',
-                note: parsed.note,
-                custom: parsed.custom,
-                fund: clientData.fund || '',
-                category: clientData.category || '',
-                batch_label: clientData.batch_label || ''
+                name: clientData.name || '未知', phone: clientData.mobile, mobile: clientData.mobile,
+                company: clientData.company_name || '', note: parsed.note, custom: parsed.custom,
+                fund: clientData.fund || '', category: clientData.category || '', batch_label: clientData.batch_label || ''
               });
               recordAddToDialList(m);
               addedMobiles.push(m);
-              addedCount++;
+            });
+            if (addedMobiles.length) {
+              addedMobiles.forEach(function(m) { recordTimeline(m, 'add'); });
+              saveState(); renderDialCards();
+              DB.selectedIds = {};
+              var selectAllCb = document.getElementById('crmSelectAll');
+              if (selectAllCb) selectAllCb.checked = false;
+              dbTable(crmFilterData(DB.allData));
             }
-          });
-
-          if (addedCount > 0) {
-            addedMobiles.forEach(function(m) { recordTimeline(m, 'add'); });
-            localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
-            renderDialCards();
-            var msg = '成功添加 ' + addedCount + ' 个客户到待拨打列表';
-            if (skippedCooldown > 0) msg += '，' + skippedCooldown + ' 个因10天内已添加被跳过';
-            if (skippedExists > 0) msg += '，' + skippedExists + ' 个已在列表中';
+            var skippedCooldown = (addResult.skipped_cooldown || []).length;
+            var skippedPublic = (addResult.skipped_public || []).length;
+            var skippedMissing = (addResult.skipped_missing || []).length;
+            var msg = '成功添加 ' + addedMobiles.length + ' 个客户到待拨打列表';
+            if (skippedCooldown) msg += '；' + skippedCooldown + ' 个在10天冷却期内';
+            if (skippedPublic) msg += '；' + skippedPublic + ' 个属于公海客户，禁止添加';
+            if (skippedMissing) msg += '；' + skippedMissing + ' 个不属于当前账户或记录不存在';
+            if (skippedExists) msg += '；' + skippedExists + ' 个已在拨打列表';
             alert(msg);
-            DB.selectedIds = {};
-            var selectAllCb = document.getElementById('crmSelectAll');
-            if (selectAllCb) selectAllCb.checked = false;
-            dbTable(crmFilterData(DB.allData));
-          } else {
-            var msg2 = '没有客户被添加';
-            if (skippedCooldown > 0) msg2 += '（' + skippedCooldown + ' 个在10天冷却期内）';
-            if (skippedExists > 0) msg2 += '（' + skippedExists + ' 个已在列表中）';
-            if (skippedCooldown === 0 && skippedExists === 0) msg2 = '选中的客户已在待拨打列表中';
-            alert(msg2);
+          } catch (err) {
+            alert('添加到待拨打失败：' + (err && err.message ? err.message : '未知错误') + '\\n未添加任何未经服务端确认的客户。');
+          } finally {
+            addToDialBtn.disabled = false;
+            addToDialBtn.textContent = originalText || '添加到列表';
           }
         };
       }
