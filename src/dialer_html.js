@@ -1075,6 +1075,60 @@
     }
     body.dark-mode #authLoginBtn:hover {
       background: linear-gradient(180deg, #ffffff 0%, #e8ebee 100%);
+    /* 锁屏与登录弹窗：中性透明玻璃质感，去除粉/紫色调 */
+    #authLoginOverlay .auth-card,
+    #lockScreenOverlay .auth-card {
+      background: linear-gradient(160deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.12) 55%, rgba(255,255,255,0.08) 100%);
+      backdrop-filter: blur(24px) saturate(125%);
+      -webkit-backdrop-filter: blur(24px) saturate(125%);
+      border-color: rgba(100,115,130,0.22);
+    }
+    #authLoginOverlay .auth-input,
+    #lockScreenOverlay .auth-input {
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(100,115,130,0.24);
+      color: #26313d;
+      -webkit-box-shadow: none;
+      box-shadow: none;
+    }
+    #authLoginOverlay .auth-input:focus,
+    #lockScreenOverlay .auth-input:focus {
+      background: rgba(255,255,255,0.22);
+      border-color: rgba(100,115,130,0.32);
+      outline: none;
+      -webkit-box-shadow: none;
+      box-shadow: none;
+    }
+    #authLoginOverlay .auth-input::placeholder,
+    #lockScreenOverlay .auth-input::placeholder {
+      color: rgba(65,75,85,0.58);
+    }
+    body.dark-mode #authLoginOverlay .auth-card,
+    body.dark-mode #lockScreenOverlay .auth-card {
+      background: linear-gradient(160deg, rgba(20,26,34,0.30) 0%, rgba(20,26,34,0.22) 55%, rgba(20,26,34,0.16) 100%);
+      border-color: rgba(255,255,255,0.16);
+    }
+    body.dark-mode #authLoginOverlay .auth-input,
+    body.dark-mode #lockScreenOverlay .auth-input {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.18);
+      color: #f2f4f7;
+      -webkit-text-fill-color: #f2f4f7;
+      -webkit-box-shadow: none;
+      box-shadow: none;
+    }
+    body.dark-mode #authLoginOverlay .auth-input:focus,
+    body.dark-mode #lockScreenOverlay .auth-input:focus {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.26);
+      -webkit-box-shadow: none;
+      box-shadow: none;
+    }
+    body.dark-mode #authLoginOverlay .auth-input::placeholder,
+    body.dark-mode #lockScreenOverlay .auth-input::placeholder {
+      color: rgba(235,240,245,0.58);
+      -webkit-text-fill-color: rgba(235,240,245,0.58);
+    }
     }.auth-overlay.auth-hidden {
       display: none;
     }
