@@ -2935,6 +2935,7 @@
         <input id="drawerWhitelistSearch" type="search" autocomplete="off" placeholder="输入企业名称、简称或产品名称" style="width:100%;height:36px;box-sizing:border-box;padding:0 11px;border:1px solid var(--card-border);border-radius:9px;background:var(--input-bg,var(--bg-main));color:var(--text-main);font-size:0.78rem;outline:none;">
         <div id="drawerWhitelistSearchResults" style="display:none;max-height:180px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
       </div>
+      <button type="button" id="drawerDialogSimBtn" onclick="document.getElementById(&quot;progressDrawerOverlay&quot;).classList.remove(&quot;active&quot;);window.location.href=&quot;/learn/dialog&quot;" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;border:1px solid rgba(7,193,96,.25);border-radius:11px;background:rgba(7,193,96,.09);color:#159653;font-size:.86rem;font-weight:750;cursor:pointer;">💬 微信对话模拟</button>
       <div style="height:0.5px;background:var(--card-border);margin-top:auto;"></div>
       <p class="drawer-slogan">增加广度，多加微信。<br>保持深度，全部触达。<br>增强粘性，经常群发。</p>
     </div>
