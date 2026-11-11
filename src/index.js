@@ -2779,6 +2779,7 @@ export default {
           // can fan out into 大量逐条数据库请求 on every pull.
           const sb = createSupabaseClient(env);
           const result = await sb.getCustomersForDialer(limit, excludeMobiles, accountId);
+          if (result && result.error) throw new Error(result.error);
           const data = result.data || [];
 
           // 子账号自动补充：本账号客户总量不足 600，或本账号当前已无可拉取客户时，
@@ -3064,6 +3065,13 @@ export default {
         const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
         await sb.updateCustomerTimeline(mobile, entry, accountId);
+        // 点击“添加VX”即视为已添加：永久转入公海，不再归属当前拨号账户。
+        // 只认 add_wechat，普通拨打、复制姓名/单位等操作不会触发转移。
+        var transferredToPool = false;
+        if (entry.type === 'add_wechat') {
+          await sb.transferToPool([mobile], accountId, null);
+          transferredToPool = true;
+        }
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
           await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
@@ -3077,7 +3085,7 @@ export default {
         }
         const operatedCount = await countStorePrefix(env, 'client_ops_all:' + accountId + ':' + opDate + ':');
         const dialedCount = await countStorePrefix(env, 'client_ops_dial:' + accountId + ':' + opDate + ':');
-        return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount }), {
+        return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount, transferred_to_pool: transferredToPool }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
