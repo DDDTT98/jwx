@@ -4843,10 +4843,26 @@
         return month + '-' + day + ' ' + hour + ':' + min;
       },
       render: function(op) {
-        if (!op || !op.type) return '';
-        var icon = this.typeIcons[op.type] || '';
-        var label = this.typeLabels[op.type] || op.type;
-        var timeStr = this.formatTime(op.ts);
+        if (!op) return '';
+        // 兼容不同接口/历史数据的操作字段，并统一去空格、大小写，避免把 add_wechat 原样显示。
+        var rawType = typeof op === 'string' ? op : (op.type || op.action || op.operation || '');
+        var normalizedType = String(rawType || '').trim().toLowerCase();
+        if (!normalizedType) return '';
+        var fallbackLabels = {
+          'add_wechat': '已添加微信',
+          'copy_phone': '已复制号码',
+          'copy_name': '已复制姓名',
+          'copy_company': '已复制公司',
+          'copy_note': '已复制备注',
+          'dial': '已拨打电话',
+          'call_success': '通话成功',
+          'call_failed': '未接通',
+          'import': '导入客户',
+          'add': '添加客户'
+        };
+        var icon = this.typeIcons[normalizedType] || '';
+        var label = this.typeLabels[normalizedType] || fallbackLabels[normalizedType] || normalizedType.replace(/_/g, ' ');
+        var timeStr = this.formatTime(typeof op === 'object' ? op.ts : '');
         return icon + ' ' + label + ' <span style="font-size:0.5rem;color:var(--text-light);">' + timeStr + '</span>';
       }
     };
