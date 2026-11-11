@@ -1504,8 +1504,8 @@
     .android-switch-hint {
       position: fixed;
       z-index: 100020;
-      top: 50%;
       left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
       width: max-content;
       max-width: calc(100vw - 32px);
       box-sizing: border-box;
@@ -1513,7 +1513,7 @@
       padding: 9px 14px 7px;
       border: 0;
       border-radius: 22px;
-      transform: translate(-50%, -50%);
+      transform: translateX(-50%);
       background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
       color: #4b5563;
       box-shadow: 0 4px 14px rgba(40,50,65,0.12);
@@ -4766,7 +4766,7 @@
       return ok;
     }
 
-    // Android 网页版：复制成功后短暂提示切换微信，约 1.6 秒后自动消失。
+    // Android 网页版：复制成功后提示切换微信，约 2.5 秒后自动消失。
     var androidSwitchHintTimer = null;
     function showAndroidSwitchHint() {
       if (!isAndroid) return;
@@ -4777,7 +4777,7 @@
       androidSwitchHintTimer = setTimeout(function() {
         hint.classList.remove('show');
         androidSwitchHintTimer = null;
-      }, 1600);
+      }, 2500);
     }
     function copyForAndroidWeb(text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
