@@ -1404,15 +1404,13 @@ export function createSupabaseClient(env) {
   }
 
   /** Persist the latest operation while retaining the batch's terminal call result. */
-  async function updateCustomerTimeline(mobile, entry, accountId, claim) {
+  async function updateCustomerTimeline(mobile, entry, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!mobile || !entry || !entry.type) throw new Error('mobile and timeline entry required');
-    var currentUrl = baseUrl + '/rest/v1/customers?select=last_operation&mobile=eq.' + encodeURIComponent(mobile);
-    if (accountId) currentUrl += '&account_id=eq.' + encodeURIComponent(accountId);
-    if (claim && claim.device_id && claim.batch_id) {
-      currentUrl += '&dialer_device_id=eq.' + encodeURIComponent(claim.device_id) +
-        '&dialer_batch_id=eq.' + encodeURIComponent(claim.batch_id);
-    }
+    if (!accountId) throw new Error('account_id is required');
+    // 客户操作按账号归属校验；设备/批次仅作统计信息，不作为操作权限条件。
+    var currentUrl = baseUrl + '/rest/v1/customers?select=last_operation&mobile=eq.' + encodeURIComponent(mobile) +
+      '&account_id=eq.' + encodeURIComponent(accountId);
     var currentResp = await fetch(currentUrl, { headers: headers() });
     if (!currentResp.ok) {
       var currentErr = await currentResp.text();
@@ -1435,8 +1433,8 @@ export function createSupabaseClient(env) {
       merged.call_result = previous.call_result || previous.type;
     }
     // A new dial attempt invalidates the previous result until this attempt is marked.
-    var savedTimeline = await updateCustomer(mobile, { last_operation: merged }, accountId, claim);
-    if (claim && !savedTimeline) throw new Error('拨号列表已失效：该客户不属于当前设备的当前批次');
+    var savedTimeline = await updateCustomer(mobile, { last_operation: merged }, accountId);
+    if (!savedTimeline) throw new Error('客户不属于当前账号或已不存在');
     return savedTimeline;
   }
 
