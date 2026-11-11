@@ -4104,6 +4104,11 @@
     var ACCOUNT_ID_K = 'standalone_dialer_account_id';
     var ACCOUNT_LABEL_K = 'standalone_dialer_account_label';
     var DEVICE_ID_K = 'standalone_dialer_device_id';
+    var ACTIVE_BATCH_ID_K = 'standalone_dialer_active_batch_id';
+    var _dialerDeviceId = getOrCreateDeviceId();
+    var _activeDialerBatchId = '';
+    try { _activeDialerBatchId = localStorage.getItem(ACTIVE_BATCH_ID_K) || ''; } catch (e) {}
+    function getActiveDialerBatchId() { return _activeDialerBatchId; }
     function getOrCreateDeviceId() {
       try {
         var id = localStorage.getItem(DEVICE_ID_K);
@@ -4117,7 +4122,9 @@
       }
     }
     function createDialerBatchId() {
-      return 'batch_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+      _activeDialerBatchId = 'batch_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+      try { localStorage.setItem(ACTIVE_BATCH_ID_K, _activeDialerBatchId); } catch (e) {}
+      return _activeDialerBatchId;
     }
 
     // Session keys (localStorage — persists across browser restarts)
@@ -4828,6 +4835,8 @@
       if (!mobile) return;
       var payload = {
         mobile: mobile,
+        device_id: _dialerDeviceId,
+        batch_id: getActiveDialerBatchId(),
         date: todayLocalStr(),
         entry: {
           type: type,
@@ -5169,7 +5178,7 @@
       fetch('/api/dialer/customers/transfer-to-pool', {
         method: 'POST',
         headers: autoTransferHeaders,
-        body: JSON.stringify({ mobiles: mobiles })
+        body: JSON.stringify({ mobiles: mobiles, device_id: _dialerDeviceId, batch_id: getActiveDialerBatchId() })
       }).then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -11584,7 +11593,7 @@ function updateAutoDialBtn() {
           fetch('/api/dialer/customers', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
-            body: JSON.stringify({ mobile: mobile, note: notePayload })
+            body: JSON.stringify({ mobile: mobile, fields: { note: notePayload }, device_id: _dialerDeviceId, batch_id: getActiveDialerBatchId() })
           }).then(function(r) { return r.json(); })
             .then(function(res) {
               if (res && res.success !== false) {
@@ -11915,7 +11924,7 @@ function updateAutoDialBtn() {
 
       var retryCount = 0;
       var maxRetries = 5;
-      var deviceId = getOrCreateDeviceId();
+      var deviceId = _dialerDeviceId;
       var batchId = createDialerBatchId();
 
       function doPull() {
@@ -12319,7 +12328,7 @@ function updateAutoDialBtn() {
           try {
             var addResp = await fetch('/api/dialer/add-to-list', {
               method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
-              body: JSON.stringify({ mobiles: pending })
+              body: JSON.stringify({ mobiles: pending, device_id: _dialerDeviceId, batch_id: getActiveDialerBatchId() })
             });
             var addResult = await addResp.json();
             if (!addResp.ok || !addResult || !addResult.success) throw new Error((addResult && addResult.error) || '服务端添加校验失败');
