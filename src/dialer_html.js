@@ -4611,6 +4611,22 @@
         if (!res || !res.success) throw new Error((res && res.error) || '时间线写入失败');
         _todayOperatedCustomers = Number(res.operated_count) || 0;
         _todayDialedCustomers = Number(res.dialed_count) || 0;
+        if (res.transferred_to_pool) {
+          // 添加VX成功转公海后，从当前拨号列表立即移除，避免继续拨打。
+          importedClients = importedClients.filter(function(c) {
+            return String(c.phone || c.mobile || '') !== String(mobile);
+          });
+          if (typeof DB !== 'undefined' && DB && Array.isArray(DB.allData)) {
+            var pooledRow = DB.allData.find(function(item) {
+              return String(item.mobile || item.phone || '') === String(mobile);
+            });
+            if (pooledRow) pooledRow.category = '公海客户';
+          }
+          saveState();
+          renderDialCards();
+          updateStats();
+          refreshAccountDataCount();
+        }
         renderDrawer();
         return res;
       }).catch(function(err) {
