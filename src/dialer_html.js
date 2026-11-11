@@ -4578,41 +4578,16 @@
     // 只按明确的 HarmonyOS 标识判断鸿蒙；HUAWEI/HMSCore 也会出现在部分 Android/EMUI 设备上，
     // 不能因此误判并跳过 Android Intent 唤醒方式。
     var isHarmonyOS = /HarmonyOS|OpenHarmony/i.test(navigator.userAgent);
-    function jumpToWechat() {
-      if (isAndroid && !isHarmonyOS) {
-        // Android 浏览器：在真实点击手势栈内通过可点击链接发起 Intent，比直接改 location 更兼容部分浏览器。
-        var intentUrl = 'intent://#Intent;scheme=weixin;package=com.tencent.mm;end';
-        var launchDetected = false;
-        var markWechatLaunched = function() { launchDetected = true; };
-        var onWechatVisibilityChange = function() {
-          if (document.hidden) {
-            markWechatLaunched();
-            document.removeEventListener('visibilitychange', onWechatVisibilityChange);
-            window.removeEventListener('pagehide', markWechatLaunched);
-          }
-        };
-        document.addEventListener('visibilitychange', onWechatVisibilityChange);
-        window.addEventListener('pagehide', markWechatLaunched);
-        var launchLink = document.createElement('a');
-        launchLink.href = intentUrl;
-        launchLink.style.display = 'none';
-        launchLink.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(launchLink);
-        launchLink.click();
-        launchLink.parentNode.removeChild(launchLink);
+    function getWechatLaunchUrl() {
+      // Android 不指定 package：交给系统解析器展示可用的微信分身，避免锁定主微信。
+      return isAndroid && !isHarmonyOS
+        ? 'intent://#Intent;scheme=weixin;S.browser_fallback_url=https%3A%2F%2Fweixin.qq.com;end'
+        : 'weixin://';
+    }
 
-        // 浏览器若拦截外部应用跳转，明确告知用户：号码已复制，可手动打开微信。
-        setTimeout(function() {
-          document.removeEventListener('visibilitychange', onWechatVisibilityChange);
-          window.removeEventListener('pagehide', markWechatLaunched);
-          if (!launchDetected && !document.hidden) {
-            showCopyLimitToast('微信未能自动打开，手机号已复制，请手动打开微信', true);
-          }
-        }, 1400);
-      } else {
-        // iOS / 鸿蒙：weixin:// 必须在用户点击同步栈内执行，不能放进 setTimeout。
-        window.location.href = 'weixin://';
-      }
+    function jumpToWechat() {
+      // 必须由用户点击事件同步调用；不再创建隐藏链接或模拟 click。
+      window.location.href = getWechatLaunchUrl();
     }
 
     function copyTextToClipboard(text) {
@@ -8624,7 +8599,7 @@
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0;">' +
-                  '<a href="' + (isAndroid && !isHarmonyOS ? 'intent://#Intent;scheme=weixin;package=com.tencent.mm;S.browser_fallback_url=https%3A%2F%2Fweixin.qq.com;end' : 'weixin://') + '" class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;text-decoration:none;' + (c.phone_copied ? 'color:#e53935 !important;font-weight:800 !important;text-shadow:0 0 6px rgba(229,57,53,.14);' : '') + '">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</a>' +
+                  '<a href="' + getWechatLaunchUrl() + '" class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;text-decoration:none;' + (c.phone_copied ? 'color:#e53935 !important;font-weight:800 !important;text-shadow:0 0 6px rgba(229,57,53,.14);' : '') + '">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</a>' +
                   (function() {
                     if (!showClientInfo || !c.company || !isWhitelistListVisible()) return '';
                     var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
@@ -9231,7 +9206,8 @@ function updateAutoDialBtn() {
  var oldText = phoneDisp.textContent;
  if (oldText === '已复制，正在打开微信...') return;
 
- copyTextToClipboard(phone);
+ // 先同步复制，再在同一真实点击手势内唤起微信，和卡片入口保持一致。
+ syncCopy(phone);
 
  var client = importedClients[currentCallIdx];
  if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
