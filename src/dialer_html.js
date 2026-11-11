@@ -1500,45 +1500,51 @@
       color: #e74c3c;
     }
 
-    /* Android browser: brief copy hint styled like the customer cards. */
+    /* Android browser: compact copy hint matching the PIN unlock button. */
     .android-switch-hint {
       position: fixed;
       z-index: 100020;
       top: 50%;
       left: 50%;
       width: max-content;
-      max-width: calc(100vw - 40px);
+      max-width: calc(100vw - 32px);
       box-sizing: border-box;
       display: none;
-      padding: 14px 18px 9px;
-      border: 1px solid rgba(7, 193, 96, .32);
-      border-radius: var(--radius-sm, 10px);
+      padding: 9px 14px 7px;
+      border: 0;
+      border-radius: 22px;
       transform: translate(-50%, -50%);
-      background: var(--card-bg, #fff);
-      color: var(--text-main, #222);
-      box-shadow: 0 2px 12px rgba(0,0,0,.08), 0 0 0 0.5px rgba(7,193,96,.12);
+      background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
+      color: #4b5563;
+      box-shadow: 0 4px 14px rgba(40,50,65,0.12);
       text-align: center;
-      font-size: 14px;
-      line-height: 1.55;
-      font-weight: 700;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 600;
+      letter-spacing: .1px;
       pointer-events: none;
     }
     .android-switch-hint.show { display: block; }
     .android-switch-hint .switch-hint-title {
-      color: var(--accent-wechat, #07c160);
-      font-weight: 800;
+      color: #4b5563;
+      font-weight: 700;
     }
     .android-switch-hint .switch-arrow {
       display: block;
-      margin: 4px auto 0;
-      color: var(--accent-wechat, #07c160);
-      font-size: 22px;
+      margin: 3px auto 0;
+      color: #4b5563;
+      font-size: 17px;
       line-height: 1;
-      font-weight: 900;
+      font-weight: 700;
     }
     body.dark-mode .android-switch-hint {
-      border-color: rgba(7,193,96,.38);
-      box-shadow: 0 2px 14px rgba(0,0,0,.22), 0 0 0 0.5px rgba(7,193,96,.16);
+      background: linear-gradient(180deg, #f5f6f7 0%, #dfe3e7 100%);
+      color: #374151;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.24);
+    }
+    body.dark-mode .android-switch-hint .switch-hint-title,
+    body.dark-mode .android-switch-hint .switch-arrow {
+      color: #374151;
     }
 
     /* Copy limit toast */
