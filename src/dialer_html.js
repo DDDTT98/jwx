@@ -1500,6 +1500,41 @@
       color: #e74c3c;
     }
 
+    /* Android browser: persistent instruction to switch apps using the system bottom gesture bar. */
+    .android-switch-hint {
+      position: fixed;
+      z-index: 100020;
+      left: 12px;
+      right: 12px;
+      bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      display: none;
+      padding: 11px 14px 7px;
+      border-radius: 14px;
+      background: rgba(24, 26, 30, .96);
+      color: #fff;
+      box-shadow: 0 5px 24px rgba(0,0,0,.28);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    .android-switch-hint.show { display: block; }
+    .android-switch-hint .switch-arrow {
+      display: block;
+      margin-top: 1px;
+      font-size: 25px;
+      line-height: 1;
+      font-weight: 900;
+      color: #35d07f;
+      animation: androidSwitchArrow 1s ease-in-out infinite;
+    }
+    @keyframes androidSwitchArrow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(4px); }
+    }
+    body.dark-mode .android-switch-hint { background: rgba(18, 20, 24, .97); }
+
     /* Copy limit toast */
     .check-toast {
       position: fixed;
@@ -2916,6 +2951,10 @@
 </head>
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
+  <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
+    安卓系统限制，请从底部悬浮条左右滑动切换打开微信
+    <span class="switch-arrow" aria-hidden="true">↓</span>
+  </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
   <!-- 隐私操作功能介绍：全屏弹窗 -->
@@ -4715,12 +4754,30 @@
       return ok;
     }
 
+    // Android 网页版：复制成功后显示底部常驻手势切换提示，不尝试唤起微信。
+    function showAndroidSwitchHint() {
+      if (!isAndroid) return;
+      var hint = document.getElementById('androidSwitchHint');
+      if (hint) hint.classList.add('show');
+    }
+    function copyForAndroidWeb(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(String(text)).then(showAndroidSwitchHint).catch(function() {
+          if (syncCopy(String(text))) showAndroidSwitchHint();
+          else showCopyLimitToast('复制失败，请长按手动复制', true);
+        });
+      } else if (syncCopy(String(text))) {
+        showAndroidSwitchHint();
+      } else {
+        showCopyLimitToast('复制失败，请长按手动复制', true);
+      }
+    }
+
     // 手机号复制专用：Android 浏览器不自动唤起微信，复制成功后提示用户用系统底部手势切换应用。
     function copyPhoneWithSwitchHint(text) {
       function onCopied() {
-        showCopyLimitToast(isAndroid
-          ? '复制成功，请从屏幕底部左右滑动切换到微信粘贴，再切回 JWX'
-          : '已复制: ' + text, false);
+        if (isAndroid) showAndroidSwitchHint();
+        else showCopyLimitToast('已复制: ' + text, false);
       }
       if (!isHarmonyOS && navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(onCopied).catch(function() {
@@ -8710,12 +8767,10 @@
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
             var client = importedClients[idx];
-            // APK 原生模式：复制号码并打开微信添加朋友入口，不再走浏览器 Intent。
-            if (openNativeWechatAddFriend(client, '', '')) {
+            // Android 网页版只复制号码，提醒用户通过系统底部手势切换微信。
+            if (isAndroid) {
               e.preventDefault();
-            } else if (isAndroid) {
-              e.preventDefault();
-              copyPhoneWithSwitchHint(phone);
+              copyForAndroidWeb(phone);
             } else {
               syncCopy(phone);
             }
@@ -8755,8 +8810,9 @@
             // 隐私模式下星号仍可单独复制真实姓名，不带其他客户资料
             var copyText = isClientInfoVisible() ? (buildCopyText(client) || name) : name;
             if (!copyText) return;
-            // APK 原生模式直接进入微信添加朋友；普通浏览器保留原有复制/唤起逻辑。
-            if (!openNativeWechatAddFriend(client, name, '')) {
+            // Android 网页版点击姓名只复制，不自动跳转微信。
+            if (isAndroid) copyForAndroidWeb(copyText);
+            else {
               copyTextToClipboard(copyText);
               jumpToWechat();
             }
@@ -8803,7 +8859,8 @@
               return;
             }
             var isCopyNote = b.dataset.copyNote === '1';
-            if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
+            if (isAndroid) copyForAndroidWeb(copyText);
+            else if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
               copyTextToClipboard(copyText);
             }
 
@@ -8822,7 +8879,7 @@
             if (cardEl) cardEl.classList.add('copied-company');
             b.textContent = '已复制';
             b.classList.add('privacy-action-done');
-            if (isCopyNote || !(isAndroid && window.JWXNative && typeof window.JWXNative.openWechatAddFriend === 'function')) jumpToWechat();
+            if (!isAndroid && (isCopyNote || !(window.JWXNative && typeof window.JWXNative.openWechatAddFriend === 'function'))) jumpToWechat();
             // 备注和单位按钮统一反馈时长，并恢复各自原始文案。
             setTimeout(function() {
               b.textContent = originalLabel;
