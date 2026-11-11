@@ -1100,13 +1100,8 @@ export function createSupabaseClient(env) {
         accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
       }
 
-      // 10-day cooldown: only return customers that are either never-pulled
-      // or pulled more than 10 days ago. Prevents multi-device duplicates.
-      var cooldownDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
-      var cooldownFilter = '&or=(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(cooldownDate) + ')';
-
-      // Order: never-pulled first (newest import first), then oldest-pulled ascend
-      // NULLs first = never pulled (top), then oldest pulled ascend (cycle back)
+      // No cooldown filter: unpulled customers first, then previously pulled customers
+      // in oldest-pulled order, so customers not yet added can cycle back into the dialer.
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
 
       var colSets = [
@@ -1127,7 +1122,7 @@ export function createSupabaseClient(env) {
       var resp = null;
       var anySuccess = false;
       for (var ci = 0; ci < colSets.length; ci++) {
-        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + cooldownFilter + accountFilter + notInFilter;
+        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + accountFilter + notInFilter;
         resp = await fetch(qUrl, { headers: hdrs });
         if (resp.ok) {
           data = await resp.json();
