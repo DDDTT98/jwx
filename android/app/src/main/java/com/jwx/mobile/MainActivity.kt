@@ -54,19 +54,21 @@ class MainActivity : Activity() {
             text = "打开微信"
             setOnClickListener { launchWechat() }
         }
-        val settings = Button(this).apply {
+        val settingsButton = Button(this).apply {
             text = "设置网址"
             setOnClickListener { showUrlDialog() }
         }
         bar.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
         bar.addView(openWechat)
-        bar.addView(settings)
+        bar.addView(settingsButton)
 
         webView = WebView(this).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.javaScriptCanOpenWindowsAutomatically = false
-            settings.setSupportMultipleWindows(false)
+            this.settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                javaScriptCanOpenWindowsAutomatically = false
+                setSupportMultipleWindows(false)
+            }
             addJavascriptInterface(NativeBridge(), "JWXNative")
             webChromeClient = WebChromeClient()
             webViewClient = object : WebViewClient() {
