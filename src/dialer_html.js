@@ -4574,15 +4574,42 @@
     }
 
     // Cross-platform WeChat jump
-    var isAndroid = /Android/.test(navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
-    // 鸿蒙（华为自研 WebView 内核不解析 Android intent:// scheme）
-    var isHarmonyOS = /HarmonyOS|HMSCore|HUAWEI/.test(navigator.userAgent);
+    var isAndroid = /Android/i.test(navigator.userAgent) && !/iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // 只按明确的 HarmonyOS 标识判断鸿蒙；HUAWEI/HMSCore 也会出现在部分 Android/EMUI 设备上，
+    // 不能因此误判并跳过 Android Intent 唤醒方式。
+    var isHarmonyOS = /HarmonyOS|OpenHarmony/i.test(navigator.userAgent);
     function jumpToWechat() {
       if (isAndroid && !isHarmonyOS) {
-        // Android (Chrome/Chromium WebView): intent:// scheme
-        window.location.href = 'intent://#Intent;scheme=weixin;package=com.tencent.mm;end';
+        // Android 浏览器：在真实点击手势栈内通过可点击链接发起 Intent，比直接改 location 更兼容部分浏览器。
+        var intentUrl = 'intent://#Intent;scheme=weixin;package=com.tencent.mm;end';
+        var launchDetected = false;
+        var markWechatLaunched = function() { launchDetected = true; };
+        document.addEventListener('visibilitychange', function onVisibilityChange() {
+          if (document.hidden) {
+            markWechatLaunched();
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            window.removeEventListener('pagehide', markWechatLaunched);
+          }
+        });
+        window.addEventListener('pagehide', markWechatLaunched);
+        var launchLink = document.createElement('a');
+        launchLink.href = intentUrl;
+        launchLink.style.display = 'none';
+        launchLink.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(launchLink);
+        launchLink.click();
+        launchLink.parentNode.removeChild(launchLink);
+
+        // 浏览器若拦截外部应用跳转，明确告知用户：号码已复制，可手动打开微信。
+        setTimeout(function() {
+          document.removeEventListener('visibilitychange', onVisibilityChange);
+          window.removeEventListener('pagehide', markWechatLaunched);
+          if (!launchDetected && !document.hidden) {
+            showCopyLimitToast('微信未能自动打开，手机号已复制，请手动打开微信', true);
+          }
+        }, 1400);
       } else {
-        // iOS / 鸿蒙: weixin:// scheme（必须在点击同步栈内调用，setTimeout 脱离手势会被拦截）
+        // iOS / 鸿蒙：weixin:// 必须在用户点击同步栈内执行，不能放进 setTimeout。
         window.location.href = 'weixin://';
       }
     }
