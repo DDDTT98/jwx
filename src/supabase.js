@@ -835,7 +835,7 @@ export function createSupabaseClient(env) {
         unit_nature: String(c.unit_nature || c.unitNature || '').trim() || null,
         asset: String(c.asset || '').trim() || null,
         note: noteVal,
-        category: (c.category || '').trim() || '公海客户',
+        category: (c.category || '').trim() || '待跟进',
         batch_label: (c.batch_label || '').trim(),
         account_id: c.account_id || acctId
       };
