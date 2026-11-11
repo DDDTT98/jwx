@@ -12021,8 +12021,8 @@ function updateAutoDialBtn() {
 
                 var customers = res.data || [];
                 if (customers.length === 0) {
-                  if (res.master_daily_remaining === 0) {
-                    alert('今天加载满了，明天再来。');
+                  if (res.master_daily_limit_reached || res.master_daily_remaining === 0) {
+                    alert('今日主账号补充额度已达300个，请联系管理员手动分配客户。');
                   } else if (res.total > 0) {
                     alert('当前范围内客户都已在待拨列表中。\\n请清空当前列表或等待其他设备释放后重试。');
                   } else {
@@ -12065,7 +12065,7 @@ function updateAutoDialBtn() {
                 renderDialCards();
                 updateStats();
                 if (Number(res.master_loaded || 0) > 0 && Number(res.master_daily_remaining) === 0) {
-                  alert('今天加载满了，明天再来。');
+                  alert('今日主账号补充额度已达300个，请联系管理员手动分配客户。');
                 }
               })
               .catch(function(err) {
