@@ -9247,11 +9247,12 @@ function updateAutoDialBtn() {
  var oldText = phoneDisp.textContent;
  if (oldText === '已复制，正在打开微信...') return;
 
- // Android 浏览器只复制并提示手动切换；其他平台保留原有自动唤起微信行为。
- if (isAndroid) copyPhoneWithSwitchHint(phone);
- else syncCopy(phone);
-
  var client = importedClients[currentCallIdx];
+ // APK 原生模式直接进入微信添加朋友入口。
+ if (!openNativeWechatAddFriend(client, '', '')) {
+   if (isAndroid) copyPhoneWithSwitchHint(phone);
+   else syncCopy(phone);
+ }
  if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
 
  phoneDisp.textContent = isAndroid ? '已复制' : '已复制，正在打开微信...';
@@ -9274,7 +9275,7 @@ function updateAutoDialBtn() {
  }
  }
 
- if (!isAndroid) jumpToWechat(); // Android 留给用户通过系统底部手势切换应用
+ if (!(isAndroid && window.JWXNative && typeof window.JWXNative.openWechatAddFriend === 'function')) jumpToWechat(); // APK 原生入口已处理微信添加好友跳转
 
  setTimeout(function() {
  phoneDisp.textContent = maskPhone(phone);
@@ -9290,7 +9291,7 @@ function updateAutoDialBtn() {
  var client = importedClients[currentCallIdx];
  // 复制姓名同样按复制偏好组合（与单位名称一致）
  var copyText = buildCopyText(client) || name;
- copyTextToClipboard(copyText);
+ if (!openNativeWechatAddFriend(client, name, '')) copyTextToClipboard(copyText);
 
  if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
 
@@ -9332,7 +9333,7 @@ function updateAutoDialBtn() {
  var client = importedClients[currentCallIdx];
  // 按复制偏好组合（姓名/单位/公积金/日期）；全部未勾选时兜底仅单位名称
  var copyText = buildCopyText(client) || company;
- copyTextToClipboard(copyText);
+ if (!openNativeWechatAddFriend(client, '', company)) copyTextToClipboard(copyText);
 
  if (client) recordTimeline(client.phone || client.mobile, 'copy_company');
 
