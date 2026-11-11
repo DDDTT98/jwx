@@ -4833,10 +4833,21 @@
     // 记录客户操作时间线（最新覆盖）
     function recordTimeline(mobile, type, detail) {
       if (!mobile) return;
+      // 优先使用该客户被认领时绑定的设备/批次标识，避免换批或切换账号后
+      // 用当前全局批次去更新旧客户，造成“拨号列表已失效”。
+      var timelineClient = importedClients.find(function(c) {
+        return String(c.phone || c.mobile || '') === String(mobile);
+      });
+      var timelineDeviceId = timelineClient && (timelineClient.dialer_device_id || timelineClient.device_id);
+      var timelineBatchId = timelineClient && (timelineClient.dialer_batch_id || timelineClient.batch_id);
+      if (!timelineDeviceId || !timelineBatchId) {
+        timelineDeviceId = _dialerDeviceId;
+        timelineBatchId = getActiveDialerBatchId();
+      }
       var payload = {
         mobile: mobile,
-        device_id: _dialerDeviceId,
-        batch_id: getActiveDialerBatchId(),
+        device_id: timelineDeviceId,
+        batch_id: timelineBatchId,
         date: todayLocalStr(),
         entry: {
           type: type,
@@ -12006,6 +12017,9 @@ function updateAutoDialBtn() {
                     whitelist_name: c.whitelist_name || '',
                     category: c.category || '',
                     batch_label: c.batch_label || '',
+                    // 将服务端本次认领的归属标识随客户保存，后续操作始终使用该客户自己的批次。
+                    dialer_device_id: c.dialer_device_id || deviceId,
+                    dialer_batch_id: c.dialer_batch_id || batchId,
                     dialedStatus: 'todo',
                     dialedAt: null
                   };
@@ -12347,7 +12361,9 @@ function updateAutoDialBtn() {
               importedClients.push({
                 name: clientData.name || '未知', phone: clientData.mobile, mobile: clientData.mobile,
                 company: clientData.company_name || '', note: parsed.note, custom: parsed.custom,
-                fund: clientData.fund || '', category: clientData.category || '', batch_label: clientData.batch_label || ''
+                fund: clientData.fund || '', category: clientData.category || '', batch_label: clientData.batch_label || '',
+                // add-to-list 请求已用当前设备/批次完成原子认领。
+                dialer_device_id: _dialerDeviceId, dialer_batch_id: getActiveDialerBatchId()
               });
               recordAddToDialList(m);
               addedMobiles.push(m);
