@@ -3083,13 +3083,13 @@ export default {
         const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
         const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
-        // 点击“添加VX”必须先确认云端转公海成功，再返回成功状态；失败由前端提示并允许重试。
+        // 先记录时间线，再执行公海转移；转移失败仍会返回错误，前端不会误报云端成功。
+        await sb.updateCustomerTimeline(mobile, entry, accountId);
         var transferredToPool = false;
         if (entry.type === 'add_wechat') {
           await sb.transferToPool([mobile], accountId, null);
           transferredToPool = true;
         }
-        await sb.updateCustomerTimeline(mobile, entry, accountId);
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
           await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
