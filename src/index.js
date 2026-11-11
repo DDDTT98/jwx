@@ -2745,16 +2745,23 @@ export default {
         let limit = 50;
         let excludeMobiles = null;
         var accountId = _dialerAccountId;
+        var deviceId = '';
+        var batchId = '';
 
         if (request.method === 'POST') {
           try {
             const body = await request.json();
             limit = Math.max(1, Math.min(parseInt(body.limit) || 50, 200));
             if (Array.isArray(body.exclude) && body.exclude.length > 0) excludeMobiles = body.exclude;
+            deviceId = String(body.device_id || '').trim();
+            batchId = String(body.batch_id || '').trim();
           } catch (parseErr) { /* use defaults */ }
         } else {
           limit = Math.max(1, Math.min(parseInt(new URL(request.url).searchParams.get('limit') || '50'), 200));
         }
+        // Legacy callers receive generated identifiers; the current dialer sends stable IDs.
+        if (!deviceId) deviceId = 'legacy_' + String(accountId || 'unknown');
+        if (!batchId) batchId = 'batch_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
 
         // ======== Per-account pull lock (prevents multi-device duplicate claiming) ========
         var lockKey = 'dialer:lock:pull:' + (accountId || 'anonymous');
@@ -2781,7 +2788,7 @@ export default {
           // Do not scan a per-mobile 数据表扫描 here: it duplicates the DB filter and
           // can fan out into 大量逐条数据库请求 on every pull.
           const sb = createSupabaseClient(env);
-          const result = await sb.getCustomersForDialer(limit, excludeMobiles, accountId);
+          const result = await sb.claimCustomersForDialer(accountId, accountId, deviceId, batchId, limit, excludeMobiles, 600);
           if (result && result.error) throw new Error(result.error);
           const data = result.data || [];
 
@@ -2808,49 +2815,18 @@ export default {
                 var mobile = String(c.mobile || '').trim();
                 if (mobile && masterExclude.indexOf(mobile) === -1) masterExclude.push(mobile);
               });
-              var masterResult = await sb.getCustomersForDialer(masterNeed, masterExclude.length ? masterExclude : null, masterAccount.account_id);
-              if (masterResult && masterResult.error) throw new Error('读取主账号待拨客户失败：' + masterResult.error);
-              var masterCandidates = masterResult.data || [];
-              var movedRows = [];
-
-              for (var msi = 0; msi < masterCandidates.length; msi += 100) {
-                var masterChunk = masterCandidates.slice(msi, msi + 100);
-                var masterMobiles = masterChunk.map(function(c) { return String(c.mobile || '').trim(); }).filter(Boolean);
-                if (!masterMobiles.length) continue;
-                var masterIn = masterMobiles.map(function(m) { return encodeURIComponent(m); }).join(',');
-                var moveResp = await fetch(
-                  env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + masterIn + ')&account_id=eq.' + encodeURIComponent(masterAccount.account_id),
-                  {
-                    method: 'PATCH',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'apikey': env.SUPABASE_KEY,
-                      'Authorization': 'Bearer ' + env.SUPABASE_KEY,
-                      'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify({ account_id: accountId, pulled_at: null })
-                  }
-                );
-                if (!moveResp.ok) {
-                  var moveErr = await moveResp.text();
-                  throw new Error('从主账号补充客户失败：' + moveResp.status + ' ' + moveErr.slice(0, 180));
-                }
-                var moved = await moveResp.json().catch(function() { return []; });
-                if (Array.isArray(moved) && moved.length) {
-                  movedRows = movedRows.concat(moved);
-                  masterLoadedCount += moved.length;
-                  masterDailyCount += moved.length;
-                  await env.DATA_STORE.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
-                  masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
-                }
-                if (masterDailyRemaining <= 0 || data.length + movedRows.length >= limit) break;
-              }
+              // The RPC moves and claims master rows in the same transaction; no read-then-PATCH window.
+              var masterResult = await sb.claimCustomersForDialer(
+                masterAccount.account_id, accountId, deviceId, batchId,
+                masterNeed, masterExclude, 600
+              );
+              var movedRows = masterResult.data || [];
               if (movedRows.length) {
-                var movedMap = {};
-                movedRows.forEach(function(c) { movedMap[String(c.mobile || '').trim()] = true; });
-                masterCandidates.forEach(function(c) {
-                  if (movedMap[String(c.mobile || '').trim()]) data.push(c);
-                });
+                data.push.apply(data, movedRows);
+                masterLoadedCount = movedRows.length;
+                masterDailyCount += movedRows.length;
+                await env.DATA_STORE.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
+                masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
               }
             }
           }
@@ -2914,14 +2890,10 @@ export default {
             c.whitelist_name = products.join('、');
           });
 
-          // 在所有客户加工完成后同步写入冷却；数据库确认后才返回，避免处理失败造成客户被冷却却未送达。
-          if (data.length > 0) {
-            const pulledMobiles = data.map(function(c) { return String(c.mobile || '').trim(); }).filter(Boolean);
-            await sb.batchSetPulledAt(pulledMobiles, accountId);
-          }
+          // pulled_at and device/batch ownership are written atomically by claim_dialer_customers.
           try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
 
-          return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining }), {
+          return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining, device_id: deviceId, batch_id: batchId }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
           });
         } catch (innerErr) {
