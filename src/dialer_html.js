@@ -1500,7 +1500,7 @@
       color: #e74c3c;
     }
 
-    /* Android browser: persistent instruction to switch apps using the system bottom gesture bar. */
+    /* Android browser: brief copy-success hint. */
     .android-switch-hint {
       position: fixed;
       z-index: 100020;
@@ -1508,54 +1508,25 @@
       right: 12px;
       bottom: calc(8px + env(safe-area-inset-bottom, 0px));
       display: none;
-      padding: 11px 14px 7px;
-      border-radius: 14px;
+      padding: 9px 12px;
+      border-radius: 12px;
       background: rgba(24, 26, 30, .96);
       color: #fff;
-      box-shadow: 0 5px 24px rgba(0,0,0,.28);
+      box-shadow: 0 4px 16px rgba(0,0,0,.22);
       text-align: center;
       font-size: 13px;
-      line-height: 1.45;
+      line-height: 1.4;
       font-weight: 700;
       pointer-events: none;
     }
     .android-switch-hint.show { display: block; }
     .android-switch-hint .switch-arrow {
-      display: block;
-      margin-top: 1px;
-      font-size: 25px;
+      display: inline-block;
+      margin-left: 5px;
+      color: #35d07f;
+      font-size: 17px;
       line-height: 1;
       font-weight: 900;
-      color: #35d07f;
-      animation: androidSwitchArrow 1s ease-in-out infinite;
-    }
-    .android-switch-hint .switch-gesture-bar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 13px;
-      width: 104px;
-      height: 24px;
-      margin: 3px auto 0;
-      border-radius: 999px;
-      background: rgba(255,255,255,.13);
-      color: #fff;
-      font-size: 21px;
-      line-height: 1;
-      font-weight: 800;
-      letter-spacing: 0;
-    }
-    .android-switch-hint .switch-gesture-bar i {
-      display: block;
-      width: 34px;
-      height: 4px;
-      border-radius: 99px;
-      background: #fff;
-      box-shadow: 0 0 5px rgba(255,255,255,.35);
-    }
-    @keyframes androidSwitchArrow {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(4px); }
     }
     body.dark-mode .android-switch-hint { background: rgba(18, 20, 24, .97); }
 
@@ -2976,9 +2947,7 @@
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
-    安卓系统，请从屏幕底部边缘悬浮条左右切换微信粘贴添加
-    <span class="switch-arrow" aria-hidden="true">↓</span>
-    <span class="switch-gesture-bar" aria-hidden="true"><span>‹</span><i></i><span>›</span></span>
+    已复制，左右滑动切换微信粘贴 <span class="switch-arrow" aria-hidden="true">↓</span>
   </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
@@ -4779,11 +4748,18 @@
       return ok;
     }
 
-    // Android 网页版：复制成功后显示底部常驻手势切换提示，不尝试唤起微信。
+    // Android 网页版：复制成功后短暂提示切换微信，约 1.6 秒后自动消失。
+    var androidSwitchHintTimer = null;
     function showAndroidSwitchHint() {
       if (!isAndroid) return;
       var hint = document.getElementById('androidSwitchHint');
-      if (hint) hint.classList.add('show');
+      if (!hint) return;
+      hint.classList.add('show');
+      if (androidSwitchHintTimer) clearTimeout(androidSwitchHintTimer);
+      androidSwitchHintTimer = setTimeout(function() {
+        hint.classList.remove('show');
+        androidSwitchHintTimer = null;
+      }, 1600);
     }
     function copyForAndroidWeb(text) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
