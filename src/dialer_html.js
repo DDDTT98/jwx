@@ -3165,6 +3165,12 @@
         <input type="text" id="authLoginAccountName" class="auth-input" placeholder="账号" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" readonly>
         <input type="text" id="authLoginPin" class="auth-input auth-pin-input auth-pin-mask" maxlength="6" inputmode="numeric" placeholder="PIN" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" readonly>
         <div id="authLoginError" class="auth-error"></div>
+        <div id="authLoginMfaPanel" style="display:none;flex-direction:column;gap:10px;">
+          <div style="font-size:.78rem;color:var(--text-main);text-align:center;">请输入身份验证器 App 中的 6 位动态验证码</div>
+          <input type="text" id="authLoginMfaCode" class="auth-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码" style="letter-spacing:5px;text-align:center;">
+          <button type="button" id="authLoginMfaBtn" class="auth-btn">验证并登录</button>
+          <button type="button" id="authLoginMfaBack" class="auth-btn" style="opacity:.72;">返回</button>
+        </div>
         <div id="tsLoginWidget" style="height:0;overflow:hidden;pointer-events:none;" aria-hidden="true"></div>
         <button type="button" id="authLoginBtn" class="auth-btn">登录</button>
       </form>
@@ -3632,7 +3638,7 @@
 <!-- DB Password Gate -->
 <div class="modal-overlay" id="dbPwdOverlay" style="display:none; z-index:100005; align-items:center; justify-content:center;">
   <div class="modal-card" style="text-align:center; gap:16px; max-width:340px;">
-    <input type="password" id="dbPwdInput" maxlength="6" autocomplete="off" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
+    <input type="password" id="dbPwdInput" name="database-dashboard-password" maxlength="8" autocomplete="current-password" style="width:100%; max-width:220px; height:42px; font-size:1.4rem; text-align:center; letter-spacing:8px; border:2px solid var(--card-border); border-radius:var(--radius-xs); background:var(--card-bg); color:var(--text-main); outline:none; font-family:monospace;">
     <span id="dbPwdError" style="font-size:0.62rem; color:#e74c3c; display:none; min-height:16px;"></span>
     <div style="display:flex; gap:8px; width:100%;">
       <button id="dbPwdCancelBtn" class="btn-modal btn-danger" style="flex:1;">取消</button>
@@ -3748,6 +3754,28 @@
         <button id="dbChangePinBtn" class="btn-secondary" style="padding:0 12px; height:32px; font-size:0.72rem;">修改</button>
       </div>
       <div id="dbChangePinError" style="font-size:0.62rem; min-height:16px;"></div>
+      <div style="border-top:0.5px solid var(--card-border);padding-top:12px;display:flex;flex-direction:column;gap:7px;">
+        <div style="font-size:0.85rem;font-weight:900;color:var(--text-main);">数据库看板密码</div>
+        <div style="font-size:0.66rem;color:var(--text-light);line-height:1.5;">修改当前浏览器的看板访问密码，必须为 8 位字母与数字组合。</div>
+        <input type="password" id="dbDashboardPwdOld" name="database-dashboard-current-password" autocomplete="current-password" placeholder="当前看板密码" maxlength="8" style="height:34px;padding:0 9px;border:0.5px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);" />
+        <input type="password" id="dbDashboardPwdNew" name="database-dashboard-new-password" autocomplete="new-password" placeholder="新密码（8位字母+数字）" maxlength="8" style="height:34px;padding:0 9px;border:0.5px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);" />
+        <button type="button" id="dbDashboardPwdSave" class="btn-secondary" style="height:34px;font-size:.72rem;">修改看板密码</button>
+        <div id="dbDashboardPwdStatus" style="font-size:.62rem;min-height:16px;"></div>
+      </div>
+      <div style="border-top:0.5px solid var(--card-border);padding-top:12px;display:flex;flex-direction:column;gap:7px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:900;color:var(--text-main);">
+          <input type="checkbox" id="db2faToggle" style="width:17px;height:17px;accent-color:var(--accent-wechat);"> 启用 2FA 双重验证
+        </label>
+        <div style="font-size:.66rem;color:var(--text-light);line-height:1.5;">启用后，每次账户登录除 PIN 外，还必须输入身份验证器 App 的 6 位动态验证码。</div>
+        <div id="db2faSecretWrap" style="display:none;padding:9px;border-radius:7px;background:var(--card-bg);font-size:.68rem;line-height:1.5;">
+          <div style="font-weight:800;margin-bottom:4px;">身份验证器密钥（手动添加）</div>
+          <code id="db2faSecret" style="display:block;word-break:break-all;user-select:all;"></code>
+          <div style="margin-top:5px;color:var(--text-light);">在 Google Authenticator 或 Microsoft Authenticator 中添加此密钥，然后输入 App 当前显示的 6 位验证码完成绑定。</div>
+        </div>
+        <input type="text" id="db2faCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="输入 6 位动态验证码" style="display:none;height:34px;padding:0 9px;border:0.5px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);letter-spacing:3px;">
+        <button type="button" id="db2faAction" class="btn-secondary" style="display:none;height:34px;font-size:.72rem;">验证并启用</button>
+        <div id="db2faStatus" style="font-size:.62rem;min-height:16px;"></div>
+      </div>
       <div id="dbLegacyStorageMigration" style="display:none;flex-direction:column;gap:6px;border-top:0.5px solid var(--card-border);padding-top:12px;">
         <div style="font-size:0.78rem;font-weight:800;color:var(--text-main);">旧文件迁移</div>
         <div style="font-size:0.68rem;line-height:1.5;color:var(--text-light);">将旧 OCR 模型、图片、文档和粘贴文件迁移到 Supabase 私有 Storage。原始数据会保留，不会删除。</div>
@@ -10919,8 +10947,8 @@ function updateAutoDialBtn() {
 
       function doConfirm() {
         var pwd = input.value.trim();
-        if (pwd.length !== 6 || !/^[a-zA-Z0-9]+$/.test(pwd)) {
-          error.textContent = '请输入 6 位字母或数字密码';
+        if (pwd.length !== 8 || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd)) {
+          error.textContent = '请输入 8 位字母和数字组合密码';
           error.style.display = 'block';
           input.value = '';
           focusPasswordInput();
@@ -13099,6 +13127,63 @@ function updateAutoDialBtn() {
         });
       }
 
+      // Database dashboard password: this is a browser-local gate, separate from account PIN.
+      var dbPwdSave=document.getElementById('dbDashboardPwdSave');
+      if(dbPwdSave) dbPwdSave.addEventListener('click',function(){
+        var oldPwd=document.getElementById('dbDashboardPwdOld').value.trim(), newPwd=document.getElementById('dbDashboardPwdNew').value.trim();
+        var status=document.getElementById('dbDashboardPwdStatus'), saved=getDbPassword();
+        status.style.color='#e74c3c';
+        if(!oldPwd||hashPwd(oldPwd)!==saved){status.textContent='当前看板密码不正确';return;}
+        if(!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(newPwd)){status.textContent='新密码必须为 8 位字母和数字组合';return;}
+        try{localStorage.setItem(DB_PWD_K,hashPwd(newPwd));status.style.color='#07c160';status.textContent='看板密码修改成功（仅当前浏览器）';document.getElementById('dbDashboardPwdOld').value='';document.getElementById('dbDashboardPwdNew').value='';}
+        catch(e){status.textContent='保存失败，请检查浏览器存储权限';}
+      });
+
+      // Account TOTP 2FA settings
+      var twofaToggle=document.getElementById('db2faToggle'), twofaCode=document.getElementById('db2faCode'), twofaAction=document.getElementById('db2faAction');
+      var twofaSecretWrap=document.getElementById('db2faSecretWrap'), twofaSecret=document.getElementById('db2faSecret'), twofaStatus=document.getElementById('db2faStatus'), twofaMode='';
+      function loadTwofaStatus(){
+        fetch('/api/dialer/auth/2fa/status',{headers:{'Authorization':'Bearer '+getSessionToken()}})
+        .then(function(r){return r.json();}).then(function(res){
+          if(!res.success)throw new Error(res.error||'读取状态失败');
+          twofaToggle.checked=!!res.enabled;
+          twofaStatus.style.color=res.enabled?'#07c160':'var(--text-soft)';
+          twofaStatus.textContent=res.enabled?'2FA 已启用，登录时将强制验证动态码':'2FA 尚未启用';
+        }).catch(function(e){twofaStatus.style.color='#e74c3c';twofaStatus.textContent=e.message||'读取 2FA 状态失败';});
+      }
+      if(twofaToggle){
+        loadTwofaStatus();
+        twofaToggle.addEventListener('change',function(){
+          twofaCode.style.display='block';twofaAction.style.display='block';twofaCode.value='';
+          if(twofaToggle.checked){
+            twofaMode='enable';twofaStatus.textContent='正在生成绑定密钥...';
+            fetch('/api/dialer/auth/2fa/setup',{method:'POST',headers:{'Authorization':'Bearer '+getSessionToken(),'Content-Type':'application/json'},body:'{}'})
+            .then(function(r){return r.json();}).then(function(res){
+              if(!res.success)throw new Error(res.error||'生成密钥失败');
+              twofaSecret.textContent=res.secret;twofaSecretWrap.style.display='block';
+              twofaAction.textContent='验证并启用 2FA';twofaStatus.textContent='请先在身份验证器 App 中添加密钥，再输入动态码';
+            }).catch(function(e){twofaToggle.checked=false;twofaMode='';twofaSecretWrap.style.display='none';twofaCode.style.display='none';twofaAction.style.display='none';twofaStatus.style.color='#e74c3c';twofaStatus.textContent=e.message||'设置失败';});
+          }else{
+            twofaMode='disable';twofaSecretWrap.style.display='none';twofaAction.textContent='验证并关闭 2FA';
+            twofaStatus.textContent='请输入当前身份验证器动态码以确认关闭';
+          }
+        });
+        twofaAction.addEventListener('click',function(){
+          var code=twofaCode.value.trim();if(!/^\\d{6}$/.test(code)){twofaStatus.style.color='#e74c3c';twofaStatus.textContent='请输入 6 位动态验证码';return;}
+          var mode=twofaMode, endpoint=mode==='enable'?'/api/dialer/auth/2fa/enable':'/api/dialer/auth/2fa/disable';
+          twofaAction.disabled=true;twofaAction.textContent='验证中...';
+          fetch(endpoint,{method:'POST',headers:{'Authorization':'Bearer '+getSessionToken(),'Content-Type':'application/json'},body:JSON.stringify({code:code})})
+          .then(function(r){return r.json();}).then(function(res){
+            if(!res.success)throw new Error(res.error||'操作失败');
+            twofaToggle.checked=!!res.enabled;twofaMode='';twofaSecretWrap.style.display='none';twofaCode.style.display='none';twofaAction.style.display='none';twofaCode.value='';
+            twofaStatus.style.color='#07c160';twofaStatus.textContent=res.enabled?'2FA 已启用，后续登录必须验证动态码':'2FA 已关闭';
+          }).catch(function(e){
+            twofaStatus.style.color='#e74c3c';twofaStatus.textContent=e.message||'验证失败';
+            if(mode==='disable')twofaToggle.checked=true;
+          }).finally(function(){twofaAction.disabled=false;twofaAction.textContent=twofaMode==='disable'?'验证并关闭 2FA':'验证并启用 2FA';});
+        });
+      }
+
       // Logout
       var logoutBtn = document.getElementById("dbLogoutBtn");
       if (logoutBtn) { logoutBtn.addEventListener("click", function() { clearSession(); location.reload(); }); }
@@ -14308,6 +14393,19 @@ function updateAutoDialBtn() {
       // Turnstile 后台验证，按钮始终可用
       loginBtn.disabled = false;
       loginBtn.textContent = '登录';
+      var mfaBtn=document.getElementById('authLoginMfaBtn');
+      if(mfaBtn)mfaBtn.onclick=doLoginMfa;
+      var mfaCode=document.getElementById('authLoginMfaCode');
+      if(mfaCode)mfaCode.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();doLoginMfa();}};
+      var mfaBack=document.getElementById('authLoginMfaBack');
+      if(mfaBack)mfaBack.onclick=function(){
+        pendingLoginMfaChallenge='';
+        document.getElementById('authLoginMfaPanel').style.display='none';
+        document.getElementById('authLoginAccountName').style.display='';
+        document.getElementById('authLoginPin').style.display='';
+        document.getElementById('authLoginBtn').style.display='';
+        document.getElementById('authLoginError').textContent='';
+      };
 
       // Safari anti-autofill: readonly + random name + remove on focus
       var r1 = 'a_' + Math.random().toString(36).substring(2, 10);
@@ -14657,6 +14755,24 @@ function updateAutoDialBtn() {
         });
     }
 
+    var pendingLoginMfaChallenge = '';
+    function finishLoginSession(res) {
+      saveSession(res);
+      showAppShell();
+      updateAccountDisplay();
+    }
+    function doLoginMfa() {
+      var codeInput=document.getElementById('authLoginMfaCode'), error=document.getElementById('authLoginError'), btn=document.getElementById('authLoginMfaBtn');
+      var code=(codeInput.value||'').trim();
+      if(!/^\\d{6}$/.test(code)){error.textContent='请输入 6 位动态验证码';return;}
+      btn.disabled=true;btn.textContent='验证中...';
+      fetch('/api/dialer/auth/mfa/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({challenge_token:pendingLoginMfaChallenge,code:code})})
+      .then(function(r){return r.json();}).then(function(res){
+        if(res.success){pendingLoginMfaChallenge='';finishLoginSession(res);}
+        else{error.textContent=res.error||'验证码错误';codeInput.value='';codeInput.focus();}
+      }).catch(function(){error.textContent='网络错误，请重试';})
+      .finally(function(){btn.disabled=false;btn.textContent='验证并登录';});
+    }
     function doLogin() {
       var accountInput = document.getElementById('authLoginAccountName');
       var pinInput = document.getElementById('authLoginPin');
@@ -14681,9 +14797,16 @@ function updateAutoDialBtn() {
       .then(function(r) { return r.json(); })
       .then(function(res) {
         if (res.success) {
-          saveSession(res);
-          showAppShell();
-          updateAccountDisplay();
+          finishLoginSession(res);
+        } else if (res.mfa_required && res.challenge_token) {
+          pendingLoginMfaChallenge=res.challenge_token;
+          document.getElementById('authLoginAccountName').style.display='none';
+          document.getElementById('authLoginPin').style.display='none';
+          document.getElementById('authLoginBtn').style.display='none';
+          document.getElementById('authLoginMfaPanel').style.display='flex';
+          document.getElementById('authLoginMfaCode').value='';
+          document.getElementById('authLoginMfaCode').focus();
+          error.textContent='';
         } else {
           var errMsg = res.error || '登录失败';
           // Parse LOCKOUT:seconds:message prefix from server
