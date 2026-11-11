@@ -4371,7 +4371,10 @@
       var boundaryClient = importedClients[roundSize - 1];
       if (!boundaryClient) return;
       var clientIndex = importedClients.indexOf(client);
-      if (clientIndex === roundSize - 1) boundaryClient.round_boundary_operated = true;
+      if (clientIndex === roundSize - 1 && !boundaryClient.round_boundary_operated) {
+        boundaryClient.round_boundary_operated = true;
+        saveState();
+      }
       if (!boundaryClient.round_boundary_operated) return;
       var roundClients = importedClients.slice(0, roundSize);
       var qualifiedCount = roundClients.filter(function(c) { return c.name_copied || c.company_copied || c.note_copied; }).length;
