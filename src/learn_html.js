@@ -518,9 +518,415 @@ export const LEARN_HTML = `<!DOCTYPE html>
   <div class="learn-header">
     <a class="learn-back-btn" href="/">返回</a>
     <span class="learn-header-title">学习中心</span>
+    <a class="learn-back-btn" href="/learn/dialog" style="margin-left:auto;background:#e4f5e9;color:#168348;">💬 对话话术模拟</a>
   </div>
   <div class="learn-body">
     <div class="learn-article"><!--LEARN_CONTENT--></div>
   </div>
+</body>
+</html>`;
+
+
+export const DIALOG_SIM_HTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>微信对话模拟</title>
+<style>
+:root{--green:#95ec69;--bg:#ededed;--ink:#191919;--muted:#8b8b8b}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink)}
+.top{height:52px;display:flex;align-items:center;gap:12px;padding:0 14px;background:#f7f7f7;border-bottom:1px solid #e5e5e5;position:sticky;top:0;z-index:5}
+.back{color:#287b50;text-decoration:none;font-size:14px;font-weight:700;padding:8px 4px}
+.heading{font-size:17px;font-weight:750}.info-trigger{width:19px;height:19px;flex:0 0 19px;border:1px solid #8a9a8e;border-radius:50%;background:#fff;color:#43845a;font-size:13px;font-weight:800;line-height:17px;padding:0;cursor:pointer}.dialog-info{max-width:680px;margin:8px auto 0;padding:11px 14px;border:1px solid #cfe2d0;border-radius:10px;background:#f3faf1;color:#4e6650;font-size:12px;line-height:1.7}.dialog-info[hidden]{display:none}
+.client-tabs{display:flex;align-items:center;gap:7px;padding:9px 12px;background:#f7f7f7;border-bottom:1px solid #e5e5e5;overflow-x:auto;white-space:nowrap}.client-tab{display:inline-flex;align-items:center;gap:5px;border:1px solid #d8ded9;border-radius:18px;background:#fff;color:#536057;padding:6px 10px;font-size:12px}.client-tab.active{background:#e4f5e9;border-color:#9ed2ad;color:#167b43;font-weight:750}.client-rename,.client-delete{border:0;background:transparent;color:inherit;font-size:13px;padding:0 1px;cursor:pointer}.client-delete{color:#c65b5b;font-size:15px;line-height:1}.client-new{flex:0 0 auto;border:1px dashed #8fc5a0;border-radius:18px;background:#f2faf4;color:#168348;padding:6px 11px;font-size:12px;font-weight:700}.add-dialog{margin-left:auto;border:0;border-radius:8px;background:#18a058;color:#fff;padding:8px 11px;font-size:12px;font-weight:700;white-space:nowrap}
+.wrap{max-width:680px;margin:0 auto;padding:14px 12px 24px}
+.tip{text-align:center;font-size:12px;color:#999;margin:3px 0 14px}
+.chat{background:#e9e9e9;border:1px solid #dedede;border-radius:14px;padding:16px 12px;min-height:300px}
+.conversation-pair,.custom-pair{background:#e4f0df;border:1px solid #d7e6d1;border-radius:10px;padding:10px 8px 1px;margin:0 0 14px}
+.conversation-pair .msg:last-child,.custom-pair .msg:last-child{margin-bottom:0}
+.conversation-pair,.custom-pair{position:relative;padding-top:29px}.pair-drag-handle{position:absolute;top:5px;right:8px;border:1px solid #c8d6c2;border-radius:6px;background:#f4faf1;color:#66805f;font-size:11px;line-height:20px;padding:0 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.pair-drag-handle:active{cursor:grabbing;background:#e4f0df}.conversation-pair.is-dragging,.custom-pair.is-dragging{opacity:.45;outline:2px dashed #70a96d}.conversation-pair,.custom-pair{transition:opacity .12s ease}
+.msg{display:flex;gap:8px;margin:0 0 17px;align-items:flex-start}
+.msg.customer{justify-content:flex-start}
+.msg.staff{justify-content:flex-end}
+.avatar{width:34px;height:34px;border-radius:6px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#d2d2d2;color:#555}
+.staff .avatar{background:#b8e6a4}
+.bubble-wrap{max-width:calc(100% - 52px);min-width:0}
+.staff .bubble-wrap{width:100%;flex:1 1 auto;display:flex;flex-direction:column;align-items:flex-end}
+.staff .bubble{display:inline-block;width:fit-content;max-width:100%}
+.who{font-size:11px;color:#999;margin:0 0 5px}
+.staff .who{text-align:right}
+.bubble{font-size:14px;line-height:1.65;padding:9px 11px;border-radius:5px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 1px rgba(0,0,0,.04);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}.bubble:active{filter:brightness(.97)}.staff .bubble.copied{color:#d93025}
+.customer .bubble{background:#fff}
+.staff .bubble{background:var(--green)}
+.reply-note{font-size:11px;line-height:1.5;color:#999;text-align:right;margin:5px 2px 0;white-space:pre-wrap;overflow-wrap:anywhere}.reply-main{width:fit-content;max-width:100%;display:flex;flex-direction:column;align-items:stretch;align-self:flex-end}.reply-kind{display:block;align-self:flex-start;font-size:10px;line-height:1.3;color:#8b8b8b;margin:0 0 4px 2px;font-weight:500}.bubble-text{display:block;white-space:pre-wrap;overflow-wrap:anywhere}
+.message-tools{display:flex;justify-content:flex-start;margin-top:5px}
+.customer .message-tools{justify-content:flex-start}
+.reply-tools{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:5px}
+.reply-option .delete-alternative{align-self:flex-end;margin-top:2px}
+.reply-add{width:25px;height:25px;border:1px solid #c8c8c8;border-radius:50%;background:#f7f7f7;color:#555;font-size:19px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.reply-add:active{background:#e3e3e3}
+.reply-alternatives{display:flex;flex-direction:column;align-items:stretch;align-self:stretch;width:100%;max-width:100%;gap:7px;margin:8px 0 0}
+.reply-option{display:flex;flex-direction:column;align-items:flex-end;align-self:stretch;width:100%;max-width:100%;min-width:0;margin:0}
+.reply-option-main{display:flex;flex-direction:column;align-items:stretch;align-self:flex-end;width:fit-content;max-width:100%;min-width:0}
+.reply-option .reply-kind{display:block;align-self:flex-start;width:auto}
+.reply-option .bubble{display:block;width:fit-content;max-width:100%;min-width:0}
+.composer{display:none;background:#fff;border:1px solid #e4e4e4;border-radius:14px;padding:14px;margin-top:14px}
+.composer.open{display:block}
+.composer-title{font-size:14px;font-weight:800;margin-bottom:10px}
+.field-label{display:block;font-size:12px;color:#666;margin:10px 0 5px}
+.composer textarea{width:100%;min-height:68px;resize:vertical;border:1px solid #ddd;border-radius:9px;padding:10px;font-family:inherit;font-size:14px;line-height:1.6;outline:none;background:#fafafa;color:#222}
+.composer textarea:focus{border-color:#78c65b}
+.composer .note-input{min-height:48px}
+.actions{display:flex;align-items:center;gap:8px;margin-top:10px}
+.save-dialog{border:0;border-radius:8px;background:#18a058;color:#fff;padding:9px 15px;font-size:13px;font-weight:700}
+.cancel-dialog{border:0;background:transparent;color:#888;padding:8px;font-size:12px}
+.form-hint{font-size:11px;color:#999;margin-top:7px}
+.delete-item{border:0;background:transparent;color:#c65b5b;font-size:11px;padding:4px 7px;cursor:pointer}
+.pair-delete{display:flex;justify-content:flex-end;margin:-10px 0 16px}
+.alt-composer{display:none;background:#fff;border:1px solid #dcdcdc;border-radius:10px;padding:10px;margin-top:8px;width:min(100%,420px)}
+.alt-composer.open{display:block}
+.alt-composer textarea{width:100%;min-height:54px;border:1px solid #ddd;border-radius:7px;padding:8px;font:13px/1.5 inherit;resize:vertical;margin:4px 0 7px}
+.alt-composer .field-label{margin-top:5px}
+.alt-actions{display:flex;gap:8px;justify-content:flex-end}
+.sync-status{font-size:11px;color:#7b867e;text-align:right;padding:5px 12px;min-height:20px}.sync-status.error{color:#c14b43}.sync-status.ok{color:#39845a}
+@media(min-width:600px){.wrap{padding-top:22px}.chat{padding:22px 20px}.bubble{font-size:15px}}
+</style>
+</head>
+<body>
+<header class="top"><a class="back" href="/">‹ 回到拨打列表</a><div class="heading">微信对话模拟</div><button class="info-trigger" id="dialogInfoToggle" type="button" aria-label="功能介绍" aria-expanded="false" title="功能介绍">!</button><button class="add-dialog" id="openComposer" type="button">＋ 添加下一组对话</button></header><nav class="client-tabs" id="clientTabs" aria-label="客户对话窗口"></nav>
+<div class="sync-status" id="dialogSyncStatus" aria-live="polite">正在连接共享话术库…</div><div class="dialog-info" id="dialogInfo" hidden>这里是团队共同积累真实客户沟通经验的地方。任何人遇到典型客户问题，都可以模拟客户提问并添加自己的回复话术；其他同事也可以补充不同回答，供大家参考学习。每条回复话术都支持一键复制，方便在真实沟通中灵活参考、应对客户提问。</div>
+<main class="wrap">
+<div class="tip">点击业务员绿色话术可复制；可添加后续客户提问与回复</div>
+<section class="chat" id="chat">
+  <div class="conversation-pair">
+  <div class="msg customer" data-message-id="default-customer-1"><div class="avatar">👤</div><div class="bubble-wrap"><div class="who">客户</div><div class="bubble">你是？</div><div class="message-tools"><button class="delete-item delete-message" type="button" hidden>删除此提问</button></div></div></div>
+  <div class="msg staff" data-reply-id="default-1"><div class="bubble-wrap"><div class="who">业务员</div><div class="reply-main"><span class="reply-kind">第1种回复</span><div class="bubble" title="点击复制这段话术"><div class="bubble-text">👋</div></div></div><div class="reply-note">先礼貌回应，建立初步沟通</div><div class="reply-tools"><button class="reply-add" type="button" aria-label="添加其他回复话术" title="添加其他回复话术">+</button><button class="delete-item delete-message" type="button" hidden>删除此回答</button></div><div class="reply-alternatives"></div><div class="alt-composer"><label class="field-label">其他版本回答</label><textarea class="alt-answer" placeholder="输入另一种回答话术"></textarea><label class="field-label">回答注释（必填）</label><textarea class="alt-note" placeholder="填写使用场景、沟通目的或注意事项"></textarea><div class="alt-actions"><button type="button" class="cancel-dialog alt-cancel">取消</button><button type="button" class="save-dialog alt-save">保存版本</button></div></div></div><div class="avatar">🧑‍💼</div></div>
+  </div>
+  <div class="conversation-pair">
+  <div class="msg customer" data-message-id="default-customer-2"><div class="avatar">👤</div><div class="bubble-wrap"><div class="who">客户</div><div class="bubble">你是哪位？</div><div class="message-tools"><button class="delete-item delete-message" type="button" hidden>删除此提问</button></div></div></div>
+  <div class="msg staff" data-reply-id="default-2"><div class="bubble-wrap"><div class="who">业务员</div><div class="reply-main"><span class="reply-kind">第1种回复</span><div class="bubble" title="点击复制这段话术"><div class="bubble-text">哈喽呀 🌹
+我是做建设银行业务的，在福田办公 🫡 负责办理信用类贷款。
+您属于白名单单位人士呢，可以办理白名单工薪消费贷额度30-100万，当天下款。近期有需要用到吗？</div></div></div><div class="reply-note">说明身份、业务范围和初步额度，再自然询问客户需求</div><div class="reply-tools"><button class="reply-add" type="button" aria-label="添加其他回复话术" title="添加其他回复话术">+</button><button class="delete-item delete-message" type="button" hidden>删除此回答</button></div><div class="reply-alternatives"></div><div class="alt-composer"><label class="field-label">其他版本回答</label><textarea class="alt-answer" placeholder="输入另一种回答话术"></textarea><label class="field-label">回答注释（必填）</label><textarea class="alt-note" placeholder="填写使用场景、沟通目的或注意事项"></textarea><div class="alt-actions"><button type="button" class="cancel-dialog alt-cancel">取消</button><button type="button" class="save-dialog alt-save">保存版本</button></div></div></div><div class="avatar">🧑‍💼</div></div>
+  </div>
+</section>
+<section class="composer" id="composer">
+  <div class="composer-title">添加下一组对话</div>
+  <label class="field-label" for="customerQuestion">客户提问</label>
+  <textarea id="customerQuestion" placeholder="输入客户接下来会问的问题"></textarea>
+  <label class="field-label" for="staffAnswer">业务员回答话术</label>
+  <textarea id="staffAnswer" placeholder="输入业务员准备回复的完整话术"></textarea>
+  <label class="field-label" for="staffNote">话术注释（必填）</label>
+  <textarea class="note-input" id="staffNote" placeholder="写明这段话术的使用场景、沟通目的或注意事项"></textarea>
+  <div class="form-hint">注释会以灰色小字显示在绿色回复气泡下方，不会随话术一起复制。</div>
+  <div class="actions"><button class="save-dialog" id="saveDialog" type="button">添加到聊天</button><button class="cancel-dialog" id="cancelDialog" type="button">取消</button></div>
+</section>
+</main>
+<script>
+(function(){
+  var isMaster=localStorage.getItem('dialer_sess_master')==='1' && (localStorage.getItem('dialer_sess_role')||'master')==='master';
+  var chat=document.getElementById('chat');
+  chat.innerHTML=''; // 对话内容只允许从云端共享库加载，禁止显示 HTML 内置示例或本机旧记录。
+  ['bhp_learn_dialog_alternatives_v1','bhp_learn_dialog_custom_pairs_v1','bhp_dialog_client_windows_v1','bhp_learn_dialog_deleted_v1','bhp_learn_dialog_deleted_messages_v1'].forEach(function(key){try{localStorage.removeItem(key);}catch(e){}});
+  if(isMaster)chat.querySelectorAll('.delete-message').forEach(function(btn){btn.hidden=false;});
+  var composer=document.getElementById('composer');
+  var question=document.getElementById('customerQuestion');
+  var answer=document.getElementById('staffAnswer');
+  var note=document.getElementById('staffNote');
+  function copyText(text,bubble){
+    var done=function(){if(bubble){bubble.classList.add('copied');setTimeout(function(){bubble.classList.remove('copied')},1500)}};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(function(){fallback(text,done)})}else fallback(text,done);
+  }
+  function fallback(text,done){
+    var el=document.createElement('textarea');el.value=text;el.style.position='fixed';el.style.opacity='0';document.body.appendChild(el);el.select();
+    try{document.execCommand('copy');done()}catch(e){}document.body.removeChild(el);
+  }
+  function makeMessage(type,text,annotation,id){
+    var row=document.createElement('div');row.className='msg '+type;
+    if(id)row.setAttribute('data-message-id',id);
+    if(type==='staff'&&id)row.setAttribute('data-reply-id',id);
+    var avatar=document.createElement('div');avatar.className='avatar';avatar.textContent=type==='customer'?'👤':'🧑‍💼';
+    var wrap=document.createElement('div');wrap.className='bubble-wrap';
+    var who=document.createElement('div');who.className='who';who.textContent=type==='customer'?'客户':'业务员';
+    var bubble=document.createElement('div');bubble.className='bubble';
+    var mainReply=null;
+    if(type==='staff'){bubble.title='点击复制这段话术';var kind=document.createElement('span');kind.className='reply-kind';kind.textContent='第1种回复';var textEl=document.createElement('div');textEl.className='bubble-text';textEl.textContent=text;bubble.appendChild(textEl);mainReply=document.createElement('div');mainReply.className='reply-main';mainReply.appendChild(kind);mainReply.appendChild(bubble)}else bubble.textContent=text;
+    wrap.appendChild(who);if(type==='staff')wrap.appendChild(mainReply);else{wrap.appendChild(bubble);var customerTools=document.createElement('div');customerTools.className='message-tools';var customerDelete=document.createElement('button');customerDelete.type='button';customerDelete.className='delete-item delete-message';customerDelete.textContent='删除此提问';customerDelete.hidden=!isMaster;customerTools.appendChild(customerDelete);wrap.appendChild(customerTools);}
+    if(type==='staff'){var noteBelow=document.createElement('div');noteBelow.className='reply-note';noteBelow.textContent=annotation;wrap.appendChild(noteBelow);
+      var tools=document.createElement('div');tools.className='reply-tools';
+      var btn=document.createElement('button');btn.type='button';btn.className='reply-add';btn.textContent='+';btn.title='添加其他回复话术';btn.setAttribute('aria-label','添加其他回复话术');tools.appendChild(btn);
+      if(isMaster){var removeBtn=document.createElement('button');removeBtn.type='button';removeBtn.className='delete-item delete-message';removeBtn.textContent='删除此回答';tools.appendChild(removeBtn)}
+      wrap.appendChild(tools);
+      var alternatives=document.createElement('div');alternatives.className='reply-alternatives';wrap.appendChild(alternatives);
+      var altForm=document.createElement('div');altForm.className='alt-composer';
+      altForm.innerHTML='<label class="field-label">其他版本回答</label><textarea class="alt-answer" placeholder="输入另一种回答话术"></textarea><label class="field-label">回答注释（必填）</label><textarea class="alt-note" placeholder="填写使用场景、沟通目的或注意事项"></textarea><div class="alt-actions"><button type="button" class="cancel-dialog alt-cancel">取消</button><button type="button" class="save-dialog alt-save">保存版本</button></div>';
+      wrap.appendChild(altForm);
+      row.appendChild(wrap);row.appendChild(avatar);
+    }else{row.appendChild(avatar);row.appendChild(wrap)}
+    return row;
+  }
+  function addAlternative(row,text,annotation){
+    var list=row.querySelector('.reply-alternatives');if(!list)return;
+    var option=document.createElement('div');option.className='reply-option';
+    var bubble=document.createElement('div');bubble.className='bubble';bubble.title='点击复制这段话术';
+    var kind=document.createElement('span');kind.className='reply-kind';kind.textContent='第'+(list.querySelectorAll('.reply-option').length+2)+'种回复';
+    var textEl=document.createElement('div');textEl.className='bubble-text';textEl.textContent=text;
+    var main=document.createElement('div');main.className='reply-option-main';
+    main.appendChild(kind);bubble.appendChild(textEl);main.appendChild(bubble);option.appendChild(main);
+    var n=document.createElement('div');n.className='reply-note';n.textContent=annotation;option.appendChild(n);
+    if(isMaster){var remove=document.createElement('button');remove.type='button';remove.className='delete-item delete-alternative';remove.textContent='删除此回答';option.appendChild(remove)}
+    list.appendChild(option);
+  }
+  function saveAlternatives(){
+    var data={};
+    chat.querySelectorAll('.msg.staff[data-reply-id]').forEach(function(row){
+      var id=row.getAttribute('data-reply-id');
+      var items=Array.prototype.map.call(row.querySelectorAll('.reply-alternatives .reply-option'),function(el){
+        return {text:el.querySelector('.bubble-text').textContent,note:el.querySelector('.reply-note').textContent};
+      });
+      if(items.length)data[id]=items;
+    });
+    saveClientWindows();
+  }
+  function saveDialogs(){
+    var data=[];
+    chat.querySelectorAll('.custom-pair').forEach(function(pair){
+      var customer=pair.querySelector('.customer .bubble'),staff=pair.querySelector('.staff');
+      var answer=staff&&staff.querySelector('.bubble-text'),note=staff&&staff.querySelector('.reply-note');
+      data.push({question:customer?customer.textContent:'',answer:answer?answer.textContent:'',note:note?note.textContent:''});
+    });
+    saveClientWindows();
+  }
+  function addPairDragHandle(pair){
+    if(!pair||pair.querySelector('.pair-drag-handle'))return;
+    var handle=document.createElement('button');
+    handle.type='button';handle.className='pair-drag-handle';
+    handle.textContent='☷';handle.title='按住此按钮上下拖动，调整整组对话顺序';
+    handle.setAttribute('aria-label','拖动调整这组对话顺序');
+    handle.addEventListener('click',function(e){e.preventDefault();});
+    pair.insertBefore(handle,pair.firstChild);
+  }
+  function decoratePairDragHandles(){
+    chat.querySelectorAll('.conversation-pair,.custom-pair').forEach(addPairDragHandle);
+  }
+  var draggingPair=null,dragPointerId=null,dragStartY=0,dragMoved=false;
+  chat.addEventListener('pointerdown',function(e){
+    var handle=e.target.closest('.pair-drag-handle');
+    if(!handle||e.button!==0)return;
+    var pair=handle.closest('.conversation-pair,.custom-pair');
+    if(!pair)return;
+    e.preventDefault();
+    draggingPair=pair;dragPointerId=e.pointerId;dragStartY=e.clientY;dragMoved=false;
+    pair.classList.add('is-dragging');
+  });
+  document.addEventListener('pointermove',function(e){
+    if(!draggingPair||e.pointerId!==dragPointerId)return;
+    if(Math.abs(e.clientY-dragStartY)>3)dragMoved=true;
+    if(!dragMoved)return;
+    e.preventDefault();
+    var hit=document.elementFromPoint(e.clientX,e.clientY);
+    var target=hit&&hit.closest('.conversation-pair,.custom-pair');
+    if(!target||target===draggingPair||target.parentElement!==chat)return;
+    var rect=target.getBoundingClientRect();
+    if(e.clientY<rect.top+rect.height/2)chat.insertBefore(draggingPair,target);
+    else chat.insertBefore(draggingPair,target.nextSibling);
+  },{passive:false});
+  function finishPairDrag(e){
+    if(!draggingPair||(e&&e.pointerId!==dragPointerId))return;
+    var moved=dragMoved;
+    draggingPair.classList.remove('is-dragging');
+    draggingPair=null;dragPointerId=null;dragMoved=false;
+    if(moved){saveDialogs();saveAlternatives();saveClientWindows();setSyncStatus('对话顺序已保存并同步','ok');}
+  }
+  document.addEventListener('pointerup',finishPairDrag);
+  document.addEventListener('pointercancel',finishPairDrag);
+  function addPair(q,a,n,save){
+    var pair=document.createElement('div');pair.className='custom-pair';
+    var pairId='custom-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+    if(q)pair.appendChild(makeMessage('customer',q,'',pairId+'-customer'));
+    if(a)pair.appendChild(makeMessage('staff',a,n,pairId));
+    chat.appendChild(pair);
+    addPairDragHandle(pair);
+    if(save)saveDialogs();
+  }
+  var clientTabs=document.getElementById('clientTabs');
+  var clientWindows=[],activeClientId='';
+  var remoteReady=false,remoteDirty=false,remoteBusy=false,remoteUpdatedAt='',remoteTimer=null;
+  var syncStatus=document.getElementById('dialogSyncStatus');
+  function setSyncStatus(message,state){
+    if(!syncStatus)return;
+    syncStatus.textContent=message;
+    syncStatus.className='sync-status'+(state?' '+state:'');
+  }
+  function getDialogToken(){return localStorage.getItem('dialer_sess_token')||'';}
+  function getDialogDocument(){
+    var current=clientWindows.find(function(item){return item.id===activeClientId;});
+    if(current)current.html=chat.innerHTML;
+    return {activeId:activeClientId,items:clientWindows.map(function(item){return {id:item.id,name:item.name,html:item.html||''};})};
+  }
+  function saveClientWindows(){
+    var current=clientWindows.find(function(item){return item.id===activeClientId;});
+    if(current)current.html=chat.innerHTML;
+    if(remoteReady)queueRemoteSave();
+  }
+  function queueRemoteSave(){
+    remoteDirty=true;
+    setSyncStatus('有内容待同步…');
+    if(remoteTimer)clearTimeout(remoteTimer);
+    remoteTimer=setTimeout(function(){pushSharedDialog(false);},700);
+  }
+  async function pushSharedDialog(keepalive){
+    if(!remoteReady||remoteBusy||!remoteDirty)return;
+    var token=getDialogToken();
+    if(!token){setSyncStatus('请登录拨号账号后同步','error');return;}
+    remoteBusy=true;
+    try{
+      var response=await fetch('/api/learn/dialog',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({document:getDialogDocument()}),keepalive:!!keepalive,cache:'no-store'});
+      var result=await response.json();
+      if(!response.ok||!result.success)throw new Error(result.error||'同步失败');
+      remoteUpdatedAt=result.updated_at||remoteUpdatedAt;
+      remoteDirty=false;
+      setSyncStatus('已同步到团队 · '+new Date().toLocaleTimeString(),'ok');
+    }catch(e){
+      setSyncStatus('同步失败：'+(e.message||'网络异常')+'（本机暂存）','error');
+    }finally{remoteBusy=false;}
+  }
+  function syncDeleteControls(){
+    chat.querySelectorAll('.delete-message,.delete-alternative').forEach(function(btn){btn.hidden=!isMaster;});
+  }
+  function applySharedDocument(doc){
+    if(!doc||!Array.isArray(doc.items))return;
+    clientWindows=doc.items.map(function(item){return {id:String(item.id||''),name:String(item.name||'客户'),html:String(item.html||'')};}).filter(function(item){return item.id;});
+    if(!clientWindows.length)clientWindows=[{id:'client-default',name:'客户1',html:''}];
+    activeClientId=doc.activeId&&clientWindows.some(function(item){return item.id===doc.activeId;})?doc.activeId:clientWindows[0].id;
+    var active=clientWindows.find(function(item){return item.id===activeClientId;});
+    chat.innerHTML=active?active.html:'';
+    composer.classList.remove('open');question.value='';answer.value='';note.value='';
+    decoratePairDragHandles();renderClientTabs();syncDeleteControls();
+  }
+  async function loadSharedDialog(){
+    var token=getDialogToken();
+    if(!token){setSyncStatus('请先登录拨号账号，登录后自动同步','error');return;}
+    setSyncStatus('正在读取团队共享话术…');
+    try{
+      var response=await fetch('/api/learn/dialog',{headers:{'Authorization':'Bearer '+token},cache:'no-store'});
+      var result=await response.json();
+      if(!response.ok||!result.success)throw new Error(result.error||'读取失败');
+      if(result.document&&Array.isArray(result.document.items)){
+        applySharedDocument(result.document);
+        remoteUpdatedAt=result.updated_at||'';
+        remoteReady=true;
+        setSyncStatus('已连接团队共享话术','ok');
+      }else{
+        // 云端尚无记录时，只创建一个空白云端窗口，绝不导入本机或页面示例数据。
+        clientWindows=[{id:'client-default',name:'客户1',html:''}];
+        activeClientId='client-default';
+        chat.innerHTML='';
+        renderClientTabs();
+        remoteReady=true;
+        remoteDirty=true;
+        setSyncStatus('云端暂无对话，正在初始化空白共享库…');
+        await pushSharedDialog(false);
+      }
+    }catch(e){remoteReady=false;setSyncStatus('共享库连接失败：'+(e.message||'网络异常'),'error');}
+  }
+  async function pollSharedDialog(){
+    if(remoteBusy)return;
+    if(!remoteReady){loadSharedDialog();return;}
+    if(remoteDirty){pushSharedDialog(false);return;}
+    var token=getDialogToken();if(!token)return;
+    try{
+      var response=await fetch('/api/learn/dialog',{headers:{'Authorization':'Bearer '+token},cache:'no-store'});
+      var result=await response.json();
+      if(!response.ok||!result.success)throw new Error(result.error||'读取失败');
+      if(result.document&&result.updated_at&&result.updated_at!==remoteUpdatedAt){
+        applySharedDocument(result.document);remoteUpdatedAt=result.updated_at;
+        setSyncStatus('团队话术已更新 · '+new Date().toLocaleTimeString(),'ok');
+      }
+    }catch(e){setSyncStatus('共享库暂时无法连接','error');}
+  }
+  function renderClientTabs(){
+    clientTabs.innerHTML='';
+    clientWindows.forEach(function(item){
+      var tab=document.createElement('span');tab.className='client-tab'+(item.id===activeClientId?' active':'');
+      var open=document.createElement('button');open.type='button';open.className='client-open';open.textContent=item.name;open.style.cssText='border:0;background:transparent;color:inherit;font:inherit;padding:0';open.addEventListener('click',function(){switchClient(item.id);});tab.appendChild(open);
+      var rename=document.createElement('button');rename.type='button';rename.className='client-rename';rename.textContent='✎';rename.title='重命名客户标签';rename.setAttribute('aria-label','重命名'+item.name);rename.addEventListener('click',function(){var name=prompt('请输入客户标签名称',item.name);if(name===null)return;name=name.trim();if(!name){alert('客户标签名称不能为空');return;}item.name=name.slice(0,24);saveClientWindows();renderClientTabs();});tab.appendChild(rename);
+      if(isMaster&&clientWindows.length>1){var remove=document.createElement('button');remove.type='button';remove.className='client-delete';remove.textContent='×';remove.title='删除此客户对话框';remove.setAttribute('aria-label','删除'+item.name+'对话框');remove.addEventListener('click',function(){deleteClient(item.id);});tab.appendChild(remove);}
+      clientTabs.appendChild(tab);
+    });
+    var add=document.createElement('button');add.type='button';add.className='client-new';add.textContent='＋ 新建客户';add.addEventListener('click',function(){createClient();});clientTabs.appendChild(add);
+  }
+  function switchClient(id){if(id===activeClientId)return;saveClientWindows();var target=clientWindows.find(function(item){return item.id===id;});if(!target)return;activeClientId=id;chat.innerHTML=target.html||'';decoratePairDragHandles();composer.classList.remove('open');question.value='';answer.value='';note.value='';renderClientTabs();saveClientWindows();}
+  function deleteClient(id){
+    if(!isMaster)return;
+    if(clientWindows.length<=1){alert('至少保留一个客户对话框');return;}
+    var target=clientWindows.find(function(item){return item.id===id;});
+    if(!target)return;
+    if(!confirm('确定删除「'+target.name+'」整个客户对话框及其中的全部对话内容吗？此操作会同步到团队共享话术库，无法撤销。'))return;
+    saveClientWindows();
+    clientWindows=clientWindows.filter(function(item){return item.id!==id;});
+    if(activeClientId===id){
+      activeClientId=clientWindows[0].id;
+      var next=clientWindows[0];
+      chat.innerHTML=next.html||'';
+      decoratePairDragHandles();
+      composer.classList.remove('open');question.value='';answer.value='';note.value='';
+    }
+    renderClientTabs();
+    saveClientWindows();
+  }
+  function createClient(){saveClientWindows();var id='client-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);clientWindows.push({id:id,name:'客户'+(clientWindows.length+1),html:''});activeClientId=id;chat.innerHTML='';composer.classList.remove('open');question.value='';answer.value='';note.value='';renderClientTabs();saveClientWindows();window.scrollTo(0,0);}
+  clientWindows=[];
+  activeClientId='';
+  chat.innerHTML='';
+  decoratePairDragHandles();
+  renderClientTabs();
+  syncDeleteControls();
+  loadSharedDialog();
+  window.setInterval(pollSharedDialog,12000);
+  chat.addEventListener('click',function(){setTimeout(saveClientWindows,0);});
+  document.getElementById('saveDialog').addEventListener('click',function(){setTimeout(saveClientWindows,0);});
+  window.addEventListener('pagehide',function(){saveClientWindows();pushSharedDialog(true);});
+  var infoToggle=document.getElementById('dialogInfoToggle');
+  var infoPanel=document.getElementById('dialogInfo');
+  infoToggle.addEventListener('click',function(){var open=infoPanel.hidden;infoPanel.hidden=!open;infoToggle.setAttribute('aria-expanded',String(open));});
+  document.getElementById('openComposer').addEventListener('click',function(){composer.classList.add('open');question.focus()});
+  document.getElementById('cancelDialog').addEventListener('click',function(){composer.classList.remove('open')});
+  document.getElementById('saveDialog').addEventListener('click',function(){
+    var q=question.value.trim(),a=answer.value.trim(),n=note.value.trim();
+    if(!q||!a||!n){alert('请填写客户提问、业务员回答和必填注释');return}
+    addPair(q,a,n,true);question.value='';answer.value='';note.value='';composer.classList.remove('open');
+  });
+  chat.addEventListener('click',function(e){
+    var delAlternative=e.target.closest('.delete-alternative');
+    if(delAlternative){
+      if(!isMaster)return;
+      var option=delAlternative.closest('.reply-option');if(option)option.remove();
+      saveAlternatives();return;
+    }
+    var delMessage=e.target.closest('.delete-message');
+    if(delMessage){
+      if(!isMaster)return;
+      var message=delMessage.closest('.msg');if(!message)return;
+      var messageId=message.getAttribute('data-message-id')||'';
+      var customPair=message.closest('.custom-pair');
+      var wasStaff=message.classList.contains('staff');
+      message.remove();
+      if(customPair)saveDialogs();
+      if(wasStaff)saveAlternatives();
+      return;
+    }
+    var add=e.target.closest('.reply-add');
+    if(add){var row=add.closest('.msg.staff');var form=row&&row.querySelector('.alt-composer');if(form){form.classList.add('open');form.querySelector('.alt-answer').focus()}return}
+    var cancelAlt=e.target.closest('.alt-cancel');
+    if(cancelAlt){var form=cancelAlt.closest('.alt-composer');form.classList.remove('open');form.querySelector('.alt-answer').value='';form.querySelector('.alt-note').value='';return}
+    var saveAlt=e.target.closest('.alt-save');
+    if(saveAlt){var form=saveAlt.closest('.alt-composer'),row=saveAlt.closest('.msg.staff');var text=form.querySelector('.alt-answer').value.trim(),annotation=form.querySelector('.alt-note').value.trim();if(!text||!annotation){alert('请填写其他版本回答和必填注释');return}addAlternative(row,text,annotation);form.querySelector('.alt-answer').value='';form.querySelector('.alt-note').value='';form.classList.remove('open');saveAlternatives();return}
+    var bubble=e.target.closest('.staff .bubble');
+    if(bubble)copyText(bubble.querySelector('.bubble-text')?bubble.querySelector('.bubble-text').textContent:bubble.textContent,bubble);
+  });
+})();
+</script>
 </body>
 </html>`;
