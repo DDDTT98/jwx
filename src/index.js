@@ -1083,7 +1083,7 @@ export default {
         if(u3.totp_enabled===true) throw new Error('2FA 已启用');
         var rb3=new Uint8Array(20); crypto.getRandomValues(rb3);
         var secret3=await dialerBase32Encode(rb3);
-        u3.totp_pending_secret=secret3; await dialerSaveAccounts(env,a3);
+        u3.totp_pending_secret=secret3; u3.totp_pending_created_at=Date.now(); await dialerSaveAccounts(env,a3);
         var label3=encodeURIComponent(String(u3.account_name||u3.account_id));
         var uri3='otpauth://totp/'+encodeURIComponent('JWX:'+String(u3.account_name||u3.account_id))+'?secret='+secret3+'&issuer=JWX&algorithm=SHA1&digits=6&period=30';
         return new Response(JSON.stringify({success:true,secret:secret3,otpauth_uri:uri3}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
@@ -1095,8 +1095,9 @@ export default {
         var s4=await dialerValidateSession(env,t4); if(!s4) throw new Error('未登录');
         var b4=await request.json(), a4=await dialerGetAccounts(env), u4=a4.find(function(a){return a.account_id===s4.account_id;});
         if(!u4||!u4.totp_pending_secret) throw new Error('请先开始 2FA 设置');
+        if(Date.now()-Number(u4.totp_pending_created_at||0)>600000) { delete u4.totp_pending_secret; delete u4.totp_pending_created_at; await dialerSaveAccounts(env,a4); throw new Error('绑定密钥已过期，请重新开始设置'); }
         if(!(await dialerVerifyTotp(u4.totp_pending_secret,b4.code))) throw new Error('验证码错误或已过期');
-        u4.totp_secret=u4.totp_pending_secret; delete u4.totp_pending_secret; u4.totp_enabled=true;
+        u4.totp_secret=u4.totp_pending_secret; delete u4.totp_pending_secret; delete u4.totp_pending_created_at; u4.totp_enabled=true;
         await dialerSaveAccounts(env,a4);
         return new Response(JSON.stringify({success:true,enabled:true}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
@@ -1108,7 +1109,7 @@ export default {
         var b5=await request.json(), a5=await dialerGetAccounts(env), u5=a5.find(function(a){return a.account_id===s5.account_id;});
         if(!u5||u5.totp_enabled!==true||!u5.totp_secret) throw new Error('2FA 尚未启用');
         if(!(await dialerVerifyTotp(u5.totp_secret,b5.code))) throw new Error('验证码错误或已过期');
-        delete u5.totp_secret; delete u5.totp_pending_secret; u5.totp_enabled=false;
+        delete u5.totp_secret; delete u5.totp_pending_secret; delete u5.totp_pending_created_at; u5.totp_enabled=false;
         await dialerSaveAccounts(env,a5);
         return new Response(JSON.stringify({success:true,enabled:false}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
       } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
@@ -1123,12 +1124,18 @@ export default {
         if(Date.now()-Number(challengeData.created_at||0)>300000) { await env.DATA_STORE.delete(challengeKey); throw new Error('验证码请求已过期，请重新登录'); }
         var ma=await dialerGetAccounts(env), macc=ma.find(function(a){return a.account_id===challengeData.account_id;});
         if(!macc||macc.active===false||macc.totp_enabled!==true||!macc.totp_secret) throw new Error('账户 2FA 状态异常，请重新登录');
+        var mfaFailKey='dialer:mfa:fail:'+macc.account_id, mfaFailRaw=await env.DATA_STORE.get(mfaFailKey);
+        var mfaFail=mfaFailRaw?JSON.parse(mfaFailRaw):{count:0,lastAttempt:0};
+        if(mfaFail.count>=5 && Date.now()-mfaFail.lastAttempt<300000) throw new Error('动态验证码错误次数过多，请 5 分钟后重试');
         if(!(await dialerVerifyTotp(macc.totp_secret,mb.code))) {
+          mfaFail.count=(mfaFail.count||0)+1; mfaFail.lastAttempt=Date.now();
+          await env.DATA_STORE.put(mfaFailKey,JSON.stringify(mfaFail),{expirationTtl:1800});
           challengeData.attempts=(challengeData.attempts||0)+1;
           if(challengeData.attempts>=5) await env.DATA_STORE.delete(challengeKey);
           else await env.DATA_STORE.put(challengeKey,JSON.stringify(challengeData),{expirationTtl:300});
-          throw new Error(challengeData.attempts>=5?'验证码错误次数过多，请重新登录':'动态验证码错误');
+          throw new Error(mfaFail.count>=5?'动态验证码错误次数过多，请 5 分钟后重试':'动态验证码错误');
         }
+        if(mfaFailRaw) await env.DATA_STORE.delete(mfaFailKey);
         await env.DATA_STORE.delete(challengeKey);
         var accountId=macc.account_id, deviceId=challengeData.device_id;
         if(!validDeviceId(deviceId)) throw new Error('设备标识无效，请刷新页面后重试');
