@@ -2807,7 +2807,7 @@ export default {
             var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
             var masterDailyCount = Math.max(0, parseInt(masterDailyState.count, 10) || 0);
             masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
-            var masterNeed = Math.min(Math.max(0, limit - data.length), masterDailyRemaining, 200);
+            var masterNeed = Math.min(limit, masterDailyRemaining, 200);
 
             if (masterNeed > 0) {
               var masterExclude = Array.isArray(excludeMobiles) ? excludeMobiles.slice() : [];
