@@ -4811,6 +4811,7 @@
         'copy_name': '已复制姓名',
         'copy_company': '已复制公司',
         'copy_note': '已复制备注',
+        'add_wechat': '已添加微信',
         'dial': '已拨打电话',
         'call_success': '通话成功',
         'call_failed': '未接通'
