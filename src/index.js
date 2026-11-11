@@ -919,7 +919,13 @@ export default {
     if (path === '/api/dialer/auth/login' && request.method === 'POST') {
       try {
         var body = await request.json();
-        // 登录不做 Turnstile 校验（脚本加载失败时正常用户无法登录），改用服务端冷却防爆破：
+        // 配置了 TURNSTILE_SECRET 时，登录必须通过 Cloudflare Turnstile 人机验证。
+        if (getTurnstileSecret(env) && !(await verifyTurnstile(env, body.turnstileToken, clientIP))) {
+          return new Response(JSON.stringify({ error: '人机验证失败，请刷新页面后重试' }), {
+            status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        // 登录失败仍按账户名维度冷却，防止 PIN 暴力尝试与账户枚举：
         // 按账户名维度 2 次→1min / 3 次→5min / 4 次+→10min，账户不存在同样计数（防枚举）
         var accountName = (body.account_name || '').trim();
         var pin = (body.pin || '').trim();
