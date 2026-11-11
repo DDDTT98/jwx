@@ -1107,6 +1107,26 @@ export function createSupabaseClient(env) {
     return { data: rows, total: rows.length };
   }
 
+
+  async function claimSpecificCustomersForDialer(accountId, deviceId, batchId, mobiles) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!accountId || !deviceId || !batchId) throw new Error('缺少账号、设备或拨号批次标识');
+    var unique = Array.from(new Set((Array.isArray(mobiles) ? mobiles : []).map(function(m) { return String(m || '').trim(); }).filter(Boolean)));
+    if (!unique.length) return [];
+    var resp = await fetch(baseUrl + '/rest/v1/rpc/claim_specific_dialer_customers', {
+      method: 'POST',
+      headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }),
+      body: JSON.stringify({ p_account_id: String(accountId), p_device_id: String(deviceId), p_batch_id: String(batchId), p_mobiles: unique })
+    });
+    if (!resp.ok) {
+      var err = await resp.text();
+      throw new Error('数据库认领所选客户失败 [' + resp.status + ']：' + err.slice(0, 400));
+    }
+    var rows = await resp.json();
+    if (!Array.isArray(rows)) throw new Error('数据库认领所选客户返回格式异常');
+    return rows;
+  }
+
   async function getCustomersForDialer(limit, excludeMobiles, accountId) {
     if (!baseUrl || !key) return { data: [], total: 0 };
 
@@ -1241,7 +1261,7 @@ export function createSupabaseClient(env) {
     return { added: added, skipped_public: skippedPublic, skipped_cooldown: skippedCooldown, skipped_missing: skippedMissing };
   }
 
-  async function transferToPool(mobiles, accountId, poolOwnerAccountId) {
+  async function transferToPool(mobiles, accountId, poolOwnerAccountId, claim) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!Array.isArray(mobiles) || mobiles.length === 0) return 0;
 
@@ -1261,12 +1281,20 @@ export function createSupabaseClient(env) {
       var inFilter = 'mobile=in.(' + chunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
       var patchUrl = baseUrl + '/rest/v1/customers?' + inFilter;
       if (accountId) patchUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+      if (claim && claim.device_id && claim.batch_id) {
+        patchUrl += '&dialer_device_id=eq.' + encodeURIComponent(claim.device_id) +
+          '&dialer_batch_id=eq.' + encodeURIComponent(claim.batch_id);
+      }
 
       try {
         var resp = await fetch(patchUrl, {
           method: 'PATCH',
           headers: Object.assign({}, headers(), { 'Prefer': 'return=minimal' }),
-          body: JSON.stringify({ account_id: poolOwnerAccountId || null, category: '公海客户' })
+          body: JSON.stringify({
+            account_id: poolOwnerAccountId || null, category: '公海客户',
+            dialer_batch_id: null, dialer_device_id: null,
+            dialer_source_account_id: null, dialer_claimed_at: null
+          })
         });
         if (!resp.ok) {
           var errorText = await resp.text();
@@ -1376,11 +1404,15 @@ export function createSupabaseClient(env) {
   }
 
   /** Persist the latest operation while retaining the batch's terminal call result. */
-  async function updateCustomerTimeline(mobile, entry, accountId) {
+  async function updateCustomerTimeline(mobile, entry, accountId, claim) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!mobile || !entry || !entry.type) throw new Error('mobile and timeline entry required');
     var currentUrl = baseUrl + '/rest/v1/customers?select=last_operation&mobile=eq.' + encodeURIComponent(mobile);
     if (accountId) currentUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+    if (claim && claim.device_id && claim.batch_id) {
+      currentUrl += '&dialer_device_id=eq.' + encodeURIComponent(claim.device_id) +
+        '&dialer_batch_id=eq.' + encodeURIComponent(claim.batch_id);
+    }
     var currentResp = await fetch(currentUrl, { headers: headers() });
     if (!currentResp.ok) {
       var currentErr = await currentResp.text();
@@ -1403,7 +1435,9 @@ export function createSupabaseClient(env) {
       merged.call_result = previous.call_result || previous.type;
     }
     // A new dial attempt invalidates the previous result until this attempt is marked.
-    return await updateCustomer(mobile, { last_operation: merged }, accountId);
+    var savedTimeline = await updateCustomer(mobile, { last_operation: merged }, accountId, claim);
+    if (claim && !savedTimeline) throw new Error('拨号列表已失效：该客户不属于当前设备的当前批次');
+    return savedTimeline;
   }
 
   /**
@@ -1467,6 +1501,7 @@ export function createSupabaseClient(env) {
     updateCustomer: updateCustomer,
     getCustomersForDialer: getCustomersForDialer,
     claimCustomersForDialer: claimCustomersForDialer,
+    claimSpecificCustomersForDialer: claimSpecificCustomersForDialer,
     reserveCustomersForDialer: reserveCustomersForDialer,
     batchSetPulledAt: batchSetPulledAt,
     batchUpdateCategory: batchUpdateCategory,
@@ -1487,7 +1522,7 @@ export function createSupabaseClient(env) {
    * Update a single customer by mobile (unique key).
    * fields: { category?, note?, company_name?, name? }
    */
-  async function updateCustomer(mobile, fields, accountId) {
+  async function updateCustomer(mobile, fields, accountId, claim) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!mobile) throw new Error('mobile is required');
 
@@ -1495,6 +1530,10 @@ export function createSupabaseClient(env) {
     // Belt-and-suspenders: if accountId provided, restrict to this account
     if (accountId) {
       updateUrl += '&account_id=eq.' + encodeURIComponent(accountId);
+    }
+    if (claim && claim.device_id && claim.batch_id) {
+      updateUrl += '&dialer_device_id=eq.' + encodeURIComponent(claim.device_id) +
+        '&dialer_batch_id=eq.' + encodeURIComponent(claim.batch_id);
     }
     // 改为「公海客户」时必须同步清空 account_id，保持"公海=无主"不变量（右上角账户数量按 account_id 统计）
     var body = Object.assign({}, fields);
