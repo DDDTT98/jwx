@@ -2278,6 +2278,23 @@
       box-shadow: none !important;
     }
 
+    /* 添加号码/添加VX完成后，号码文字与卡片拨号按钮一起红色加粗；刷新后按 phone_copied 恢复。 */
+    .xls-dial-card .client-phone-btn.copied,
+    .xls-dial-card .client-phone-btn.privacy-add-vx.copied,
+    .xls-dial-card .xls-card-dial-btn.dial-attempted {
+      color: #e53935 !important;
+      font-weight: 800 !important;
+      background: transparent !important;
+      text-shadow: 0 0 6px rgba(229,57,53,.14) !important;
+      border-color: rgba(229,57,53,.22) !important;
+      box-shadow: 0 0 0 1px rgba(229,57,53,.10), 0 0 8px rgba(229,57,53,.12) !important;
+    }
+    body.dark-mode .xls-dial-card .client-phone-btn.copied,
+    body.dark-mode .xls-dial-card .client-phone-btn.privacy-add-vx.copied,
+    body.dark-mode .xls-dial-card .xls-card-dial-btn.dial-attempted {
+      color: #ff6b65 !important;
+    }
+
     /* Mobile usability pass: keep the compact visual language while making
        primary touch targets comfortably tappable on iOS Safari / Android WebView. */
     @media (max-width: 768px) {
@@ -8575,7 +8592,7 @@
                 '</span>' +
                 '<div style="margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; flex-shrink: 0;">' +
                   badgeHtml +
-                  '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn' + (c.dial_attempted ? ' dial-attempted' : '') + (!showClientInfo ? ' privacy-dial-icon' : '') + '" data-idx="' + i + '" title="' + (c.dial_attempted ? '已拨' : (!showClientInfo ? '拨打电话' : '拨打')) + '" style="font-size:0.7rem;padding:2px 10px;height:24px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">' + (!showClientInfo ? (c.dial_attempted ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>') : (c.dial_attempted ? '已拨' : '拨打')) + '</a>' +
+                  '<a href="tel:' + esc(phoneVal) + '" class="btn-primary xls-card-dial-btn' + ((c.dial_attempted || c.phone_copied) ? ' dial-attempted' : '') + (!showClientInfo ? ' privacy-dial-icon' : '') + '" data-idx="' + i + '" title="' + (c.dial_attempted ? '已拨' : (!showClientInfo ? '拨打电话' : '拨打')) + '" style="font-size:0.7rem;padding:2px 10px;height:24px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;">' + (!showClientInfo ? (c.dial_attempted ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/><path d="m3 3 18 18"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>') : (c.dial_attempted ? '已拨' : '拨打')) + '</a>' +
                 '</div>' +
               '</div>' +
             '</div>' +
