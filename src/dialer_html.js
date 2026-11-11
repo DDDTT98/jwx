@@ -2253,6 +2253,31 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
     }
 
+    /* 已添加号码/已添加VX：按钮文字始终保持红色，覆盖后续通用绿色 copied 样式。 */
+    .client-phone-btn.copied,
+    .client-phone-btn.privacy-add-vx.copied {
+      color: #e53935 !important;
+      font-weight: 800 !important;
+      background: transparent !important;
+      text-shadow: 0 0 6px rgba(229,57,53,.14) !important;
+    }
+    body.dark-mode .client-phone-btn.copied,
+    body.dark-mode .client-phone-btn.privacy-add-vx.copied {
+      color: #ff6b65 !important;
+    }
+
+    /* 添加单位/添加备注后：客户卡片整体淡出为透明状态，状态由 company_copied/note_copied 持久化。 */
+    .xls-dial-card.copied-company {
+      background: transparent !important;
+      opacity: .45 !important;
+      box-shadow: none !important;
+    }
+    body.dark-mode .xls-dial-card.copied-company {
+      background: transparent !important;
+      opacity: .45 !important;
+      box-shadow: none !important;
+    }
+
     /* Mobile usability pass: keep the compact visual language while making
        primary touch targets comfortably tappable on iOS Safari / Android WebView. */
     @media (max-width: 768px) {
