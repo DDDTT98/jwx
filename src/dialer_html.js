@@ -4700,6 +4700,23 @@
           showCopyLimitToast('复制失败，请长按手动复制', true);
         }
       }
+      return ok;
+    }
+
+    // 手机号复制专用：Android 浏览器不自动唤起微信，复制成功后提示用户用系统底部手势切换应用。
+    function copyPhoneWithSwitchHint(text) {
+      function onCopied() {
+        showCopyLimitToast(isAndroid
+          ? '复制成功，请从屏幕底部左右滑动切换到微信粘贴，再切回 JWX'
+          : '已复制: ' + text, false);
+      }
+      if (!isHarmonyOS && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onCopied).catch(function() {
+          if (syncCopy(text)) onCopied();
+        });
+        return;
+      }
+      if (syncCopy(text)) onCopied();
     }
 
     // 记录客户操作时间线（最新覆盖）
@@ -8680,9 +8697,14 @@
 
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
-            // 先在真实点击手势内同步复制，再由真实 <a> 链接的默认行为唤起微信；
-            // 不再使用 JS 模拟隐藏链接点击，避免 Motorola/Android 浏览器拦截非可信跳转。
-            syncCopy(phone);
+            // Android 浏览器只复制，不自动跳转；由用户使用系统底部手势切换到微信。
+            // 其他平台保留原有真实链接默认唤起行为。
+            if (isAndroid) {
+              e.preventDefault();
+              copyPhoneWithSwitchHint(phone);
+            } else {
+              syncCopy(phone);
+            }
             recordTimeline(phone, 'add_wechat');
             var client = importedClients[idx];
             if (client) {
@@ -9208,13 +9230,14 @@ function updateAutoDialBtn() {
  var oldText = phoneDisp.textContent;
  if (oldText === '已复制，正在打开微信...') return;
 
- // 先同步复制，再在同一真实点击手势内唤起微信，和卡片入口保持一致。
- syncCopy(phone);
+ // Android 浏览器只复制并提示手动切换；其他平台保留原有自动唤起微信行为。
+ if (isAndroid) copyPhoneWithSwitchHint(phone);
+ else syncCopy(phone);
 
  var client = importedClients[currentCallIdx];
  if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
 
- phoneDisp.textContent = '已复制，正在打开微信...';
+ phoneDisp.textContent = isAndroid ? '已复制' : '已复制，正在打开微信...';
 
  if (client) {
  client.copied = true;
@@ -9234,7 +9257,7 @@ function updateAutoDialBtn() {
  }
  }
 
- jumpToWechat(); // 同步调用：保持点击手势（鸿蒙拦截非手势 scheme 跳转）
+ if (!isAndroid) jumpToWechat(); // Android 留给用户通过系统底部手势切换应用
 
  setTimeout(function() {
  phoneDisp.textContent = maskPhone(phone);
@@ -10451,7 +10474,7 @@ function updateAutoDialBtn() {
           '</td>' +          '<td>' +
             '<div class="crm-phone-cell">' +
               esc(c.mobile || '-') +
-              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyTextToClipboard(\\'' + esc(c.mobile) + '\\');showCopyLimitToast(\\'已复制: ' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>' +
+              '<button class="crm-btn-call" title="点击呼叫 / 复制" onclick="copyPhoneWithSwitchHint(\\'' + esc(c.mobile) + '\\');recordTimeline(\\'' + esc(c.mobile) + '\\',\\'copy_phone\\');"></button>' +
             '</div>' +
           '</td>' +
           
