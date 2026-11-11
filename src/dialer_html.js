@@ -2446,6 +2446,26 @@
       box-shadow: none !important;
       text-shadow: none !important;
     }
+    /* 操作完成标记：手机号已复制/已添加VX、拨打按钮已点击，统一使用红色文字；刷新后由已保存状态恢复。 */
+    .xls-dial-card .client-phone-btn.copied,
+    .xls-dial-card .privacy-add-vx.copied,
+    .xls-dial-card .xls-card-dial-btn.dial-attempted {
+      color: #e53935 !important;
+      font-weight: 800 !important;
+    }
+    .xls-dial-card .client-phone-btn.copied,
+    .xls-dial-card .privacy-add-vx.copied {
+      background: rgba(229, 57, 53, .08) !important;
+    }
+    .xls-dial-card .xls-card-dial-btn.dial-attempted {
+      background: rgba(229, 57, 53, .10) !important;
+    }
+    body.dark-mode .xls-dial-card .client-phone-btn.copied,
+    body.dark-mode .xls-dial-card .privacy-add-vx.copied,
+    body.dark-mode .xls-dial-card .xls-card-dial-btn.dial-attempted {
+      color: #ff6b65 !important;
+    }
+
     /* ===== 深色模式：数据库看板统一低亮度配色 ===== */
     body.dark-mode #dbOverlay .db-panel,
     body.dark-mode .dbm-overlay {
