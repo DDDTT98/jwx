@@ -8624,7 +8624,7 @@
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
                 '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0;">' +
-                  '<span class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;' + (c.phone_copied ? 'color:#e53935 !important;font-weight:800 !important;text-shadow:0 0 6px rgba(229,57,53,.14);' : '') + '">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</span>' +
+                  '<a href="' + (isAndroid && !isHarmonyOS ? 'intent://#Intent;scheme=weixin;package=com.tencent.mm;S.browser_fallback_url=https%3A%2F%2Fweixin.qq.com;end' : 'weixin://') + '" class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;text-decoration:none;' + (c.phone_copied ? 'color:#e53935 !important;font-weight:800 !important;text-shadow:0 0 6px rgba(229,57,53,.14);' : '') + '">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</a>' +
                   (function() {
                     if (!showClientInfo || !c.company || !isWhitelistListVisible()) return '';
                     var products = String(c.whitelist_name || '').split('、').map(function(v) { return v.trim(); }).filter(Boolean);
@@ -8703,7 +8703,9 @@
 
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
-            copyTextToClipboard(phone);
+            // 先在真实点击手势内同步复制，再由真实 <a> 链接的默认行为唤起微信；
+            // 不再使用 JS 模拟隐藏链接点击，避免 Motorola/Android 浏览器拦截非可信跳转。
+            syncCopy(phone);
             recordTimeline(phone, 'add_wechat');
             var client = importedClients[idx];
             if (client) {
@@ -8721,7 +8723,7 @@
             var card = document.getElementById('xdc_' + idx);
             if (card) card.classList.add('copied-card');
 
-            jumpToWechat(); // 同步调用：setTimeout 脱离手势，鸿蒙/华为 WebView 会拦截 scheme 跳转
+            // 微信跳转由当前真实点击的 <a href="intent://..."> 默认行为完成，不能再二次模拟跳转。
 
             setTimeout(function() {
               if (isClientInfoVisible()) b.textContent = maskPhone(phone);
