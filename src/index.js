@@ -37,6 +37,37 @@ function dialerHashPin(str) {
   return (hash >>> 0).toString(16);
 }
 
+async function dialerBase32Encode(bytes) {
+  var alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', bits=0, value=0, out='';
+  for(var i=0;i<bytes.length;i++){value=(value<<8)|bytes[i];bits+=8;while(bits>=5){out+=alphabet[(value>>>(bits-5))&31];bits-=5;}}
+  if(bits>0)out+=alphabet[(value<<(5-bits))&31];
+  return out;
+}
+function dialerBase32Decode(input) {
+  var alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', clean=String(input||'').toUpperCase().replace(/=+$/,'').replace(/[^A-Z2-7]/g,'');
+  var bits=0,value=0,out=[];
+  for(var i=0;i<clean.length;i++){var n=alphabet.indexOf(clean[i]);if(n<0)throw new Error('2FA 密钥格式无效');value=(value<<5)|n;bits+=5;if(bits>=8){out.push((value>>>(bits-8))&255);bits-=8;}}
+  return new Uint8Array(out);
+}
+async function dialerTotpCode(secret, timeMs) {
+  var keyBytes=dialerBase32Decode(secret), counter=Math.floor((timeMs||Date.now())/30000);
+  var msg=new Uint8Array(8);
+  for(var i=7;i>=0;i--){msg[i]=counter&255;counter=Math.floor(counter/256);}
+  var key=await crypto.subtle.importKey('raw',keyBytes,{name:'HMAC',hash:'SHA-1'},false,['sign']);
+  var mac=new Uint8Array(await crypto.subtle.sign('HMAC',key,msg)), offset=mac[mac.length-1]&15;
+  var bin=((mac[offset]&127)<<24)|(mac[offset+1]<<16)|(mac[offset+2]<<8)|mac[offset+3];
+  return String(bin%1000000).padStart(6,'0');
+}
+async function dialerVerifyTotp(secret, code) {
+  if(!/^\d{6}$/.test(String(code||'')))return false;
+  for(var drift=-1;drift<=1;drift++){if(await dialerTotpCode(secret,Date.now()+drift*30000)===String(code))return true;}
+  return false;
+}
+async function dialerRandomToken(bytes) {
+  var a=new Uint8Array(bytes||32);crypto.getRandomValues(a);
+  return Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');
+}
+
 function dialerGenToken() {
   return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
 }
@@ -974,6 +1005,21 @@ export default {
         // 登录成功 — 清除失败计数
         await env.DATA_STORE.delete(loginFailKey);
 
+        // 启用 TOTP 的账户必须先完成二次验证；此处不创建登录会话。
+        if (account.totp_enabled === true && account.totp_secret) {
+          var mfaChallenge = await dialerRandomToken(32);
+          await env.DATA_STORE.put('dialer:mfa:challenge:' + mfaChallenge, JSON.stringify({
+            account_id: account.account_id,
+            device_id: validDeviceId(body.device_id) ? body.device_id : '',
+            device_name: String(body.device_name || '').slice(0, 80),
+            created_at: Date.now(),
+            attempts: 0
+          }), { expirationTtl: 300 });
+          return new Response(JSON.stringify({ success: false, mfa_required: true, challenge_token: mfaChallenge }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }
+          });
+        }
+
         var accountId = account.account_id;
         var deviceId = validDeviceId(body.device_id) ? body.device_id : '';
         if (!deviceId) throw new Error('设备标识无效，请刷新页面后重试');
@@ -1016,6 +1062,89 @@ export default {
           status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
       }
+    }
+
+    // TOTP 2FA status/setup/enable/disable — secrets remain server-side.
+    if (path === '/api/dialer/auth/2fa/status' && request.method === 'GET') {
+      try {
+        var h2=request.headers.get('Authorization')||'', t2=h2.startsWith('Bearer ')?h2.slice(7):'';
+        var s2=await dialerValidateSession(env,t2); if(!s2) throw new Error('未登录');
+        var a2=await dialerGetAccounts(env), u2=a2.find(function(a){return a.account_id===s2.account_id;});
+        if(!u2) throw new Error('账户不存在');
+        return new Response(JSON.stringify({success:true,enabled:u2.totp_enabled===true}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+    }
+    if (path === '/api/dialer/auth/2fa/setup' && request.method === 'POST') {
+      try {
+        var h3=request.headers.get('Authorization')||'', t3=h3.startsWith('Bearer ')?h3.slice(7):'';
+        var s3=await dialerValidateSession(env,t3); if(!s3) throw new Error('未登录');
+        var a3=await dialerGetAccounts(env), u3=a3.find(function(a){return a.account_id===s3.account_id;});
+        if(!u3) throw new Error('账户不存在');
+        if(u3.totp_enabled===true) throw new Error('2FA 已启用');
+        var rb3=new Uint8Array(20); crypto.getRandomValues(rb3);
+        var secret3=await dialerBase32Encode(rb3);
+        u3.totp_pending_secret=secret3; await dialerSaveAccounts(env,a3);
+        var label3=encodeURIComponent(String(u3.account_name||u3.account_id));
+        var uri3='otpauth://totp/'+encodeURIComponent('JWX:'+String(u3.account_name||u3.account_id))+'?secret='+secret3+'&issuer=JWX&algorithm=SHA1&digits=6&period=30';
+        return new Response(JSON.stringify({success:true,secret:secret3,otpauth_uri:uri3}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+    }
+    if (path === '/api/dialer/auth/2fa/enable' && request.method === 'POST') {
+      try {
+        var h4=request.headers.get('Authorization')||'', t4=h4.startsWith('Bearer ')?h4.slice(7):'';
+        var s4=await dialerValidateSession(env,t4); if(!s4) throw new Error('未登录');
+        var b4=await request.json(), a4=await dialerGetAccounts(env), u4=a4.find(function(a){return a.account_id===s4.account_id;});
+        if(!u4||!u4.totp_pending_secret) throw new Error('请先开始 2FA 设置');
+        if(!(await dialerVerifyTotp(u4.totp_pending_secret,b4.code))) throw new Error('验证码错误或已过期');
+        u4.totp_secret=u4.totp_pending_secret; delete u4.totp_pending_secret; u4.totp_enabled=true;
+        await dialerSaveAccounts(env,a4);
+        return new Response(JSON.stringify({success:true,enabled:true}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+    }
+    if (path === '/api/dialer/auth/2fa/disable' && request.method === 'POST') {
+      try {
+        var h5=request.headers.get('Authorization')||'', t5=h5.startsWith('Bearer ')?h5.slice(7):'';
+        var s5=await dialerValidateSession(env,t5); if(!s5) throw new Error('未登录');
+        var b5=await request.json(), a5=await dialerGetAccounts(env), u5=a5.find(function(a){return a.account_id===s5.account_id;});
+        if(!u5||u5.totp_enabled!==true||!u5.totp_secret) throw new Error('2FA 尚未启用');
+        if(!(await dialerVerifyTotp(u5.totp_secret,b5.code))) throw new Error('验证码错误或已过期');
+        delete u5.totp_secret; delete u5.totp_pending_secret; u5.totp_enabled=false;
+        await dialerSaveAccounts(env,a5);
+        return new Response(JSON.stringify({success:true,enabled:false}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:e.message==='未登录'?401:400,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
+    }
+    if (path === '/api/dialer/auth/mfa/verify' && request.method === 'POST') {
+      try {
+        var mb=await request.json(), challenge=String(mb.challenge_token||'');
+        if(!/^[a-f0-9]{64}$/.test(challenge)) throw new Error('验证请求已失效，请重新登录');
+        var challengeKey='dialer:mfa:challenge:'+challenge, challengeRaw=await env.DATA_STORE.get(challengeKey);
+        if(!challengeRaw) throw new Error('验证请求已失效，请重新登录');
+        var challengeData=JSON.parse(challengeRaw);
+        if(Date.now()-Number(challengeData.created_at||0)>300000) { await env.DATA_STORE.delete(challengeKey); throw new Error('验证码请求已过期，请重新登录'); }
+        var ma=await dialerGetAccounts(env), macc=ma.find(function(a){return a.account_id===challengeData.account_id;});
+        if(!macc||macc.active===false||macc.totp_enabled!==true||!macc.totp_secret) throw new Error('账户 2FA 状态异常，请重新登录');
+        if(!(await dialerVerifyTotp(macc.totp_secret,mb.code))) {
+          challengeData.attempts=(challengeData.attempts||0)+1;
+          if(challengeData.attempts>=5) await env.DATA_STORE.delete(challengeKey);
+          else await env.DATA_STORE.put(challengeKey,JSON.stringify(challengeData),{expirationTtl:300});
+          throw new Error(challengeData.attempts>=5?'验证码错误次数过多，请重新登录':'动态验证码错误');
+        }
+        await env.DATA_STORE.delete(challengeKey);
+        var accountId=macc.account_id, deviceId=challengeData.device_id;
+        if(!validDeviceId(deviceId)) throw new Error('设备标识无效，请刷新页面后重试');
+        if(macc.is_master===false && await env.DATA_STORE.get('dialer:device-ban:'+accountId+':'+deviceId)==='1') throw new Error('该设备已被主账号禁止登录');
+        var deviceName=String(challengeData.device_name||'').slice(0,80), nowIso=new Date().toISOString();
+        if(macc.is_master===false) {
+          var maxDevices=Math.max(1,Math.min(20,parseInt(macc.max_devices||2,10)||3));
+          var deviceRows=await listDialerDeviceSessions(env), onlineDeviceIds=new Set();
+          for(var di2=0;di2<deviceRows.length;di2++){var row2=deviceRows[di2],p2=row2.payload||{};if(p2.account_id!==accountId||p2.revoked===true||!p2.device_id)continue;if(p2.device_id===deviceId){p2.revoked=true;p2.revoked_at=nowIso;await env.DATA_STORE.put('dialer:session:'+row2.session_token,JSON.stringify(p2));continue;}var seen2=new Date(p2.last_seen||p2.created_at||row2.created_at||0).getTime();if(seen2&&Date.now()-seen2<=120000)onlineDeviceIds.add(p2.device_id);}
+          if(onlineDeviceIds.size>=maxDevices) throw new Error('设备数量已达到上限（'+maxDevices+' 台），请联系主账号调整设备限制');
+        }
+        var sessionToken=await dialerRandomToken(32);
+        await env.DATA_STORE.put('dialer:session:'+sessionToken,JSON.stringify({account_id:accountId,created_at:nowIso,device_id:deviceId,device_name:deviceName,user_agent:request.headers.get('User-Agent')||'',last_seen:nowIso}));
+        if(macc.is_master!==false) await env.DATA_STORE.put('dialer:master-active:'+accountId,sessionToken);
+        return new Response(JSON.stringify({success:true,account_id:accountId,is_master:macc.is_master!==false,role:macc.is_master!==false?'master':(macc.role==='manager'?'manager':'member'),label:macc.label||'',session_token:sessionToken}),{headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
+      } catch(e) { return new Response(JSON.stringify({success:false,error:e.message}),{status:401,headers:{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}}); }
     }
 
     // Unlock: verify PIN with cooldown lockout
