@@ -1045,23 +1045,49 @@ export default {
         var pin = (body.pin || '').trim();
         if (!pin || pin.length < 4 || pin.length > 6) throw new Error('PIN 格式不正确');
         var unlockToken = (request.headers.get('Authorization') || '').replace('Bearer ', '');
+        // Session 只读取一次；在本地完成 12 小时有效期与撤销状态校验。
         var unlockRaw = unlockToken ? await env.DATA_STORE.get('dialer:session:' + unlockToken) : null;
-        var unlockPeek = unlockRaw ? JSON.parse(unlockRaw) : null;
-        if (unlockPeek && unlockPeek.account_id && unlockPeek.device_id && await env.DATA_STORE.get('dialer:device-ban:' + unlockPeek.account_id + ':' + unlockPeek.device_id) === '1') {
+        var unlockSession = unlockRaw ? JSON.parse(unlockRaw) : null;
+        if (!unlockSession || !unlockSession.account_id || unlockSession.revoked === true) {
+          throw new Error('会话已过期，请重新登录');
+        }
+        var unlockCreated = unlockSession.created_at ? new Date(unlockSession.created_at).getTime() : 0;
+        if (Date.now() - unlockCreated > 12 * 60 * 60 * 1000) {
+          await env.DATA_STORE.delete('dialer:session:' + unlockToken);
+          throw new Error('会话已过期，请重新登录');
+        }
+
+        // Session 有效后并行读取主账号活动会话、设备封禁、账户资料和 PIN 错误计数。
+        var failKey = 'dialer:unlock:fail:' + unlockSession.account_id;
+        var unlockReads = await Promise.all([
+          env.DATA_STORE.get('dialer:master-active:' + unlockSession.account_id),
+          unlockSession.device_id
+            ? env.DATA_STORE.get('dialer:device-ban:' + unlockSession.account_id + ':' + unlockSession.device_id)
+            : Promise.resolve(null),
+          dialerGetAccounts(env),
+          env.DATA_STORE.get(failKey)
+        ]);
+        var masterActiveToken = unlockReads[0];
+        var deviceBan = unlockReads[1];
+        var accounts = unlockReads[2];
+        var failRaw = unlockReads[3];
+
+        // 主账号单设备会话校验仍然生效。
+        if (masterActiveToken && masterActiveToken !== unlockToken) {
+          throw new Error('会话已过期，请重新登录');
+        }
+        if (deviceBan === '1') {
           throw new Error('DEVICE_BANNED:该设备已被主账号禁止登录');
         }
-        var unlockSession = await dialerValidateSession(env, unlockToken);
-        if (!unlockSession) throw new Error('会话已过期，请重新登录');
-        var accounts = await dialerGetAccounts(env);
+
         var found = null;
         for (var ui = 0; ui < accounts.length; ui++) {
           if (accounts[ui].account_id === unlockSession.account_id) { found = accounts[ui]; break; }
         }
         if (!found) throw new Error('账户不存在');
+        if (!found.active) throw new Error('账号已停用');
 
         // Cooldown check
-        var failKey = 'dialer:unlock:fail:' + found.account_id;
-        var failRaw = await env.DATA_STORE.get(failKey);
         var failState = failRaw ? JSON.parse(failRaw) : { count: 0, lastAttempt: 0 };
         if (failState.count >= 2) {
           var cd = failState.count >= 4 ? 600 : (failState.count === 3 ? 300 : 60);
@@ -1090,8 +1116,8 @@ export default {
           });
         }
 
-        // Success — clear fail state
-        await env.DATA_STORE.delete(failKey);
+        // Success — only clear the counter when a failure record actually exists.
+        if (failRaw) await env.DATA_STORE.delete(failKey);
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
