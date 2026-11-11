@@ -3083,13 +3083,10 @@ export default {
         const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
         const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
-        // 先记录时间线，再执行公海转移；转移失败仍会返回错误，前端不会误报云端成功。
+        // 单个客户的“添加VX”只登记操作时间线，不得单独触发转公海。
+        // 自动转公海只能由拨打列表整轮门槛（50人/40人或10人/8人）统一驱动。
         await sb.updateCustomerTimeline(mobile, entry, accountId);
         var transferredToPool = false;
-        if (entry.type === 'add_wechat') {
-          await sb.transferToPool([mobile], accountId, null);
-          transferredToPool = true;
-        }
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
           await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
