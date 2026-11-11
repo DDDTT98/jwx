@@ -3,7 +3,7 @@
 
 import { DIALER_HTML } from './dialer_html.js';
 import { DIET_HTML } from './diet_html.js';
-import { LEARN_HTML, LEARN_DEFAULT_CONTENT, LEARN_TIME_MATRIX_HTML } from './learn_html.js';
+import { LEARN_HTML, LEARN_DEFAULT_CONTENT, LEARN_TIME_MATRIX_HTML, DIALOG_SIM_HTML } from './learn_html.js';
 import { createSupabaseClient, createSupabaseStore } from './supabase.js';
 
 // Supabase PostgreSQL persistence cache; structured namespaces are routed to dedicated tables.
@@ -4547,6 +4547,120 @@ export default {
       }
     }
 
+    // ==================== Shared dialog simulation library ====================
+    if (path === '/api/learn/dialog') {
+      try {
+        var dialogAuth = request.headers.get('Authorization') || '';
+        var dialogToken = dialogAuth.startsWith('Bearer ') ? dialogAuth.slice(7) : '';
+        var dialogSession = await dialerValidateSession(env, dialogToken);
+        if (!dialogSession) throw new Error('未登录，请先登录拨号账号');
+        var dialogAccounts = await dialerGetAccounts(env);
+        var dialogAccount = dialogAccounts.find(function(a) { return a.account_id === dialogSession.account_id; });
+        if (!dialogAccount) throw new Error('账号不存在或已停用');
+
+        var dialogUrl = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialog_simulation_state';
+        var dialogHeaders = {
+          'apikey': env.SUPABASE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        };
+
+        if (request.method === 'GET') {
+          var dialogRead = await fetch(dialogUrl + '?state_key=eq.shared&select=payload,updated_at&limit=1', {
+            headers: dialogHeaders,
+            cache: 'no-store'
+          });
+          if (!dialogRead.ok) throw new Error('读取共享话术失败：' + dialogRead.status + ' ' + await dialogRead.text());
+          var dialogRows = await dialogRead.json();
+          var dialogRow = dialogRows && dialogRows[0];
+          return new Response(JSON.stringify({
+            success: true,
+            document: dialogRow ? dialogRow.payload : null,
+            updated_at: dialogRow ? dialogRow.updated_at : null
+          }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+
+        if (request.method === 'PUT') {
+          var dialogBody = await request.json();
+          var dialogDoc = dialogBody && dialogBody.document;
+          if (!dialogDoc || !Array.isArray(dialogDoc.items) || dialogDoc.items.length > 100) throw new Error('共享话术数据格式不正确');
+          var dialogTotal = 0;
+          var dialogItems = dialogDoc.items.map(function(item, index) {
+            if (!item || typeof item.id !== 'string' || typeof item.name !== 'string' || typeof item.html !== 'string') throw new Error('第' + (index + 1) + '个客户窗口数据不完整');
+            var cleanHtml = item.html;
+            dialogTotal += cleanHtml.length;
+            if (cleanHtml.length > 500000 || dialogTotal > 2500000) throw new Error('共享话术内容过大，请减少内容后重试');
+            return {
+              id: item.id.slice(0, 100),
+              name: item.name.trim().slice(0, 24) || ('客户' + (index + 1)),
+              html: cleanHtml
+            };
+          });
+          var dialogActiveId = String(dialogDoc.activeId || '');
+          if (!dialogItems.some(function(item) { return item.id === dialogActiveId; })) dialogActiveId = dialogItems.length ? dialogItems[0].id : '';
+          var dialogPayload = { activeId: dialogActiveId, items: dialogItems };
+
+          // 子账号只能新增/补充话术，删除客户窗口、提问、回复或回复版本仍由主账号控制。
+          if (dialogAccount.is_master === false) {
+            var dialogExistingRead = await fetch(dialogUrl + '?state_key=eq.shared&select=payload&limit=1', { headers: dialogHeaders, cache: 'no-store' });
+            if (!dialogExistingRead.ok) throw new Error('校验共享话术权限失败：' + dialogExistingRead.status);
+            var dialogExistingRows = await dialogExistingRead.json();
+            var dialogExistingDoc = dialogExistingRows && dialogExistingRows[0] && dialogExistingRows[0].payload;
+            if (dialogExistingDoc && Array.isArray(dialogExistingDoc.items)) {
+              dialogExistingDoc.items.forEach(function(oldItem) {
+                var nextItem = dialogItems.find(function(item) { return item.id === oldItem.id; });
+                if (!nextItem) throw new Error('只有主账号可以删除客户对话窗口');
+                var oldHtml = String(oldItem.html || '');
+                var nextHtml = nextItem.html || '';
+                var protectedIds = [];
+                var idMatch;
+                var idPattern = /data-(?:message|reply)-id="([^"]+)"/g;
+                while ((idMatch = idPattern.exec(oldHtml)) !== null) protectedIds.push(idMatch[1]);
+                for (var pi = 0; pi < protectedIds.length; pi++) {
+                  if (nextHtml.indexOf(protectedIds[pi]) < 0) throw new Error('只有主账号可以删除客户提问或业务员回复');
+                }
+                var textMatch;
+                var textPattern = /class="bubble-text">([\s\S]*?)<\/div>/g;
+                while ((textMatch = textPattern.exec(oldHtml)) !== null) {
+                  if (textMatch[1] && nextHtml.indexOf(textMatch[1]) < 0) throw new Error('只有主账号可以删除回复话术版本');
+                }
+              });
+            }
+          }
+
+          var dialogWrite = await fetch(dialogUrl + '?on_conflict=state_key', {
+            method: 'POST',
+            headers: Object.assign({}, dialogHeaders, { 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+            body: JSON.stringify({
+              state_key: 'shared',
+              payload: dialogPayload,
+              updated_at: new Date().toISOString()
+            })
+          });
+          if (!dialogWrite.ok) throw new Error('保存共享话术失败：' + dialogWrite.status + ' ' + await dialogWrite.text());
+          var dialogSavedRows = await dialogWrite.json();
+          var dialogSaved = dialogSavedRows && dialogSavedRows[0];
+          return new Response(JSON.stringify({
+            success: true,
+            document: dialogSaved ? dialogSaved.payload : dialogPayload,
+            updated_at: dialogSaved ? dialogSaved.updated_at : null
+          }), {
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        return new Response(JSON.stringify({ success: false, error: '不支持的请求方法' }), {
+          status: 405, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        var dialogStatus = e.message === '未登录，请先登录拨号账号' ? 401 : 400;
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: dialogStatus, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // ==================== Page Serving ====================
 
     // 学习中心页面（支持自定义内容）
@@ -4572,6 +4686,13 @@ export default {
           headers: { 'Content-Type': 'text/html; charset=UTF-8' }
         });
       }
+    }
+
+    // 学习中心 - 微信对话话术模拟
+    if (path === '/learn/dialog' || path === '/learn/dialog/') {
+      return new Response(DIALOG_SIM_HTML, {
+        headers: { 'Content-Type': 'text/html; charset=UTF-8', 'Cache-Control': 'no-cache' }
+      });
     }
 
     // 减肥打卡页面
