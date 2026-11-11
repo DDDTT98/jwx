@@ -1529,6 +1529,30 @@
       color: #35d07f;
       animation: androidSwitchArrow 1s ease-in-out infinite;
     }
+    .android-switch-hint .switch-gesture-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 13px;
+      width: 104px;
+      height: 24px;
+      margin: 3px auto 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,.13);
+      color: #fff;
+      font-size: 21px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .android-switch-hint .switch-gesture-bar i {
+      display: block;
+      width: 34px;
+      height: 4px;
+      border-radius: 99px;
+      background: #fff;
+      box-shadow: 0 0 5px rgba(255,255,255,.35);
+    }
     @keyframes androidSwitchArrow {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(4px); }
@@ -2952,8 +2976,9 @@
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
-    安卓系统限制，请从底部悬浮条左右滑动切换打开微信
+    安卓系统，请从屏幕底部边缘悬浮条左右切换微信粘贴添加
     <span class="switch-arrow" aria-hidden="true">↓</span>
+    <span class="switch-gesture-bar" aria-hidden="true"><span>‹</span><i></i><span>›</span></span>
   </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
