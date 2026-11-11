@@ -10947,7 +10947,9 @@ function updateAutoDialBtn() {
 
       function doConfirm() {
         var pwd = input.value.trim();
-        if (pwd.length !== 8 || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd)) {
+        var validNewPassword = /^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd);
+        var legacyPasswordMatch = !isFirstTime && pwd.length === 6 && hashPwd(pwd) === savedHash;
+        if (!validNewPassword && !legacyPasswordMatch) {
           error.textContent = '请输入 8 位字母和数字组合密码';
           error.style.display = 'block';
           input.value = '';
@@ -10964,6 +10966,20 @@ function updateAutoDialBtn() {
             error.style.display = 'block';
             return;
           }
+          closeDbPasswordGate();
+          dbPwdCallback && dbPwdCallback();
+          dbPwdCallback = null;
+        } else if (legacyPasswordMatch) {
+          var upgradedPassword = window.prompt('检测到旧版 6 位看板密码，请设置新的 8 位字母+数字密码：');
+          if (!upgradedPassword || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(upgradedPassword)) {
+            error.textContent = '请设置符合要求的 8 位新密码后再进入看板';
+            error.style.display = 'block';
+            input.value = '';
+            focusPasswordInput();
+            return;
+          }
+          try { localStorage.setItem(DB_PWD_K, hashPwd(upgradedPassword)); }
+          catch (storageError) { error.textContent = '新密码保存失败，请检查浏览器存储权限'; error.style.display = 'block'; return; }
           closeDbPasswordGate();
           dbPwdCallback && dbPwdCallback();
           dbPwdCallback = null;
