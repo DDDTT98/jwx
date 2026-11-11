@@ -1100,8 +1100,9 @@ export function createSupabaseClient(env) {
         accountFilter = '&account_id=eq.' + encodeURIComponent(accountId);
       }
 
-      // No cooldown filter: unpulled customers first, then previously pulled customers
-      // in oldest-pulled order, so customers not yet added can cycle back into the dialer.
+      // Server-enforced 10-day cooldown. Never-pulled or older-than-10-day rows are eligible.
+      var cooldownCutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+      var cooldownFilter = '&or=(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(cooldownCutoff) + ')';
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
 
       var colSets = [
@@ -1122,7 +1123,7 @@ export function createSupabaseClient(env) {
       var resp = null;
       var anySuccess = false;
       for (var ci = 0; ci < colSets.length; ci++) {
-        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + accountFilter + notInFilter;
+        var qUrl = baseUrl + '/rest/v1/customers?select=' + colSets[ci] + orderFilter + accountFilter + cooldownFilter + notInFilter;
         resp = await fetch(qUrl, { headers: hdrs });
         if (resp.ok) {
           data = await resp.json();
@@ -1162,6 +1163,50 @@ export function createSupabaseClient(env) {
    * Only affects records belonging to the specified accountId.
    * Chunked into batches of 100 to stay within URL and Worker limits.
    */
+  /**
+   * Atomically enforce dial-list eligibility using the database as source of truth.
+   * Public-pool rows are never eligible; pulled_at enforces the 10-day cooldown.
+   */
+  async function reserveCustomersForDialer(mobiles, accountId) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!accountId) throw new Error('account_id required');
+    if (!Array.isArray(mobiles) || !mobiles.length) return { added: [], skipped_public: [], skipped_cooldown: [], skipped_missing: [] };
+    var unique = Array.from(new Set(mobiles.map(function(m) { return String(m || '').trim(); }).filter(Boolean)));
+    if (!unique.length) return { added: [], skipped_public: [], skipped_cooldown: [], skipped_missing: [] };
+    var rows = [];
+    for (var offset = 0; offset < unique.length; offset += 100) {
+      var chunk = unique.slice(offset, offset + 100);
+      var url = baseUrl + '/rest/v1/customers?select=mobile,category,pulled_at,account_id&mobile=in.(' + chunk.map(encodeURIComponent).join(',') + ')';
+      var resp = await fetch(url, { headers: headers() });
+      if (!resp.ok) throw new Error('读取客户添加状态失败：' + resp.status + ' ' + (await resp.text()).slice(0, 240));
+      var page = await resp.json();
+      if (Array.isArray(page)) rows = rows.concat(page);
+    }
+    var byMobile = Object.create(null);
+    rows.forEach(function(row) { byMobile[String(row.mobile || '').trim()] = row; });
+    var now = Date.now(), cooldownMs = 10 * 24 * 60 * 60 * 1000;
+    var added = [], skippedPublic = [], skippedCooldown = [], skippedMissing = [];
+    unique.forEach(function(m) {
+      var row = byMobile[m];
+      if (!row || String(row.account_id || '') !== String(accountId)) { skippedMissing.push(m); return; }
+      if (String(row.category || '') === '公海客户' || !row.account_id) { skippedPublic.push(m); return; }
+      var pulledAt = row.pulled_at ? Date.parse(row.pulled_at) : 0;
+      if (pulledAt && Number.isFinite(pulledAt) && now - pulledAt < cooldownMs) { skippedCooldown.push(m); return; }
+      added.push(m);
+    });
+    for (var pi = 0; pi < added.length; pi += 100) {
+      var part = added.slice(pi, pi + 100);
+      var patchUrl = baseUrl + '/rest/v1/customers?mobile=in.(' + part.map(encodeURIComponent).join(',') + ')&account_id=eq.' + encodeURIComponent(accountId);
+      var patch = await fetch(patchUrl, { method: 'PATCH', headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }), body: JSON.stringify({ pulled_at: new Date(now).toISOString() }) });
+      if (!patch.ok) throw new Error('写入10天添加冷却失败：' + patch.status + ' ' + (await patch.text()).slice(0, 240));
+      var changed = await patch.json();
+      var changedSet = Object.create(null);
+      (Array.isArray(changed) ? changed : []).forEach(function(row) { changedSet[String(row.mobile || '').trim()] = true; });
+      part.forEach(function(m) { if (!changedSet[m]) { added.splice(added.indexOf(m), 1); skippedMissing.push(m); } });
+    }
+    return { added: added, skipped_public: skippedPublic, skipped_cooldown: skippedCooldown, skipped_missing: skippedMissing };
+  }
+
   async function transferToPool(mobiles, accountId, poolOwnerAccountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!Array.isArray(mobiles) || mobiles.length === 0) return 0;
@@ -1386,6 +1431,7 @@ export function createSupabaseClient(env) {
     getAllCustomers: getAllCustomers,
     updateCustomer: updateCustomer,
     getCustomersForDialer: getCustomersForDialer,
+    reserveCustomersForDialer: reserveCustomersForDialer,
     batchSetPulledAt: batchSetPulledAt,
     batchUpdateCategory: batchUpdateCategory,
     transferToPool: transferToPool,
