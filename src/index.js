@@ -2940,7 +2940,7 @@ export default {
           // 子账号补充规则：先取本账号可拨数据；不足本批 50 条时，只从主账号补足差额。
           // 例如本账号可拨 30 条，仅补 20 条；已有 50 条则不向主账号请求。
           var masterLoadedCount = 0;
-          var masterDailyRemaining = 600;
+          var masterDailyRemaining = 300;
           var masterPullReason = '';
           var accountRows = await dialerGetAccounts(env);
           var currentAccount = accountRows.find(function(a) { return a.account_id === accountId; });
@@ -2951,7 +2951,7 @@ export default {
             var masterDailyRaw = await env.DATA_STORE.get(masterDailyKey);
             var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
             var masterDailyCount = Math.max(0, parseInt(masterDailyState.count, 10) || 0);
-            masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
+            masterDailyRemaining = Math.max(0, 300 - masterDailyCount);
             var masterNeed = Math.min(limit, masterDailyRemaining, 200);
 
             if (masterNeed > 0) {
@@ -2971,7 +2971,7 @@ export default {
                 masterLoadedCount = movedRows.length;
                 masterDailyCount += movedRows.length;
                 await env.DATA_STORE.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
-                masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
+                masterDailyRemaining = Math.max(0, 300 - masterDailyCount);
               }
             }
           }
@@ -3038,7 +3038,7 @@ export default {
           // pulled_at and device/batch ownership are written atomically by claim_dialer_customers.
           try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
 
-          return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining, device_id: deviceId, batch_id: batchId }), {
+          return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining, master_daily_limit_reached: !!(currentAccount && currentAccount.is_master === false && masterDailyRemaining <= 0), device_id: deviceId, batch_id: batchId }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
           });
         } catch (innerErr) {
