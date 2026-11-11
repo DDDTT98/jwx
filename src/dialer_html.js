@@ -4869,8 +4869,14 @@
         headers: timelineHeaders,
         body: JSON.stringify(payload)
       }).then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
+        // 先解析响应体，再判断 HTTP 状态；否则会丢失服务端返回的具体错误原因。
+        return r.json().catch(function() { return {}; }).then(function(res) {
+          if (!r.ok) {
+            var serverError = res && (res.error || res.message);
+            throw new Error(serverError || ('HTTP ' + r.status));
+          }
+          return res;
+        });
       }).then(function(res) {
         if (!res || !res.success) throw new Error((res && res.error) || '时间线写入失败');
         _todayOperatedCustomers = Number(res.operated_count) || 0;
