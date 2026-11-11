@@ -1500,35 +1500,37 @@
       color: #e74c3c;
     }
 
-    /* Android browser: brief copy-success hint. */
+    /* Android browser: centered, brief copy-success hint in the app theme green. */
     .android-switch-hint {
       position: fixed;
       z-index: 100020;
-      left: 12px;
-      right: 12px;
-      bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+      top: 50%;
+      left: 50%;
+      width: max-content;
+      max-width: calc(100vw - 40px);
+      box-sizing: border-box;
       display: none;
-      padding: 9px 12px;
+      padding: 12px 18px 8px;
       border-radius: 12px;
-      background: rgba(24, 26, 30, .96);
+      transform: translate(-50%, -50%);
+      background: var(--accent-wechat, #07c160);
       color: #fff;
-      box-shadow: 0 4px 16px rgba(0,0,0,.22);
+      box-shadow: 0 5px 20px rgba(0,0,0,.2);
       text-align: center;
-      font-size: 13px;
-      line-height: 1.4;
+      font-size: 14px;
+      line-height: 1.45;
       font-weight: 700;
       pointer-events: none;
     }
     .android-switch-hint.show { display: block; }
     .android-switch-hint .switch-arrow {
-      display: inline-block;
-      margin-left: 5px;
-      color: #35d07f;
-      font-size: 17px;
+      display: block;
+      margin: 3px auto 0;
+      color: #fff;
+      font-size: 22px;
       line-height: 1;
       font-weight: 900;
     }
-    body.dark-mode .android-switch-hint { background: rgba(18, 20, 24, .97); }
 
     /* Copy limit toast */
     .check-toast {
@@ -2947,7 +2949,8 @@
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
-    已复制，左右滑动切换微信粘贴 <span class="switch-arrow" aria-hidden="true">↓</span>
+    已复制，左右滑动切换微信粘贴
+    <span class="switch-arrow" aria-hidden="true">↓</span>
   </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
