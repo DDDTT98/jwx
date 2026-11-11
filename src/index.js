@@ -2886,14 +2886,6 @@ export default {
             console.error('pull log write failed:', pullLogErr.message); // 日志写入失败不影响拉取主流程
           }
 
-          // 同步写入本批 pulled_at：数据库确认成功后才把客户返回前端。
-          // 这样右上角可拨库存立即扣减，且多设备不会在后台写入前重复拉取。
-          if (data.length > 0) {
-            const pulledMobiles = data.map(function(c) { return String(c.mobile || '').trim(); }).filter(Boolean);
-            await sb.batchSetPulledAt(pulledMobiles, accountId);
-          }
-          try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
-
           // 为换一批客户补充白名单产品名称；同一单位命中多个产品时全部返回并去重。
           var pullWhitelistRows = dialerWhitelistCache.data;
           if (!dialerWhitelistCache.ts || Date.now() - dialerWhitelistCache.ts > 5 * 60 * 1000) {
@@ -2921,6 +2913,13 @@ export default {
             });
             c.whitelist_name = products.join('、');
           });
+
+          // 在所有客户加工完成后同步写入冷却；数据库确认后才返回，避免处理失败造成客户被冷却却未送达。
+          if (data.length > 0) {
+            const pulledMobiles = data.map(function(c) { return String(c.mobile || '').trim(); }).filter(Boolean);
+            await sb.batchSetPulledAt(pulledMobiles, accountId);
+          }
+          try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
 
           return new Response(JSON.stringify({ data: data, total: result.total || 0, limit: limit, master_loaded: masterLoadedCount, master_daily_remaining: masterDailyRemaining }), {
             headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }

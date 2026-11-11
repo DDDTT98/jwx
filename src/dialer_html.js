@@ -4255,7 +4255,7 @@
     }
     function setAccountLabel(l) { localStorage.setItem(ACCOUNT_LABEL_K, l); }
 
-    // 刷新右上角账户名后的在库客户数（Supabase 精确计数：account_id 归属即算在库，转公海/导入/轮询时调用）
+    // 刷新右上角可拨客户数（精确过滤公海和10天冷却数据）
     function refreshAccountDataCount() {
       var cd = document.getElementById('accountDataCount');
       if (!cd) return;
@@ -5023,7 +5023,7 @@
         _pendingReminderClient = null;
         showCopyLimitToast(
           missingMobileCount > 0
-            ? '本轮有 ' + missingMobileCount + ' 位已操作客户缺少有效手机号，未转入公海；请补齐手机号或手动清空本轮'
+            ? '本轮有 ' + missingMobileCount + ' 位客户缺少有效手机号，未转入公海；请补齐手机号或手动清空本轮'
             : '本轮客户缺少有效手机号，未能转入公海；请检查手机号后重试',
           true
         );
