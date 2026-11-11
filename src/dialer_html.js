@@ -14625,10 +14625,16 @@ function updateAutoDialBtn() {
             sessionStorage.removeItem('dialer_lockout_until');
             var appShell = document.querySelector('.app-shell');
             if (appShell) appShell.style.display = 'flex';
+            // 先立即解除锁屏并让浏览器完成一次绘制，避免卡片渲染和后台数据请求拖慢解锁反馈。
             document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
-            renderDialCards();
-            loadReminderConfig(); // 解锁后重新拉取微信运营提醒配置（否则弹窗显示默认条目）
-            fetchWorkStats(); // 解锁后拉取云端工作数据（Supabase，按账号，实时同步）
+            requestAnimationFrame(function() {
+              setTimeout(function() {
+                renderDialCards();
+                // 非解锁必需数据放到后台加载，不阻塞 PIN 验证和锁屏关闭。
+                setTimeout(function() { loadReminderConfig(); }, 0);
+                setTimeout(function() { fetchWorkStats(); }, 0);
+              }, 0);
+            });
           } else {
             var errMsg = res.error || 'PIN 不正确';
             // Parse LOCKOUT:seconds:message prefix from server
