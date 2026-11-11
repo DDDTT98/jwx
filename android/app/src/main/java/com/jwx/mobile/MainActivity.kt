@@ -4,7 +4,6 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -17,20 +16,18 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
-    private val prefs by lazy { getSharedPreferences("jwx", Context.MODE_PRIVATE) }
-    private val homeUrl get() = prefs.getString("url", "") ?: ""
+    private val homeUrl = "https://j.chxx1688.com"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildUi()
-        if (homeUrl.isBlank()) showUrlDialog() else loadHome()
+        loadHome()
     }
 
     private fun buildUi() {
@@ -54,13 +51,8 @@ class MainActivity : Activity() {
             text = "打开微信"
             setOnClickListener { launchWechat() }
         }
-        val settingsButton = Button(this).apply {
-            text = "设置网址"
-            setOnClickListener { showUrlDialog() }
-        }
         bar.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
         bar.addView(openWechat)
-        bar.addView(settingsButton)
 
         webView = WebView(this).apply {
             this.settings.apply {
@@ -94,37 +86,7 @@ class MainActivity : Activity() {
     }
 
     private fun loadHome() {
-        val url = homeUrl.trim()
-        if (!url.startsWith("https://")) {
-            Toast.makeText(this, "请使用 HTTPS 网站地址", Toast.LENGTH_LONG).show()
-            showUrlDialog()
-            return
-        }
-        webView.loadUrl(url)
-    }
-
-    private fun showUrlDialog() {
-        val input = EditText(this).apply {
-            hint = "https://你的 JWX 网站地址"
-            setSingleLine(true)
-            setText(homeUrl)
-            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
-        }
-        AlertDialog.Builder(this)
-            .setTitle("设置 JWX 网站")
-            .setMessage("输入当前已部署的 JWX HTTPS 地址。地址只保存在本机。")
-            .setView(input)
-            .setPositiveButton("保存并打开") { _, _ ->
-                val value = input.text.toString().trim().trimEnd('/')
-                if (value.startsWith("https://")) {
-                    prefs.edit().putString("url", value).apply()
-                    loadHome()
-                } else {
-                    Toast.makeText(this, "请输入有效的 HTTPS 地址", Toast.LENGTH_LONG).show()
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
+        webView.loadUrl(homeUrl)
     }
 
     private fun launchWechat() {
@@ -154,6 +116,35 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun openWechat() {
             runOnUiThread { launchWechat() }
+        }
+
+        @JavascriptInterface
+        fun openWechatAddFriend(phone: String, name: String, company: String) {
+            runOnUiThread {
+                val searchValue = phone.trim().ifBlank { name.trim().ifBlank { company.trim() } }
+                if (searchValue.isNotBlank()) {
+                    val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("JWX好友搜索", searchValue))
+                }
+
+                Toast.makeText(
+                    this@MainActivity,
+                    if (phone.isNotBlank()) "手机号已复制，正在打开微信添加朋友" else "客户信息已复制，正在打开微信添加朋友",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                try {
+                    val addFriend = Intent(Intent.ACTION_VIEW, Uri.parse("weixin://dl/add")).apply {
+                        setPackage("com.tencent.mm")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(addFriend)
+                } catch (_: Exception) {
+                    // 部分微信版本/ROM 不接受此内部入口时，至少打开微信首页。
+                    launchWechat()
+                    Toast.makeText(this@MainActivity, "已打开微信，请进入添加朋友并粘贴搜索", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
