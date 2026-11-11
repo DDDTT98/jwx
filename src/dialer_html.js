@@ -14131,12 +14131,28 @@ function updateAutoDialBtn() {
       // 未配置 TURNSTILE_SECRET 时服务端放行；配置后 token 缺失/无效则接口拒绝
       window._tsToken = '';
       window._tsCallback = function(token){ window._tsToken = token; };
+      window._tsExpiredCallback = function(){ window._tsToken = ''; };
+      window._tsWidgetIds = window._tsWidgetIds || {};
       window._tsRender = function(widgetId){
         var el = document.getElementById(widgetId);
         if(el && !el.hasChildNodes() && typeof turnstile !== 'undefined'){
           try{
-            turnstile.render(el,{sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',callback:'_tsCallback',theme:'auto',appearance:'interaction-only'});
+            window._tsWidgetIds[widgetId] = turnstile.render(el,{
+              sitekey:'0x4AAAAAAECnjVwNlyMwf-l8',
+              callback:'_tsCallback',
+              'expired-callback':'_tsExpiredCallback',
+              'error-callback':'_tsExpiredCallback',
+              theme:'auto',
+              appearance:'interaction-only'
+            });
           }catch(e){}
+        }
+      };
+      window._tsReset = function(widgetId){
+        window._tsToken = '';
+        var id = window._tsWidgetIds[widgetId];
+        if(id && typeof turnstile !== 'undefined'){
+          try{ turnstile.reset(id); }catch(e){}
         }
       };
       // 首屏无感渲染验证 widget（登录页/锁屏/首次设置共用同一隐藏容器渲染）
@@ -14679,6 +14695,7 @@ function updateAutoDialBtn() {
         error.textContent = '网络错误，请重试';
       })
       .finally(function() {
+        if (window._tsReset) window._tsReset('tsLoginWidget');
         if (loginBtn.textContent === '登录') {
           loginBtn.disabled = false;
         }
@@ -14720,6 +14737,7 @@ function updateAutoDialBtn() {
       document.getElementById('authLoginOverlay').classList.add('auth-hidden');
       var overlay = document.getElementById('authSetupOverlay');
       overlay.classList.remove('auth-hidden');
+      window._tsRender('tsSetupWidget');
       syncAllOverlayWallpapers();
 
       document.getElementById('authSetupName').value = '';
@@ -14777,6 +14795,7 @@ function updateAutoDialBtn() {
         error.textContent = '网络错误，请重试';
       })
       .finally(function() {
+        if (window._tsReset) window._tsReset('tsSetupWidget');
         btn.disabled = false;
         btn.textContent = '创建主账户';
       });
