@@ -3755,10 +3755,8 @@
         <div id="dbStorageMigrationStatus" style="font-size:0.66rem;line-height:1.5;color:var(--text-soft);min-height:16px;"></div>
       </div>
       <div style="display:flex; gap:8px; border-top:0.5px solid var(--card-border); padding-top:12px;">
-        <button id="dbLogoutBtn" class="btn-secondary" style="flex:1; height:34px; font-size:0.75rem;">退出登录</button>
-        <button id="dbResetAccountsBtn" style="flex:1; height:34px; background:rgba(231,76,60,0.08); border:none; box-shadow:var(--shadow-card); color:#e74c3c; border-radius:var(--radius-xs); font-size:0.72rem; font-weight:700; cursor:pointer;">重置所有账户</button>
+        <button id="dbLogoutBtn" class="btn-secondary" style="width:100%; height:34px; font-size:0.75rem;">退出登录</button>
       </div>
-      <div id="dbResetAccountsError" style="font-size:0.62rem; min-height:16px; text-align:center;"></div>
     </div>
 
     <!-- Backup Manager Panel -->
@@ -13103,19 +13101,6 @@ function updateAutoDialBtn() {
       var logoutBtn = document.getElementById("dbLogoutBtn");
       if (logoutBtn) { logoutBtn.addEventListener("click", function() { clearSession(); location.reload(); }); }
 
-      // Reset
-      var resetBtn2 = document.getElementById("dbResetAccountsBtn");
-      if (resetBtn2) {
-        resetBtn2.addEventListener("click", function() {
-          if (!confirm("确定要删除所有账户数据吗？此操作不可撤销。")) return;
-          resetBtn2.disabled = true; resetBtn2.textContent = "重置中...";
-          fetch("/api/dialer/auth/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ turnstileToken: window._tsToken || "" }) })
-          .then(function(r) { return r.json(); })
-          .then(function() { clearSession(); location.reload(); })
-          .catch(function() { document.getElementById("dbResetAccountsError").textContent = "重置失败"; })
-          .finally(function() { resetBtn2.disabled = false; resetBtn2.textContent = "重置所有账户"; });
-        });
-      }
     }
 
     function initBackupMgrPanel() {
