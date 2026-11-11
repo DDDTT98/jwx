@@ -620,7 +620,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
    <div class="composer-title">添加下一组对话</div>
    <div class="form-hint">一组对话可以包含多条消息；每条消息都能单独选择客户或业务员，先后顺序和连续发言次数不限。</div>
    <div id="composerEntries"></div>
-   <div class="actions"><button class="cancel-dialog" id="addComposerEntry" type="button">＋ 添加一条消息</button></div>
+   <div class="actions"><button class="cancel-dialog" id="addComposerEntry" type="button">＋ 添加下一条（自动切换发言方）</button></div>
    <div class="form-hint">业务员消息可填写话术注释；注释显示在绿色气泡下方，不会随话术一起复制。</div>
    <div class="actions"><button class="save-dialog" id="saveDialog" type="button">添加到聊天</button><button class="cancel-dialog" id="cancelDialog" type="button">取消</button></div>
  </section>
@@ -914,8 +914,8 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   document.getElementById('openComposer').addEventListener('click',function(){resetComposer();composer.classList.add('open');composerEntries.querySelector('.entry-message').focus();});
   document.getElementById('addComposerEntry').addEventListener('click',function(){
     var entries=composerEntries.querySelectorAll('.composer-entry');
-    var last=entries.length?entries[entries.length-1].querySelector('.composer-role').value:'customer';
-    addComposerEntry(last);
+    var last=entries.length?entries[entries.length-1].querySelector('.composer-role').value:'staff';
+    addComposerEntry(last==='customer'?'staff':'customer');
   });
   document.getElementById('cancelDialog').addEventListener('click',function(){resetComposer();});
   document.getElementById('saveDialog').addEventListener('click',function(){
