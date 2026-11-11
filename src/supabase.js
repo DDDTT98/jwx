@@ -1102,7 +1102,8 @@ export function createSupabaseClient(env) {
 
       // Server-enforced 10-day cooldown. Never-pulled or older-than-10-day rows are eligible.
       var cooldownCutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
-      var cooldownFilter = '&or=(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(cooldownCutoff) + ')';
+      // 同时排除公海客户；category 为空的历史普通客户仍保留可拨资格。
+      var cooldownFilter = '&and=(or(category.neq.' + encodeURIComponent('公海客户') + ',category.is.null),or(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(cooldownCutoff) + '))';
       var orderFilter = '&order=pulled_at.asc.nullsfirst,created_at.desc';
 
       var colSets = [
@@ -1286,41 +1287,42 @@ export function createSupabaseClient(env) {
    * Uses Supabase PATCH with mobile.in filter.
    */
   async function batchSetPulledAt(mobiles, accountId) {
-    if (!baseUrl || !key) return;
-    if (!mobiles || mobiles.length === 0) return;
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!Array.isArray(mobiles) || mobiles.length === 0) return 0;
 
-    try {
-      var uniqueMobiles = [];
-      for (var i = 0; i < mobiles.length; i++) {
-        var m = (mobiles[i] || '').trim();
-        if (m && uniqueMobiles.indexOf(m) === -1) uniqueMobiles.push(m);
-      }
-      if (uniqueMobiles.length === 0) return;
+    var uniqueMobiles = [];
+    for (var i = 0; i < mobiles.length; i++) {
+      var m = String(mobiles[i] || '').trim();
+      if (m && uniqueMobiles.indexOf(m) === -1) uniqueMobiles.push(m);
+    }
+    if (uniqueMobiles.length === 0) return 0;
 
-      var inFilter = 'mobile=in.(' + uniqueMobiles.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
-      var qUrl = baseUrl + '/rest/v1/customers?' + inFilter;
-      // Belt-and-suspenders: if accountId provided, restrict to this account
-      if (accountId) {
-        qUrl += '&account_id=eq.' + encodeURIComponent(accountId);
-      }
-      var body = JSON.stringify({ pulled_at: new Date().toISOString() });
-
+    var updatedCount = 0;
+    for (var offset = 0; offset < uniqueMobiles.length; offset += 100) {
+      var chunk = uniqueMobiles.slice(offset, offset + 100);
+      var qUrl = baseUrl + '/rest/v1/customers?mobile=in.(' +
+        chunk.map(function(m) { return encodeURIComponent(m); }).join(',') + ')';
+      if (accountId) qUrl += '&account_id=eq.' + encodeURIComponent(accountId);
       var resp = await fetch(qUrl, {
         method: 'PATCH',
         headers: Object.assign({}, headers(), {
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'return=representation'
         }),
-        body: body
+        body: JSON.stringify({ pulled_at: new Date().toISOString() })
       });
       if (!resp.ok) {
-        var errText = '';
-        try { errText = await resp.text(); } catch(_) {}
-        console.error('[supabase] batchSetPulledAt PATCH failed: HTTP ' + resp.status + ' — ' + errText.slice(0, 300));
+        var errText = await resp.text().catch(function() { return ''; });
+        throw new Error('写入10天拨打冷却失败：' + resp.status + ' ' + errText.slice(0, 240));
       }
-    } catch (e) {
-      console.error('[supabase] batchSetPulledAt error:', e.message);
+      var changed = await resp.json().catch(function() { return []; });
+      if (!Array.isArray(changed)) throw new Error('写入10天拨打冷却失败：数据库返回格式异常');
+      updatedCount += changed.length;
+      if (changed.length !== chunk.length) {
+        throw new Error('写入10天拨打冷却未全部确认：' + (offset + changed.length) + '/' + uniqueMobiles.length);
+      }
     }
+    return updatedCount;
   }
 
   /** Reset prior call outcome so an old operation cannot complete a newly imported batch. */

@@ -4992,10 +4992,10 @@
       var roundClients = importedClients.slice(0, roundSize);
       var boundaryClient = roundClients[roundSize - 1];
       var requiredCount = Math.ceil(roundSize * 0.8);
-      var operatedClients = roundClients.filter(function(c) {
+      var qualifiedCount = roundClients.filter(function(c) {
         return c.name_copied || c.company_copied || c.note_copied;
-      });
-      if (!boundaryClient || !boundaryClient.round_boundary_operated || operatedClients.length < requiredCount) {
+      }).length;
+      if (!boundaryClient || !boundaryClient.round_boundary_operated || qualifiedCount < requiredCount) {
         window._roundTransferBlocked = false;
         window._roundTransferPending = false;
         _reminderShown = false;
@@ -5003,11 +5003,13 @@
         return;
       }
 
+      // 达到 80% 触发条件后，转移本轮完整 50/10 条，而不是只转已操作的客户。
+      var transferClients = roundClients;
       var mobiles = [];
       var mobileSet = {};
       var missingMobileCount = 0;
-      for (var k = 0; k < operatedClients.length; k++) {
-        var m = String(operatedClients[k].phone || operatedClients[k].mobile || '').trim();
+      for (var k = 0; k < transferClients.length; k++) {
+        var m = String(transferClients[k].phone || transferClients[k].mobile || '').trim();
         if (!m) {
           missingMobileCount++;
           continue;
@@ -5029,7 +5031,7 @@
       }
 
       window._roundTransferPending = true;
-      console.log('[auto-transfer] 本轮已操作 ' + operatedClients.length + ' 人, 正在转入公海...');
+      console.log('[auto-transfer] 本轮 ' + transferClients.length + ' 人达到操作率条件，正在整批转入公海...');
       var autoTransferToken = getSessionToken();
       if (!autoTransferToken) {
         window._roundTransferPending = false;

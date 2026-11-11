@@ -2239,10 +2239,13 @@ export default {
 
         if (supabaseUrl && supabaseKey) {
           var mcHdrs = { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey, 'Prefer': 'count=exact' };
+          var mcCutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
           var mcResp = await fetch(
-            supabaseUrl + '/rest/v1/customers?select=id&account_id=eq.' + encodeURIComponent(mcCountAccountId) + '&limit=1',
+            supabaseUrl + '/rest/v1/customers?select=id&account_id=eq.' + encodeURIComponent(mcCountAccountId) +
+              '&and=(or(category.neq.' + encodeURIComponent('公海客户') + ',category.is.null),or(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(mcCutoff) + '))&limit=1',
             { headers: mcHdrs }
           );
+          if (!mcResp.ok) throw new Error('统计可拨客户数量失败：' + mcResp.status);
           var contentRange = mcResp.headers.get('content-range');
           if (contentRange) {
             var parts = contentRange.split('/');
@@ -2782,83 +2785,72 @@ export default {
           if (result && result.error) throw new Error(result.error);
           const data = result.data || [];
 
-          // 子账号自动补充：本账号客户总量不足 600，或本账号当前已无可拉取客户时，
-          // 从唯一主账号客户池转移补充。每日每个子账号最多转入 600 条。
+          // 子账号补充规则：先取本账号可拨数据；不足本批 50 条时，只从主账号补足差额。
+          // 例如本账号可拨 30 条，仅补 20 条；已有 50 条则不向主账号请求。
           var masterLoadedCount = 0;
           var masterDailyRemaining = 600;
           var masterPullReason = '';
           var accountRows = await dialerGetAccounts(env);
           var currentAccount = accountRows.find(function(a) { return a.account_id === accountId; });
           var masterAccount = accountRows.find(function(a) { return a && a.is_master !== false; });
-          if (currentAccount && currentAccount.is_master === false && masterAccount && masterAccount.account_id !== accountId) {
-            var childCountResp = await fetch(
-              env.SUPABASE_URL + '/rest/v1/customers?select=mobile&account_id=eq.' + encodeURIComponent(accountId),
-              { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Range': '0-0', 'Prefer': 'count=exact' } }
-            );
-            if (!childCountResp.ok) throw new Error('读取子账号客户数量失败：' + childCountResp.status);
-            var childRange = childCountResp.headers.get('Content-Range') || '';
-            var childRangeParts = childRange.split('/');
-            var childCustomerCount = childRangeParts.length === 2 ? parseInt(childRangeParts[1], 10) : 0;
-            if (!Number.isFinite(childCustomerCount)) childCustomerCount = 0;
+          if (currentAccount && currentAccount.is_master === false && masterAccount && masterAccount.account_id !== accountId && data.length < limit) {
+            masterPullReason = data.length === 0 ? 'empty_dialer' : 'fill_batch_shortfall';
+            var masterDailyKey = 'dialer:master-pull:day:' + accountId + ':' + beijingDateKey(new Date());
+            var masterDailyRaw = await env.DATA_STORE.get(masterDailyKey);
+            var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
+            var masterDailyCount = Math.max(0, parseInt(masterDailyState.count, 10) || 0);
+            masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
+            var masterNeed = Math.min(Math.max(0, limit - data.length), masterDailyRemaining, 200);
 
-            if (childCustomerCount < 600 || data.length === 0) {
-              masterPullReason = childCustomerCount < 600 && data.length === 0 ? 'low_inventory_and_empty_dialer' : (childCustomerCount < 600 ? 'low_inventory' : 'empty_dialer');
-              var masterDailyKey = 'dialer:master-pull:day:' + accountId + ':' + beijingDateKey(new Date());
-              var masterDailyRaw = await env.DATA_STORE.get(masterDailyKey);
-              var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
-              var masterDailyCount = Math.max(0, parseInt(masterDailyState.count, 10) || 0);
-              masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
-              var masterNeed = Math.min(Math.max(0, limit - data.length), masterDailyRemaining, 200);
+            if (masterNeed > 0) {
+              var masterExclude = Array.isArray(excludeMobiles) ? excludeMobiles.slice() : [];
+              data.forEach(function(c) {
+                var mobile = String(c.mobile || '').trim();
+                if (mobile && masterExclude.indexOf(mobile) === -1) masterExclude.push(mobile);
+              });
+              var masterResult = await sb.getCustomersForDialer(masterNeed, masterExclude.length ? masterExclude : null, masterAccount.account_id);
+              if (masterResult && masterResult.error) throw new Error('读取主账号待拨客户失败：' + masterResult.error);
+              var masterCandidates = masterResult.data || [];
+              var movedRows = [];
 
-              if (masterNeed > 0) {
-                var masterExclude = Array.isArray(excludeMobiles) ? excludeMobiles.slice() : [];
-                data.forEach(function(c) {
-                  var mobile = (c.mobile || '').trim();
-                  if (mobile && masterExclude.indexOf(mobile) === -1) masterExclude.push(mobile);
+              for (var msi = 0; msi < masterCandidates.length; msi += 100) {
+                var masterChunk = masterCandidates.slice(msi, msi + 100);
+                var masterMobiles = masterChunk.map(function(c) { return String(c.mobile || '').trim(); }).filter(Boolean);
+                if (!masterMobiles.length) continue;
+                var masterIn = masterMobiles.map(function(m) { return encodeURIComponent(m); }).join(',');
+                var moveResp = await fetch(
+                  env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + masterIn + ')&account_id=eq.' + encodeURIComponent(masterAccount.account_id),
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'apikey': env.SUPABASE_KEY,
+                      'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+                      'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({ account_id: accountId, pulled_at: null })
+                  }
+                );
+                if (!moveResp.ok) {
+                  var moveErr = await moveResp.text();
+                  throw new Error('从主账号补充客户失败：' + moveResp.status + ' ' + moveErr.slice(0, 180));
+                }
+                var moved = await moveResp.json().catch(function() { return []; });
+                if (Array.isArray(moved) && moved.length) {
+                  movedRows = movedRows.concat(moved);
+                  masterLoadedCount += moved.length;
+                  masterDailyCount += moved.length;
+                  await env.DATA_STORE.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
+                  masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
+                }
+                if (masterDailyRemaining <= 0 || data.length + movedRows.length >= limit) break;
+              }
+              if (movedRows.length) {
+                var movedMap = {};
+                movedRows.forEach(function(c) { movedMap[String(c.mobile || '').trim()] = true; });
+                masterCandidates.forEach(function(c) {
+                  if (movedMap[String(c.mobile || '').trim()]) data.push(c);
                 });
-                var masterResult = await sb.getCustomersForDialer(masterNeed, masterExclude.length ? masterExclude : null, masterAccount.account_id);
-                var masterCandidates = masterResult.data || [];
-                var movedRows = [];
-
-                for (var msi = 0; msi < masterCandidates.length; msi += 100) {
-                  var masterChunk = masterCandidates.slice(msi, msi + 100);
-                  var masterMobiles = masterChunk.map(function(c) { return (c.mobile || '').trim(); }).filter(Boolean);
-                  if (!masterMobiles.length) continue;
-                  var masterIn = masterMobiles.map(function(m) { return encodeURIComponent(m); }).join(',');
-                  var moveResp = await fetch(
-                    env.SUPABASE_URL + '/rest/v1/customers?mobile=in.(' + masterIn + ')&account_id=eq.' + encodeURIComponent(masterAccount.account_id),
-                    {
-                      method: 'PATCH',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'apikey': env.SUPABASE_KEY,
-                        'Authorization': 'Bearer ' + env.SUPABASE_KEY,
-                        'Prefer': 'return=representation'
-                      },
-                      body: JSON.stringify({ account_id: accountId, pulled_at: null })
-                    }
-                  );
-                  if (!moveResp.ok) {
-                    var moveErr = await moveResp.text();
-                    throw new Error('从主账号补充客户失败：' + moveResp.status + ' ' + moveErr.slice(0, 180));
-                  }
-                  var moved = await moveResp.json().catch(function() { return []; });
-                  if (Array.isArray(moved) && moved.length) {
-                    movedRows = movedRows.concat(moved);
-                    masterLoadedCount += moved.length;
-                    masterDailyCount += moved.length;
-                    await env.DATA_STORE.put(masterDailyKey, JSON.stringify({ count: masterDailyCount, updated_at: Date.now() }), { expirationTtl: 3 * 24 * 3600 });
-                    masterDailyRemaining = Math.max(0, 600 - masterDailyCount);
-                  }
-                  if (masterDailyRemaining <= 0 || data.length + movedRows.length >= limit) break;
-                }
-                if (movedRows.length) {
-                  var movedMap = {};
-                  movedRows.forEach(function(c) { movedMap[c.mobile] = true; });
-                  masterCandidates.forEach(function(c) {
-                    if (movedMap[c.mobile]) data.push(c);
-                  });
-                }
               }
             }
           }
@@ -2894,22 +2886,13 @@ export default {
             console.error('pull log write failed:', pullLogErr.message); // 日志写入失败不影响拉取主流程
           }
 
-          // Background: update pulled_at + write Supabase cooldown rows + release lock
-          // Fire-and-forget after response so the client gets instant feedback.
-          ctx.waitUntil((async function() {
-            try {
-              if (data.length > 0) {
-                const mobiles = data.map(function(c) { return c.mobile || ''; }).filter(Boolean);
-                // One bulk Supabase PATCH replaces N per-mobile 数据库写入.
-                // getCustomersForDialer already excludes rows whose pulled_at is within 10 days.
-                await sb.batchSetPulledAt(mobiles, accountId);
-              }
-            } catch (bgErr) {
-              console.error('[pull] background update error:', bgErr.message);
-            } finally {
-              try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
-            }
-          })());
+          // 同步写入本批 pulled_at：数据库确认成功后才把客户返回前端。
+          // 这样右上角可拨库存立即扣减，且多设备不会在后台写入前重复拉取。
+          if (data.length > 0) {
+            const pulledMobiles = data.map(function(c) { return String(c.mobile || '').trim(); }).filter(Boolean);
+            await sb.batchSetPulledAt(pulledMobiles, accountId);
+          }
+          try { await env.DATA_STORE.delete(lockKey); } catch (_) {}
 
           // 为换一批客户补充白名单产品名称；同一单位命中多个产品时全部返回并去重。
           var pullWhitelistRows = dialerWhitelistCache.data;
