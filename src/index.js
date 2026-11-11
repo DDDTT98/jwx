@@ -3047,6 +3047,25 @@ export default {
       }
     }
 
+    // Server-authoritative CRM add-to-dialer gate: account ownership, public-pool prohibition and 10-day cooldown.
+    if (path === '/api/dialer/add-to-list' && request.method === 'POST') {
+      try {
+        if (!_session) throw new Error('未登录');
+        var addBody = await request.json();
+        var addMobiles = Array.isArray(addBody.mobiles) ? addBody.mobiles : [];
+        if (!addMobiles.length || addMobiles.length > 500) throw new Error('请选择 1 至 500 位客户');
+        var addSb = createSupabaseClient(env);
+        var addGate = await addSb.reserveCustomersForDialer(addMobiles, _dialerAccountId);
+        return new Response(JSON.stringify({ success: true, added: addGate.added, skipped_public: addGate.skipped_public, skipped_cooldown: addGate.skipped_cooldown, skipped_missing: addGate.skipped_missing }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 400, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // Timeline
     if (path === '/api/dialer/timeline' && request.method === 'POST') {
       try {
@@ -3064,14 +3083,13 @@ export default {
         const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
         const cleanMobile = String(mobile).replace(/\D/g, '');
         const sb = createSupabaseClient(env);
-        await sb.updateCustomerTimeline(mobile, entry, accountId);
-        // 点击“添加VX”即视为已添加：永久转入公海，不再归属当前拨号账户。
-        // 只认 add_wechat，普通拨打、复制姓名/单位等操作不会触发转移。
+        // 点击“添加VX”必须先确认云端转公海成功，再返回成功状态；失败由前端提示并允许重试。
         var transferredToPool = false;
         if (entry.type === 'add_wechat') {
           await sb.transferToPool([mobile], accountId, null);
           transferredToPool = true;
         }
+        await sb.updateCustomerTimeline(mobile, entry, accountId);
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
           await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
