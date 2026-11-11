@@ -1,7 +1,6 @@
 package com.jwx.mobile
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -9,7 +8,6 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -68,6 +66,7 @@ class MainActivity : Activity() {
                     val uri = request.url
                     if (uri.scheme == "https" && uri.host == Uri.parse(homeUrl).host) return false
                     if (uri.scheme == "weixin") {
+                        // 不再加载微信内部深链，避免进入“当前页面无法访问”错误页。
                         launchWechat()
                         return true
                     }
@@ -129,21 +128,12 @@ class MainActivity : Activity() {
 
                 Toast.makeText(
                     this@MainActivity,
-                    if (phone.isNotBlank()) "手机号已复制，正在打开微信添加朋友" else "客户信息已复制，正在打开微信添加朋友",
+                    if (phone.isNotBlank()) "手机号已复制，正在打开微信" else "客户信息已复制，正在打开微信",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                try {
-                    val addFriend = Intent(Intent.ACTION_VIEW, Uri.parse("weixin://dl/add")).apply {
-                        setPackage("com.tencent.mm")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    startActivity(addFriend)
-                } catch (_: Exception) {
-                    // 部分微信版本/ROM 不接受此内部入口时，至少打开微信首页。
-                    launchWechat()
-                    Toast.makeText(this@MainActivity, "已打开微信，请进入添加朋友并粘贴搜索", Toast.LENGTH_LONG).show()
-                }
+                // 微信未提供稳定公开的按手机号直达添加好友页面接口，直接打开微信首页。
+                launchWechat()
             }
         }
     }
