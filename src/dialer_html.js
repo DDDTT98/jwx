@@ -4584,13 +4584,14 @@
         var intentUrl = 'intent://#Intent;scheme=weixin;package=com.tencent.mm;end';
         var launchDetected = false;
         var markWechatLaunched = function() { launchDetected = true; };
-        document.addEventListener('visibilitychange', function onVisibilityChange() {
+        var onWechatVisibilityChange = function() {
           if (document.hidden) {
             markWechatLaunched();
-            document.removeEventListener('visibilitychange', onVisibilityChange);
+            document.removeEventListener('visibilitychange', onWechatVisibilityChange);
             window.removeEventListener('pagehide', markWechatLaunched);
           }
-        });
+        };
+        document.addEventListener('visibilitychange', onWechatVisibilityChange);
         window.addEventListener('pagehide', markWechatLaunched);
         var launchLink = document.createElement('a');
         launchLink.href = intentUrl;
@@ -4602,7 +4603,7 @@
 
         // 浏览器若拦截外部应用跳转，明确告知用户：号码已复制，可手动打开微信。
         setTimeout(function() {
-          document.removeEventListener('visibilitychange', onVisibilityChange);
+          document.removeEventListener('visibilitychange', onWechatVisibilityChange);
           window.removeEventListener('pagehide', markWechatLaunched);
           if (!launchDetected && !document.hidden) {
             showCopyLimitToast('微信未能自动打开，手机号已复制，请手动打开微信', true);
