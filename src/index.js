@@ -3050,11 +3050,13 @@ export default {
         const cleanMobile = String(mobile).replace(/\D/g, '');
         var timelineDeviceId = String(body.device_id || '').trim();
         var timelineBatchId = String(body.batch_id || '').trim();
-        if (!timelineDeviceId || !timelineBatchId) throw new Error('拨号列表已失效，请刷新后重新加载');
+        // 设备与批次只作为操作来源记录，不参与客户归属校验。
+        if (timelineDeviceId) entry.device_id = timelineDeviceId;
+        if (timelineBatchId) entry.batch_id = timelineBatchId;
         const sb = createSupabaseClient(env);
-        // 单个客户的“添加VX”只登记操作时间线，不得单独触发转公海。
-        // 自动转公海只能由拨打列表整轮门槛（50人/40人或10人/8人）统一驱动。
-        await sb.updateCustomerTimeline(mobile, entry, accountId, { device_id: timelineDeviceId, batch_id: timelineBatchId });
+        // 客户操作只校验当前视图账号的 account_id；添加VX不单独触发转公海。
+        // 自动转公海仍由拨打列表整轮门槛统一驱动。
+        await sb.updateCustomerTimeline(mobile, entry, accountId);
         var transferredToPool = false;
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
