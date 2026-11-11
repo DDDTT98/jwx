@@ -2958,7 +2958,9 @@ export default {
         var tpPoolOwnerId = tpMaster ? tpMaster.account_id : '';
 
         const sb = createSupabaseClient(env);
-        const transferred = await sb.transferToPool(mobiles, tpScopeId, tpPoolOwnerId);
+        const transferClaim = poolBody.device_id && poolBody.batch_id
+          ? { device_id: String(poolBody.device_id), batch_id: String(poolBody.batch_id) } : null;
+        const transferred = await sb.transferToPool(mobiles, tpScopeId, tpPoolOwnerId, transferClaim);
         return new Response(JSON.stringify({ success: true, transferred: transferred, total: mobiles.length }), {
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
@@ -3009,7 +3011,17 @@ export default {
         var addMobiles = Array.isArray(addBody.mobiles) ? addBody.mobiles : [];
         if (!addMobiles.length || addMobiles.length > 500) throw new Error('请选择 1 至 500 位客户');
         var addSb = createSupabaseClient(env);
-        var addGate = await addSb.reserveCustomersForDialer(addMobiles, _dialerAccountId);
+        var addDeviceId = String(addBody.device_id || '').trim();
+        var addBatchId = String(addBody.batch_id || '').trim();
+        if (!addDeviceId || !addBatchId) throw new Error('拨号列表已失效，请刷新后重新加载');
+        var addClaimedRows = await addSb.claimSpecificCustomersForDialer(_dialerAccountId, addDeviceId, addBatchId, addMobiles);
+        var addClaimedSet = Object.create(null);
+        addClaimedRows.forEach(function(r) { if (r && r.mobile) addClaimedSet[String(r.mobile)] = true; });
+        var addGate = {
+          added: addMobiles.filter(function(m) { return !!addClaimedSet[String(m)]; }),
+          skipped_public: [], skipped_cooldown: [],
+          skipped_missing: addMobiles.filter(function(m) { return !addClaimedSet[String(m)]; })
+        };
         return new Response(JSON.stringify({ success: true, added: addGate.added, skipped_public: addGate.skipped_public, skipped_cooldown: addGate.skipped_cooldown, skipped_missing: addGate.skipped_missing }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
         });
@@ -3036,10 +3048,13 @@ export default {
         });
         const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
         const cleanMobile = String(mobile).replace(/\D/g, '');
+        var timelineDeviceId = String(body.device_id || '').trim();
+        var timelineBatchId = String(body.batch_id || '').trim();
+        if (!timelineDeviceId || !timelineBatchId) throw new Error('拨号列表已失效，请刷新后重新加载');
         const sb = createSupabaseClient(env);
         // 单个客户的“添加VX”只登记操作时间线，不得单独触发转公海。
         // 自动转公海只能由拨打列表整轮门槛（50人/40人或10人/8人）统一驱动。
-        await sb.updateCustomerTimeline(mobile, entry, accountId);
+        await sb.updateCustomerTimeline(mobile, entry, accountId, { device_id: timelineDeviceId, batch_id: timelineBatchId });
         var transferredToPool = false;
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
@@ -3070,8 +3085,11 @@ export default {
         const body = await request.json();
         const { mobile, fields } = body;
         const accountId = _dialerAccountId;
+        const patchClaim = body.device_id && body.batch_id
+          ? { device_id: String(body.device_id), batch_id: String(body.batch_id) } : null;
         const sb = createSupabaseClient(env);
-        const updated = await sb.updateCustomer(mobile, fields, accountId);
+        const updated = await sb.updateCustomer(mobile, fields, accountId, patchClaim);
+        if (patchClaim && !updated) throw new Error('拨号列表已失效：该客户不属于当前设备的当前批次');
         return new Response(JSON.stringify({ success: true, data: updated }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
