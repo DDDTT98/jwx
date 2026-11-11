@@ -872,29 +872,6 @@ export default {
       }
     }
 
-    if (path === '/api/dialer/auth/reset' && request.method === 'POST') {
-      try {
-        // Turnstile 人机验证 — 配置了 TURNSTILE_SECRET 时强制校验，未配置则放行
-        if (getTurnstileSecret(env)) {
-          var resetBody = await request.json().catch(function(){ return {}; });
-          if (!(await verifyTurnstile(env, resetBody.turnstileToken, clientIP))) {
-            return new Response(JSON.stringify({ error: '人机验证失败，请刷新页面后重试' }), {
-              status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            });
-          }
-        }
-        var accounts = await dialerGetAccounts(env);
-        var count = accounts.length;
-        await env.DATA_STORE.put('dialer:accounts', JSON.stringify([]));
-        return new Response(JSON.stringify({ success: true, cleared: count }), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), {
-          status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
-      }
-    }
 
     if (path === '/api/dialer/auth/setup' && request.method === 'POST') {
       try {
