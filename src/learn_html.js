@@ -578,6 +578,12 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .composer textarea{width:100%;min-height:68px;resize:vertical;border:1px solid #ddd;border-radius:9px;padding:10px;font-family:inherit;font-size:14px;line-height:1.6;outline:none;background:#fafafa;color:#222}
 .composer textarea:focus{border-color:#78c65b}
 .composer .note-input{min-height:48px}
+ .composer-entry{background:#f7faf6;border:1px solid #e0e9dc;border-radius:10px;padding:10px;margin-top:9px}
+ .composer-entry-head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+ .composer-role{height:32px;border:1px solid #d8dfd6;border-radius:7px;background:#fff;padding:0 9px;color:#333;font-size:13px}
+ .composer-entry textarea{min-height:58px;margin-top:5px}
+ .composer-entry .entry-note{min-height:45px}
+ .composer-entry-delete{margin-left:auto;border:0;background:transparent;color:#c65b5b;padding:5px 8px;font-size:12px}
 .actions{display:flex;align-items:center;gap:8px;margin-top:10px}
 .save-dialog{border:0;border-radius:8px;background:#18a058;color:#fff;padding:9px 15px;font-size:13px;font-weight:700}
 .cancel-dialog{border:0;background:transparent;color:#888;padding:8px;font-size:12px}
@@ -611,16 +617,13 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   </div>
 </section>
 <section class="composer" id="composer">
-  <div class="composer-title">添加下一组对话</div>
-  <label class="field-label" for="customerQuestion">客户提问</label>
-  <textarea id="customerQuestion" placeholder="输入客户接下来会问的问题"></textarea>
-  <label class="field-label" for="staffAnswer">业务员回答话术</label>
-  <textarea id="staffAnswer" placeholder="输入业务员准备回复的完整话术"></textarea>
-  <label class="field-label" for="staffNote">话术注释（必填）</label>
-  <textarea class="note-input" id="staffNote" placeholder="写明这段话术的使用场景、沟通目的或注意事项"></textarea>
-  <div class="form-hint">注释会以灰色小字显示在绿色回复气泡下方，不会随话术一起复制。</div>
-  <div class="actions"><button class="save-dialog" id="saveDialog" type="button">添加到聊天</button><button class="cancel-dialog" id="cancelDialog" type="button">取消</button></div>
-</section>
+   <div class="composer-title">添加下一组对话</div>
+   <div class="form-hint">一组对话可以包含多条消息；每条消息都能单独选择客户或业务员，先后顺序和连续发言次数不限。</div>
+   <div id="composerEntries"></div>
+   <div class="actions"><button class="cancel-dialog" id="addComposerEntry" type="button">＋ 添加一条消息</button></div>
+   <div class="form-hint">业务员消息可填写话术注释；注释显示在绿色气泡下方，不会随话术一起复制。</div>
+   <div class="actions"><button class="save-dialog" id="saveDialog" type="button">添加到聊天</button><button class="cancel-dialog" id="cancelDialog" type="button">取消</button></div>
+ </section>
 </main>
 <script>
 (function(){
@@ -630,9 +633,29 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   ['bhp_learn_dialog_alternatives_v1','bhp_learn_dialog_custom_pairs_v1','bhp_dialog_client_windows_v1','bhp_learn_dialog_deleted_v1','bhp_learn_dialog_deleted_messages_v1'].forEach(function(key){try{localStorage.removeItem(key);}catch(e){}});
   if(isMaster)chat.querySelectorAll('.delete-message').forEach(function(btn){btn.hidden=false;});
   var composer=document.getElementById('composer');
-  var question=document.getElementById('customerQuestion');
-  var answer=document.getElementById('staffAnswer');
-  var note=document.getElementById('staffNote');
+  var composerEntries=document.getElementById('composerEntries');
+  function addComposerEntry(role){
+    var entry=document.createElement('div');entry.className='composer-entry';
+    var head=document.createElement('div');head.className='composer-entry-head';
+    var roleLabel=document.createElement('label');roleLabel.className='field-label';roleLabel.textContent='发言方';roleLabel.style.margin='0';
+    var select=document.createElement('select');select.className='composer-role';
+    select.innerHTML='<option value="customer">客户</option><option value="staff">业务员</option>';select.value=role||'customer';
+    var remove=document.createElement('button');remove.type='button';remove.className='composer-entry-delete';remove.textContent='删除此条';
+    remove.addEventListener('click',function(){entry.remove();syncComposerEntryNumbers();});
+    head.appendChild(roleLabel);head.appendChild(select);head.appendChild(remove);
+    var message=document.createElement('textarea');message.className='entry-message';
+    var noteField=document.createElement('textarea');noteField.className='entry-note';noteField.placeholder='填写这段话术的使用场景、沟通目的或注意事项（选填）';
+    var noteLabel=document.createElement('label');noteLabel.className='field-label';noteLabel.textContent='话术注释（选填）';
+    function syncRole(){var staff=select.value==='staff';message.placeholder=staff?'输入业务员回复话术':'输入客户说的话';noteLabel.hidden=!staff;noteField.hidden=!staff;}
+    select.addEventListener('change',syncRole);syncRole();
+    entry.appendChild(head);entry.appendChild(message);entry.appendChild(noteLabel);entry.appendChild(noteField);composerEntries.appendChild(entry);
+    syncComposerEntryNumbers();message.focus();return entry;
+  }
+  function syncComposerEntryNumbers(){
+    var entries=composerEntries.querySelectorAll('.composer-entry');
+    entries.forEach(function(entry){entry.querySelector('.composer-entry-delete').hidden=entries.length<=1;});
+  }
+  function resetComposer(){composerEntries.innerHTML='';addComposerEntry('customer');composer.classList.remove('open');}
   function copyText(text,bubble){
     var done=function(){if(bubble){bubble.classList.add('copied');setTimeout(function(){bubble.classList.remove('copied')},1500)}};
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(function(){fallback(text,done)})}else fallback(text,done);
@@ -740,14 +763,11 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   }
   document.addEventListener('pointerup',finishPairDrag);
   document.addEventListener('pointercancel',finishPairDrag);
-  function addPair(q,a,n,save){
+  function addConversationGroup(messages,save){
     var pair=document.createElement('div');pair.className='custom-pair';
     var pairId='custom-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-    if(q)pair.appendChild(makeMessage('customer',q,'',pairId+'-customer'));
-    if(a)pair.appendChild(makeMessage('staff',a,n,pairId));
-    chat.appendChild(pair);
-    addPairDragHandle(pair);
-    if(save)saveDialogs();
+    messages.forEach(function(item,index){var role=item.role==='staff'?'staff':'customer';pair.appendChild(makeMessage(role,item.text,item.note||'',pairId+'-'+role+'-'+index));});
+    chat.appendChild(pair);addPairDragHandle(pair);if(save)saveDialogs();
   }
   var clientTabs=document.getElementById('clientTabs');
   var clientWindows=[],activeClientId='';
@@ -801,7 +821,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     activeClientId=doc.activeId&&clientWindows.some(function(item){return item.id===doc.activeId;})?doc.activeId:clientWindows[0].id;
     var active=clientWindows.find(function(item){return item.id===activeClientId;});
     chat.innerHTML=active?active.html:'';
-    composer.classList.remove('open');question.value='';answer.value='';note.value='';
+    resetComposer();
     decoratePairDragHandles();renderClientTabs();syncDeleteControls();
   }
   async function loadSharedDialog(){
@@ -856,7 +876,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     });
     var add=document.createElement('button');add.type='button';add.className='client-new';add.textContent='＋ 新建客户';add.addEventListener('click',function(){createClient();});clientTabs.appendChild(add);
   }
-  function switchClient(id){if(id===activeClientId)return;saveClientWindows();var target=clientWindows.find(function(item){return item.id===id;});if(!target)return;activeClientId=id;chat.innerHTML=target.html||'';decoratePairDragHandles();composer.classList.remove('open');question.value='';answer.value='';note.value='';renderClientTabs();saveClientWindows();}
+  function switchClient(id){if(id===activeClientId)return;saveClientWindows();var target=clientWindows.find(function(item){return item.id===id;});if(!target)return;activeClientId=id;chat.innerHTML=target.html||'';decoratePairDragHandles();resetComposer();renderClientTabs();saveClientWindows();}
   function deleteClient(id){
     if(!isMaster)return;
     if(clientWindows.length<=1){alert('至少保留一个客户对话框');return;}
@@ -870,14 +890,15 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       var next=clientWindows[0];
       chat.innerHTML=next.html||'';
       decoratePairDragHandles();
-      composer.classList.remove('open');question.value='';answer.value='';note.value='';
+      resetComposer();
     }
     renderClientTabs();
     saveClientWindows();
   }
-  function createClient(){saveClientWindows();var id='client-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);clientWindows.push({id:id,name:'客户'+(clientWindows.length+1),html:''});activeClientId=id;chat.innerHTML='';composer.classList.remove('open');question.value='';answer.value='';note.value='';renderClientTabs();saveClientWindows();window.scrollTo(0,0);}
+  function createClient(){saveClientWindows();var id='client-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);clientWindows.push({id:id,name:'客户'+(clientWindows.length+1),html:''});activeClientId=id;chat.innerHTML='';resetComposer();renderClientTabs();saveClientWindows();window.scrollTo(0,0);}
   clientWindows=[];
   activeClientId='';
+  resetComposer();
   chat.innerHTML='';
   decoratePairDragHandles();
   renderClientTabs();
@@ -890,12 +911,23 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   var infoToggle=document.getElementById('dialogInfoToggle');
   var infoPanel=document.getElementById('dialogInfo');
   infoToggle.addEventListener('click',function(){var open=infoPanel.hidden;infoPanel.hidden=!open;infoToggle.setAttribute('aria-expanded',String(open));});
-  document.getElementById('openComposer').addEventListener('click',function(){composer.classList.add('open');question.focus()});
-  document.getElementById('cancelDialog').addEventListener('click',function(){composer.classList.remove('open')});
+  document.getElementById('openComposer').addEventListener('click',function(){resetComposer();composer.classList.add('open');composerEntries.querySelector('.entry-message').focus();});
+  document.getElementById('addComposerEntry').addEventListener('click',function(){
+    var entries=composerEntries.querySelectorAll('.composer-entry');
+    var last=entries.length?entries[entries.length-1].querySelector('.composer-role').value:'customer';
+    addComposerEntry(last);
+  });
+  document.getElementById('cancelDialog').addEventListener('click',function(){resetComposer();});
   document.getElementById('saveDialog').addEventListener('click',function(){
-    var q=question.value.trim(),a=answer.value.trim(),n=note.value.trim();
-    if(!q||!a||!n){alert('请填写客户提问、业务员回答和必填注释');return}
-    addPair(q,a,n,true);question.value='';answer.value='';note.value='';composer.classList.remove('open');
+    var entries=Array.prototype.slice.call(composerEntries.querySelectorAll('.composer-entry')),messages=[];
+    for(var i=0;i<entries.length;i++){
+      var role=entries[i].querySelector('.composer-role').value,content=entries[i].querySelector('.entry-message').value.trim();
+      var annotation=role==='staff'?entries[i].querySelector('.entry-note').value.trim():'';
+      if(!content){alert('请填写第'+(i+1)+'条消息内容');entries[i].querySelector('.entry-message').focus();return;}
+      messages.push({role:role,text:content,note:annotation});
+    }
+    if(!messages.length){alert('请至少添加一条消息');return;}
+    addConversationGroup(messages,true);resetComposer();
   });
   chat.addEventListener('click',function(e){
     var delAlternative=e.target.closest('.delete-alternative');
