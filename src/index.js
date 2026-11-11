@@ -2221,6 +2221,7 @@ export default {
         var mcSession = await dialerValidateSession(env, mcToken);
         if (!mcSession) throw new Error('未登录');
 
+        // 右上角显示账号实际拥有的客户总数：只排除公海，不排除10天冷却中的客户。
         // 主账户查看子账号视图时（X-View-Account-Id）统计子账号数量，与数据看板口径一致
         var mcCountAccountId = mcSession.account_id;
         var mcViewId = request.headers.get('X-View-Account-Id') || '';
@@ -2239,10 +2240,9 @@ export default {
 
         if (supabaseUrl && supabaseKey) {
           var mcHdrs = { 'apikey': supabaseKey, 'Authorization': 'Bearer ' + supabaseKey, 'Prefer': 'count=exact' };
-          var mcCutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
           var mcResp = await fetch(
             supabaseUrl + '/rest/v1/customers?select=id&account_id=eq.' + encodeURIComponent(mcCountAccountId) +
-              '&and=(or(category.neq.' + encodeURIComponent('公海客户') + ',category.is.null),or(pulled_at.is.null,pulled_at.lt.' + encodeURIComponent(mcCutoff) + '))&limit=1',
+              '&or=(category.neq.' + encodeURIComponent('公海客户') + ',category.is.null)&limit=1',
             { headers: mcHdrs }
           );
           if (!mcResp.ok) throw new Error('统计可拨客户数量失败：' + mcResp.status);
