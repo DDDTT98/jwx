@@ -839,6 +839,12 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       if(tools&&!tools.querySelector('.delete-message')){
         var btn=document.createElement('button');btn.type='button';btn.className='delete-item delete-message';btn.textContent='删除此回答';tools.appendChild(btn);
       }
+      // 旧版云端对话中的第2种、第3种等备选回复可能没有保存删除按钮，逐条补齐。
+      row.querySelectorAll('.reply-alternatives .reply-option').forEach(function(option){
+        if(!option.querySelector('.delete-alternative')){
+          var remove=document.createElement('button');remove.type='button';remove.className='delete-item delete-alternative';remove.textContent='删除此回答';option.appendChild(remove);
+        }
+      });
     });
     chat.querySelectorAll('.delete-message,.delete-alternative').forEach(function(btn){btn.hidden=!isMaster;});
   }
