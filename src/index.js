@@ -5154,7 +5154,10 @@ export default {
         }
         throw new Error('未知的聊天导入操作');
       } catch (chatImportError) {
-        return chatImportResponse({ success: false, error: chatImportError.message || '聊天导入失败' }, chatImportStatus);
+        return new Response(JSON.stringify({ success: false, error: chatImportError.message || '聊天导入失败' }), {
+          status: chatImportStatus,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+        });
       }
     }
 
