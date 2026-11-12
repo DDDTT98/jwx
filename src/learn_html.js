@@ -633,7 +633,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .chat-import-item{padding:11px;border:1px solid #e2e7e3;border-radius:9px;background:#fff}
 .chat-import-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .chat-import-item strong{font-size:12px}.chat-import-item-meta{font-size:10px;color:#89938c;margin-top:4px;line-height:1.5}
-.chat-import-preview{margin-top:8px;padding:8px;border-radius:7px;background:#f6f8f6;font-size:11px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;color:#4e5a51}
+.chat-import-details{margin-top:8px;font-size:11px;color:#59645c}.chat-import-details summary{cursor:pointer;font-weight:700;padding:5px 0}.chat-import-preview{margin-top:8px;padding:8px;border-radius:7px;background:#f6f8f6;font-size:11px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;color:#4e5a51}
 .chat-import-item .kb-action{margin-top:8px}
 @media(max-width:560px){.chat-import-fields{grid-template-columns:1fr}.chat-import-panel{margin:10px 10px 14px;padding:11px}}
 .kb-layout{display:grid;grid-template-columns:205px minmax(0,1fr);min-height:430px}
@@ -905,9 +905,11 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
         var meta=document.createElement('div');meta.className='chat-import-item-meta';
         meta.textContent=(item.source_files||[]).join('、')+' · '+((item.messages||[]).length)+' 条消息 · '+new Date(item.created_at).toLocaleString();
         card.appendChild(meta);
+        var details=document.createElement('details');details.className='chat-import-details';
+        var summary=document.createElement('summary');summary.textContent='查看完整识别内容（'+((item.messages||[]).length)+'条）';details.appendChild(summary);
         var preview=document.createElement('div');preview.className='chat-import-preview';
-        preview.textContent=(item.messages||[]).slice(0,8).map(function(m){return (m.speaker==='customer'?'客户':m.speaker==='staff'?'业务员':'发言方待确认')+'：'+m.content;}).join('\n')+((item.messages||[]).length>8?'\n……':'');
-        card.appendChild(preview);
+        preview.textContent=(item.messages||[]).map(function(m){return (m.time?'['+m.time+'] ':'')+(m.speaker==='customer'?'客户':m.speaker==='staff'?'业务员':'发言方待确认')+'：'+m.content;}).join('\\n');
+        details.appendChild(preview);card.appendChild(details);
         if(item.status!=='refined'){
           var refine=document.createElement('button');refine.type='button';refine.className='kb-action primary';refine.textContent='AI提炼为知识库草稿';
           refine.addEventListener('click',async function(){
