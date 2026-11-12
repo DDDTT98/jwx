@@ -2676,11 +2676,23 @@ export default {
         var importIsMaster = importCaller.is_master !== false;
         if (request.method === 'GET') {
           var statusJobId = url.searchParams.get('id') || '';
-          if (!/^crm_[a-z0-9_]+$/i.test(statusJobId)) throw new Error('任务编号无效');
-          var statusJob = await env.DATA_STORE.get('dialer:bgjob:' + statusJobId, 'json');
-          if (!statusJob) throw new Error('导入任务不存在');
-          if (statusJob.created_by !== _session.account_id && !importIsMaster) throw new Error('无权查看此任务');
-          return new Response(JSON.stringify({ success: true, job: statusJob }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+          if (statusJobId) {
+            if (!/^crm_[a-z0-9_]+$/i.test(statusJobId)) throw new Error('任务编号无效');
+            var statusJob = await env.DATA_STORE.get('dialer:bgjob:' + statusJobId, 'json');
+            if (!statusJob || statusJob.kind !== 'customer_import') throw new Error('导入任务不存在');
+            if (statusJob.created_by !== _session.account_id && !importIsMaster) throw new Error('无权查看此任务');
+            return new Response(JSON.stringify({ success: true, job: statusJob }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+          }
+          var importJobKeys = await env.DATA_STORE.list({ prefix: 'dialer:bgjob:', limit: 100 });
+          var importTaskRows = [];
+          for (var importKey of (importJobKeys && importJobKeys.keys || [])) {
+            var importTask = await env.DATA_STORE.get(importKey.name, 'json');
+            if (!importTask || importTask.kind !== 'customer_import') continue;
+            if (importTask.created_by !== _session.account_id && !importIsMaster) continue;
+            importTaskRows.push(importTask);
+          }
+          importTaskRows.sort(function(a, b) { return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
+          return new Response(JSON.stringify({ success: true, tasks: importTaskRows.slice(0, 50) }), { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
         }
         var importBody = await request.json();
         var importAction = String(importBody.action || '');
@@ -2698,7 +2710,7 @@ export default {
           var newImportJob = await createCrmBackgroundJob(env, {
             kind: 'customer_import', status: 'staging', created_by: _session.account_id,
             account_id: _dialerAccountId, account_name: importCaller.account_name || importCaller.label || '',
-            batch_label: importLabel, total: importTotal,
+            batch_label: importLabel, file_name: String(importBody.file_name || '').slice(0, 240), total: importTotal,
             processed: 0, succeeded: 0, skipped: 0, failed: 0, staged_count: 0,
             auto_delete_after_dial: importBody.auto_delete_after_dial === true,
             category: '待跟进'
