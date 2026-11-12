@@ -4823,16 +4823,9 @@
       var hint = document.getElementById('androidSwitchHint');
       if (!hint) return;
 
-      // 每次复制成功，都定位到拨号列表当前排序后的第 1 张客户卡片。
-      var firstCard = document.querySelector('.xls-dial-card');
-      if (firstCard) {
-        var rect = firstCard.getBoundingClientRect();
-        hint.style.top = Math.max(8, rect.top + 8) + 'px';
-        hint.style.left = (rect.left + rect.width / 2) + 'px';
-      } else {
-        hint.style.top = '8px';
-        hint.style.left = '50%';
-      }
+      // 保持原安卓提示的位置：屏幕顶部居中，不跟随客户卡片移动。
+      hint.style.top = '8px';
+      hint.style.left = '50%';
 
       hint.classList.add('show');
       if (androidSwitchHintTimer) clearTimeout(androidSwitchHintTimer);
