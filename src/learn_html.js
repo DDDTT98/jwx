@@ -618,6 +618,24 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .ai-compose{display:flex;gap:8px;padding:12px;border-top:1px solid #edf0ed}
 .ai-compose textarea{flex:1;min-width:0;min-height:42px;max-height:110px;resize:vertical;border:1px solid #d9dfda;border-radius:9px;padding:10px;font:13px/1.5 inherit}
 .ai-compose button,.kb-primary{border:0;border-radius:9px;background:#198754;color:#fff;padding:0 16px;font-size:13px;font-weight:700;cursor:pointer;min-height:42px}
+.chat-import-panel{margin:14px 14px 18px;padding:14px;border:1px solid #e1e5e2;border-radius:11px;background:#fbfcfb}
+.chat-import-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.chat-import-head strong{font-size:14px}.chat-import-head p{margin:4px 0 0;color:#778179;font-size:11px;line-height:1.55}
+.chat-import-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.chat-import-fields label{display:block;font-size:11px;color:#59645c;font-weight:700}
+.chat-import-fields input{width:100%;min-height:38px;margin-top:5px;padding:8px 9px;border:1px solid #dce2dd;border-radius:8px;background:#fff;font:12px inherit}
+.chat-import-file{display:block;width:100%;padding:12px;border:1px dashed #bfcac1;border-radius:9px;background:#fff;font-size:12px;color:#536057}
+.chat-import-consent{display:flex;align-items:flex-start;gap:8px;margin:10px 0;color:#6f7a72;font-size:11px;line-height:1.5}
+.chat-import-consent input{margin-top:2px}
+.chat-import-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.chat-import-status{font-size:11px;color:#68736b;line-height:1.55;margin-top:9px;min-height:18px}
+.chat-import-list{display:grid;gap:8px;margin-top:12px}
+.chat-import-item{padding:11px;border:1px solid #e2e7e3;border-radius:9px;background:#fff}
+.chat-import-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.chat-import-item strong{font-size:12px}.chat-import-item-meta{font-size:10px;color:#89938c;margin-top:4px;line-height:1.5}
+.chat-import-preview{margin-top:8px;padding:8px;border-radius:7px;background:#f6f8f6;font-size:11px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;color:#4e5a51}
+.chat-import-item .kb-action{margin-top:8px}
+@media(max-width:560px){.chat-import-fields{grid-template-columns:1fr}.chat-import-panel{margin:10px 10px 14px;padding:11px}}
 .kb-layout{display:grid;grid-template-columns:205px minmax(0,1fr);min-height:430px}
 .kb-sidebar{padding:12px;border-right:1px solid #edf0ed;background:#fafbfa}
 .kb-category{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 11px;margin:0 0 5px;border:0;border-radius:8px;background:transparent;color:#4d5850;text-align:left;font-size:12px;cursor:pointer}
@@ -674,6 +692,18 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 <section class="knowledge-workspace" id="knowledgeWorkspace" hidden>
   <div class="knowledge-panel">
     <div class="workspace-heading"><h2>业务知识库管理</h2><p>把产品资料、客户问题、成交经验和合规要求沉淀为可审核、可检索的业务知识。</p></div>
+    <section class="chat-import-panel" aria-label="微信聊天截图导入">
+      <div class="chat-import-head"><div><strong>微信聊天截图导入</strong><p>支持一次上传多张长截图。系统会分段识别、合并重复消息，并把对话保存为待审核素材。</p></div></div>
+      <div class="chat-import-fields">
+        <label>业务员姓名<input id="chatImportRepresentative" maxlength="80" placeholder="填写聊天记录所属业务员"></label>
+        <label>客户备注名（可选）<input id="chatImportCustomer" maxlength="80" placeholder="例如：客户A，不必填写真实姓名"></label>
+      </div>
+      <input class="chat-import-file" id="chatImportFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+      <label class="chat-import-consent"><input id="chatImportConsent" type="checkbox"><span>我已确认这些聊天记录有合法的收集和使用依据，并已告知相关人员；同意先脱敏再用于内部业务培训。</span></label>
+      <div class="chat-import-actions"><button class="kb-primary" id="chatImportStart" type="button">上传并识别聊天</button><span class="chat-import-item-meta">单批最多12张图片，支持长截图自动切片</span></div>
+      <div class="chat-import-status" id="chatImportStatus" aria-live="polite">识别结果会先进入待审核记录，不会直接发布到正式知识库。</div>
+      <div class="chat-import-list" id="chatImportList"><div class="kb-empty">暂无聊天导入记录。</div></div>
+    </section>
     <div class="kb-layout">
       <aside class="kb-sidebar" id="kbCategories" aria-label="知识库分类">
         <button class="kb-category active" type="button" data-category="products">贷款产品知识 <small>0</small></button>
@@ -802,6 +832,129 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     if(!response.ok||!result.success)throw new Error(result.error||'知识库请求失败');
     return result;
   }
+  async function chatImportRequest(body) {
+    var token=getDialogToken();
+    if(!token)throw new Error('登录状态已失效，请重新登录');
+    var response=await fetch('/api/ai/chat-import',{
+      method:body?'POST':'GET',
+      headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-store','Content-Type':'application/json'},
+      body:body?JSON.stringify(body):undefined
+    });
+    var result=await response.json();
+    if(!response.ok||!result.success)throw new Error(result.error||'聊天导入请求失败');
+    return result;
+  }
+  function setChatImportStatus(message,error){
+    var el=document.getElementById('chatImportStatus');if(!el)return;
+    el.textContent=message;el.style.color=error?'#b44b4b':'';
+  }
+  function mergeChatMessages(target,incoming){
+    var a=target.slice(),b=Array.isArray(incoming)?incoming:[];
+    function sig(m){return String(m.speaker||'')+'|'+String(m.time||'')+'|'+String(m.content||'').replace(/\s+/g,' ').trim();}
+    var overlap=0,max=Math.min(a.length,b.length,12);
+    for(var n=max;n>0;n--){
+      var same=true;
+      for(var j=0;j<n;j++){if(sig(a[a.length-n+j])!==sig(b[j])){same=false;break;}}
+      if(same){overlap=n;break;}
+    }
+    return a.concat(b.slice(overlap));
+  }
+  function loadChatImage(file){
+    return new Promise(function(resolve,reject){
+      var objectUrl=URL.createObjectURL(file),img=new Image();
+      img.onload=function(){URL.revokeObjectURL(objectUrl);resolve(img);};
+      img.onerror=function(){URL.revokeObjectURL(objectUrl);reject(new Error('图片无法读取：'+file.name));};
+      img.src=objectUrl;
+    });
+  }
+  async function extractLongScreenshot(file,onProgress){
+    var img=await loadChatImage(file);
+    var scale=Math.min(1,1600/img.naturalWidth);
+    var width=Math.max(1,Math.round(img.naturalWidth*scale));
+    var height=Math.max(1,Math.round(img.naturalHeight*scale));
+    var sliceHeight=1800,overlap=140,start=0,part=0,total=Math.max(1,Math.ceil((height-overlap)/(sliceHeight-overlap))),messages=[];
+    while(start<height){
+      var currentHeight=Math.min(sliceHeight,height-start);
+      var canvas=document.createElement('canvas');canvas.width=width;canvas.height=currentHeight;
+      var ctx=canvas.getContext('2d',{alpha:false});
+      ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,currentHeight);
+      ctx.drawImage(img,0,Math.round(start/scale),img.naturalWidth,Math.round(currentHeight/scale),0,0,width,currentHeight);
+      var imageData=canvas.toDataURL('image/jpeg',0.9);
+      canvas.width=1;canvas.height=1;
+      var result=await chatImportRequest({action:'extract',image:imageData});
+      messages=mergeChatMessages(messages,result.messages||[]);
+      part++;onProgress(part,total);
+      if(start+currentHeight>=height)break;
+      start+=sliceHeight-overlap;
+    }
+    return messages;
+  }
+  async function loadChatImports(){
+    if(!isMaster)return;
+    var list=document.getElementById('chatImportList');if(!list)return;
+    try{
+      var result=await chatImportRequest(null),items=Array.isArray(result.items)?result.items:[];
+      list.innerHTML='';
+      if(!items.length){list.innerHTML='<div class="kb-empty">暂无聊天导入记录。</div>';return;}
+      items.forEach(function(item){
+        var card=document.createElement('article');card.className='chat-import-item';
+        var head=document.createElement('div');head.className='chat-import-item-head';
+        var title=document.createElement('strong');title.textContent=(item.representative||'未填写业务员')+' · '+(item.customer_alias||'未标记客户');
+        var state=document.createElement('span');state.className='kb-status '+(item.status==='refined'?'published':'');state.textContent=item.status==='refined'?'已提炼':'待审核素材';
+        head.appendChild(title);head.appendChild(state);card.appendChild(head);
+        var meta=document.createElement('div');meta.className='chat-import-item-meta';
+        meta.textContent=(item.source_files||[]).join('、')+' · '+((item.messages||[]).length)+' 条消息 · '+new Date(item.created_at).toLocaleString();
+        card.appendChild(meta);
+        var preview=document.createElement('div');preview.className='chat-import-preview';
+        preview.textContent=(item.messages||[]).slice(0,8).map(function(m){return (m.speaker==='customer'?'客户':m.speaker==='staff'?'业务员':'发言方待确认')+'：'+m.content;}).join('\n')+((item.messages||[]).length>8?'\n……':'');
+        card.appendChild(preview);
+        if(item.status!=='refined'){
+          var refine=document.createElement('button');refine.type='button';refine.className='kb-action primary';refine.textContent='AI提炼为知识库草稿';
+          refine.addEventListener('click',async function(){
+            if(!confirm('AI将根据这批聊天记录生成知识库草稿，草稿仍需主账号审核发布。继续吗？'))return;
+            refine.disabled=true;refine.textContent='正在提炼…';
+            try{
+              var refined=await chatImportRequest({action:'refine',id:item.id});
+              setChatImportStatus('提炼完成：生成 '+refined.created+' 条知识库待审核草稿。');
+              await loadChatImports();await loadKnowledge(true);
+            }catch(error){setChatImportStatus(error.message,true);refine.disabled=false;refine.textContent='重试AI提炼';}
+          });
+          card.appendChild(refine);
+        }else{
+          var done=document.createElement('div');done.className='chat-import-item-meta';done.textContent='已生成知识草稿，可在下方知识分类中审核。';card.appendChild(done);
+        }
+        list.appendChild(card);
+      });
+    }catch(error){list.innerHTML='<div class="kb-empty">导入记录读取失败：'+error.message+'</div>';}
+  }
+  document.getElementById('chatImportStart').addEventListener('click',async function(){
+    var input=document.getElementById('chatImportFiles'),files=Array.from(input.files||[]);
+    var representative=document.getElementById('chatImportRepresentative').value.trim();
+    var customerAlias=document.getElementById('chatImportCustomer').value.trim();
+    if(!files.length){setChatImportStatus('请先选择微信聊天截图。',true);return;}
+    if(files.length>12){setChatImportStatus('单批最多选择12张图片，请分批上传。',true);return;}
+    if(!representative){setChatImportStatus('请填写业务员姓名，方便追溯话术来源。',true);return;}
+    if(!document.getElementById('chatImportConsent').checked){setChatImportStatus('请先确认聊天记录具有合法收集和使用依据。',true);return;}
+    if(files.some(function(f){return !/^image\/(png|jpeg|webp)$/.test(f.type); })){setChatImportStatus('仅支持 PNG、JPG、WebP 图片。',true);return;}
+    var button=this;button.disabled=true;button.textContent='正在识别…';
+    try{
+      var combined=[],totalParts=0,doneParts=0;
+      for(var i=0;i<files.length;i++){
+        setChatImportStatus('正在处理 '+(i+1)+'/'+files.length+'：'+files[i].name+'，读取长截图并分段识别…');
+        var extracted=await extractLongScreenshot(files[i],function(part,total){doneParts++;totalParts+=total;setChatImportStatus('正在识别 '+files[i].name+'：第 '+part+'/'+total+' 段；请保持页面打开。');});
+        combined=mergeChatMessages(combined,extracted);
+      }
+      if(!combined.length)throw new Error('没有识别到聊天内容，请换更清晰的截图');
+      setChatImportStatus('识别完成，共 '+combined.length+' 条消息，正在保存到 Supabase…');
+      var saved=await chatImportRequest({
+        action:'save',source_files:files.map(function(f){return f.name;}),
+        representative:representative,customer_alias:customerAlias,messages:combined
+      });
+      setChatImportStatus('已保存：'+saved.message_count+' 条消息。原始截图未长期保存，识别结果已脱敏并进入待审核素材。');
+      input.value='';await loadChatImports();
+    }catch(error){setChatImportStatus(error.message,true);}
+    finally{button.disabled=false;button.textContent='上传并识别聊天';}
+  });
   async function migrateLocalKnowledgeDrafts(){
     if(!isMaster)return false;
     var legacyKey='jwx_ai_business_knowledge_drafts_v1';
@@ -844,6 +997,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       }
       knowledgeLoaded=true;
       renderKnowledge();
+      await loadChatImports();
       if(!document.getElementById('kbSyncStatus').textContent.includes('已迁移')){
         setKnowledgeStatus('已连接 Supabase · '+knowledgeItems.length+' 条资料 · 团队共享');
       }
