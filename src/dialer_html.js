@@ -8704,11 +8704,52 @@
       catch (e) { return false; }
     }
 
+    // 拨号列表滚动位置记忆：按账号 + 设备隔离，仅在当前标签页会话内保存，刷新后恢复。
+    function getDialerListScrollStorageKey() {
+      var accountId = 'default';
+      var deviceId = 'default';
+      try {
+        if (typeof getSessionAccountId === 'function' && getSessionAccountId()) accountId = getSessionAccountId();
+        else if (typeof getOrCreateAccountId === 'function') accountId = getOrCreateAccountId() || 'default';
+      } catch (e) {}
+      try { if (typeof getOrCreateDeviceId === 'function') deviceId = getOrCreateDeviceId() || 'default'; } catch (e) {}
+      return 'dialer_list_scroll_v1:' + String(accountId) + ':' + String(deviceId);
+    }
+
+    function bindDialerListScrollMemory(container) {
+      if (!container || container._dialerScrollMemoryBound) return;
+      container._dialerScrollMemoryBound = true;
+      container.addEventListener('scroll', function() {
+        try { sessionStorage.setItem(getDialerListScrollStorageKey(), String(container.scrollTop || 0)); } catch (e) {}
+      }, { passive: true });
+    }
+
+    function restoreDialerListScroll(container, scrollTop) {
+      if (!container) return;
+      var target = Math.max(0, Number(scrollTop) || 0);
+      var apply = function() { container.scrollTop = target; };
+      // 等待卡片 DOM 和布局完成；双帧处理 iOS Safari/WKWebView 的滚动恢复时序。
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(function() { window.requestAnimationFrame(apply); });
+      } else {
+        setTimeout(apply, 50);
+      }
+    }
+
+    var _dialerListScrollRestoredKey = '';
+
     function renderDialCards() {
       ensureWhitelistCompaniesLoaded();
       syncRefreshBatchButton();
       var container = document.getElementById('cardsContainer');
       if (!container) return;
+      bindDialerListScrollMemory(container);
+      var dialerScrollKey = getDialerListScrollStorageKey();
+      var restoreScrollTop = container.scrollTop || 0;
+      if (_dialerListScrollRestoredKey !== dialerScrollKey && importedClients.length > 0) {
+        try { restoreScrollTop = parseInt(sessionStorage.getItem(dialerScrollKey) || '0', 10) || 0; } catch (e) { restoreScrollTop = 0; }
+        _dialerListScrollRestoredKey = dialerScrollKey;
+      }
       
       updateStats();
 
@@ -8754,6 +8795,7 @@
 
       if (filtered.length === 0) {
         container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:0.8rem;">无匹配此筛选条件的联系人</div>';
+        restoreDialerListScroll(container, restoreScrollTop);
         return;
       }
 
@@ -9195,6 +9237,7 @@
           });
         });
       }
+      restoreDialerListScroll(container, restoreScrollTop);
     }
 
     // Call Assistant Controls
