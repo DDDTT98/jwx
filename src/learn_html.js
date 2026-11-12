@@ -541,7 +541,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .heading{font-size:17px;font-weight:750}.info-trigger{width:19px;height:19px;flex:0 0 19px;border:1px solid #8a9a8e;border-radius:50%;background:#fff;color:#43845a;font-size:13px;font-weight:800;line-height:17px;padding:0;cursor:pointer}.dialog-info{max-width:680px;margin:8px auto 0;padding:11px 14px;border:1px solid #cfe2d0;border-radius:10px;background:#f3faf1;color:#4e6650;font-size:12px;line-height:1.7}.dialog-info[hidden]{display:none}
 .client-tabs{display:flex;align-items:center;gap:7px;padding:9px 12px;background:#f7f7f7;border-bottom:1px solid #e5e5e5;overflow-x:auto;white-space:nowrap}.client-tab{display:inline-flex;align-items:center;gap:5px;border:1px solid #d8ded9;border-radius:18px;background:#fff;color:#536057;padding:6px 10px;font-size:12px}.client-tab.active{background:#e4f5e9;border-color:#9ed2ad;color:#167b43;font-weight:750}.client-rename,.client-delete{border:0;background:transparent;color:inherit;font-size:13px;padding:0 1px;cursor:pointer}.client-delete{color:#c65b5b;font-size:15px;line-height:1}.client-new{flex:0 0 auto;border:1px dashed #8fc5a0;border-radius:18px;background:#f2faf4;color:#168348;padding:6px 11px;font-size:12px;font-weight:700}.add-dialog{margin-left:auto;border:0;border-radius:8px;background:#18a058;color:#fff;padding:8px 11px;font-size:12px;font-weight:700;white-space:nowrap}
 .wrap{max-width:680px;margin:0 auto;padding:14px 12px 24px}
-.tip{text-align:center;font-size:12px;color:#999;margin:3px 0 14px}
+.tip{text-align:center;font-size:14px;font-weight:600;line-height:1.6;color:#718372;margin:3px 0 14px}
 .chat{background:#e9e9e9;border:1px solid #dedede;border-radius:14px;padding:16px 12px;min-height:300px}
 .conversation-pair,.custom-pair{background:#e4f0df;border:1px solid #d7e6d1;border-radius:10px;padding:10px 8px 1px;margin:0 0 14px}
 .conversation-pair .msg:last-child,.custom-pair .msg:last-child{margin-bottom:0}
@@ -607,7 +607,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 <header class="top"><a class="back" href="/">‹ 回到拨打列表</a><div class="heading">微信对话模拟</div><button class="info-trigger" id="dialogInfoToggle" type="button" aria-label="功能介绍" aria-expanded="false" title="功能介绍">!</button><button class="add-dialog" id="openComposer" type="button">＋ 添加下一组对话</button></header><nav class="client-tabs" id="clientTabs" aria-label="客户对话窗口"></nav>
 <div class="sync-status" id="dialogSyncStatus" aria-live="polite">正在连接共享话术库…</div><div class="dialog-info" id="dialogInfo" hidden>这里是团队共同积累真实客户沟通经验的地方。任何人遇到典型客户问题，都可以模拟客户提问并添加自己的回复话术；其他同事也可以补充不同回答，供大家参考学习。每条回复话术都支持一键复制，方便在真实沟通中灵活参考、应对客户提问。</div>
 <main class="wrap">
-<div class="tip">点击业务员绿色话术可复制；可添加后续客户提问与回复</div>
+<div class="tip">点击业务员绿色话术可复制此话术，优化后应对真实客户提问</div>
 <section class="chat" id="chat">
   <div class="conversation-pair">
   <div class="msg customer" data-message-id="default-customer-1"><div class="avatar">👤</div><div class="bubble-wrap"><div class="who">客户</div><div class="bubble">你是？</div><div class="message-tools"><button class="delete-item delete-message" type="button" hidden>删除此提问</button></div></div></div>
