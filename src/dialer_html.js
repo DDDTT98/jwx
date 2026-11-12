@@ -1443,7 +1443,8 @@
         font-size: 0.72rem;
       }
       .cards-content {
-        padding: 0 8px 6px 8px;
+        /* 列表直接衔接壁纸：移除最后一张客户卡片下方多余的白色留白 */
+        padding: 0 8px 0 8px;
         gap: 6px;
         grid-template-columns: 1fr; /* single column on mobile */
       }
@@ -2266,7 +2267,7 @@
       .header-bar { padding-left: 8px; padding-right: 8px; }
       .header-stats-minimal { font-size: 0.68rem; }
       .control-bar { gap: 3px; padding-left: 6px; padding-right: 6px; }
-      .cards-content { padding-left: 6px; padding-right: 6px; gap: 5px; }
+      .cards-content { padding-left: 6px; padding-right: 6px; padding-bottom: 0; gap: 5px; }
       .xls-dial-card {
         padding: 7px 8px;
         gap: 4px;
