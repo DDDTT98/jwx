@@ -735,7 +735,15 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     pair.insertBefore(handle,pair.firstChild);
   }
   function decoratePairDragHandles(){
-    chat.querySelectorAll('.conversation-pair,.custom-pair').forEach(addPairDragHandle);
+    chat.querySelectorAll('.conversation-pair,.custom-pair').forEach(function(pair){
+      addPairDragHandle(pair);
+      if(!isMaster||pair.querySelector('.pair-edit-tools'))return;
+      var tools=document.createElement('div');tools.className='pair-edit-tools';
+      tools.style.cssText='position:absolute;top:5px;left:8px;display:flex;gap:5px;z-index:2';
+      var edit=document.createElement('button');edit.type='button';edit.className='delete-item pair-edit';edit.textContent='编辑整组';edit.style.cssText='border:1px solid #b9d5b5;border-radius:6px;background:#f4faf1;color:#39784b;font-size:11px;padding:2px 8px';
+      var remove=document.createElement('button');remove.type='button';remove.className='delete-item pair-delete';remove.textContent='删除整组';remove.style.cssText='border:1px solid #e4caca;border-radius:6px;background:#fff7f7;color:#bd5555;font-size:11px;padding:2px 8px';
+      tools.appendChild(edit);tools.appendChild(remove);pair.insertBefore(tools,pair.firstChild);
+    });
   }
   var draggingPair=null,dragPointerId=null,dragStartY=0,dragMoved=false;
   chat.addEventListener('pointerdown',function(e){
@@ -950,6 +958,49 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     addConversationGroup(messages,true);resetComposer();
   });
   chat.addEventListener('click',function(e){
+    var pairEdit=e.target.closest('.pair-edit');
+    if(pairEdit){
+      if(!isMaster)return;
+      var editPair=pairEdit.closest('.conversation-pair,.custom-pair');
+      if(!editPair)return;
+      var editRows=Array.prototype.slice.call(editPair.querySelectorAll(':scope > .msg'));
+      var changes=[];
+      for(var ei=0;ei<editRows.length;ei++){
+        var editRow=editRows[ei],isStaff=editRow.classList.contains('staff');
+        var textNode=isStaff?editRow.querySelector('.bubble-text'):editRow.querySelector('.bubble');
+        var oldText=textNode?textNode.textContent:'';
+        var nextText=prompt((isStaff?'编辑业务员回答 ':'编辑客户提问 ')+(ei+1)+'/'+editRows.length,oldText);
+        if(nextText===null)return;
+        nextText=nextText.trim();
+        if(!nextText){alert('对话内容不能为空');return;}
+        var nextNote='';
+        if(isStaff){
+          var noteNode=editRow.querySelector('.reply-note');
+          nextNote=prompt('编辑这条业务员回答的注释（可留空）',noteNode?noteNode.textContent:'');
+          if(nextNote===null)return;
+        }
+        changes.push({row:editRow,text:nextText,note:nextNote});
+      }
+      changes.forEach(function(change){
+        var staff=change.row.classList.contains('staff');
+        var node=staff?change.row.querySelector('.bubble-text'):change.row.querySelector('.bubble');
+        if(node)node.textContent=change.text;
+        if(staff){var note=change.row.querySelector('.reply-note');if(note)note.textContent=change.note;}
+      });
+      saveDialogs();saveAlternatives();saveClientWindows();
+      setSyncStatus('整组对话内容已修改并同步','ok');
+      return;
+    }
+    var pairDelete=e.target.closest('.pair-delete');
+    if(pairDelete){
+      if(!isMaster)return;
+      var removePair=pairDelete.closest('.conversation-pair,.custom-pair');
+      if(!removePair)return;
+      if(!confirm('确定删除这一整组对话及其中的全部消息吗？此操作会同步到团队共享话术库，无法撤销。'))return;
+      removePair.remove();saveDialogs();saveAlternatives();saveClientWindows();
+      setSyncStatus('整组对话已删除并同步','ok');
+      return;
+    }
     var delAlternative=e.target.closest('.delete-alternative');
     if(delAlternative){
       if(!isMaster)return;
