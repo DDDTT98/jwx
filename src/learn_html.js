@@ -802,6 +802,31 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     if(!response.ok||!result.success)throw new Error(result.error||'知识库请求失败');
     return result;
   }
+  async function migrateLocalKnowledgeDrafts(){
+    if(!isMaster)return false;
+    var legacyKey='jwx_ai_business_knowledge_drafts_v1';
+    var markerKey='jwx_ai_business_knowledge_migration_done_v1';
+    var legacyRaw='';
+    try{legacyRaw=localStorage.getItem(legacyKey)||'';}catch(error){}
+    if(!legacyRaw)return false;
+    var legacy;
+    try{legacy=JSON.parse(legacyRaw)||{};}catch(error){return false;}
+    var done={};
+    try{done=JSON.parse(localStorage.getItem(markerKey)||'{}')||{};}catch(error){}
+    var imported=0;
+    for(var category of Object.keys(kbDefinitions)){
+      var rows=Array.isArray(legacy[category])?legacy[category]:[];
+      for(var i=0;i<rows.length;i++){
+        var row=rows[i]||{},key=category+':'+String(row.id||row.createdAt||row.title||i);
+        if(done[key])continue;
+        if(!String(row.title||'').trim()||!String(row.content||'').trim())continue;
+        await knowledgeRequest('POST','',{category:category,title:String(row.title).slice(0,160),content:String(row.content).slice(0,30000),source:String(row.source||'旧版浏览器草稿迁移').slice(0,500)});
+        done[key]=true;imported++;
+        try{localStorage.setItem(markerKey,JSON.stringify(done));}catch(error){}
+      }
+    }
+    return imported>0;
+  }
   async function loadKnowledge(force){
     if(knowledgeLoading)return;
     if(knowledgeLoaded&&!force){renderKnowledge();return;}
@@ -809,9 +834,19 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     try{
       var result=await knowledgeRequest('GET','');
       knowledgeItems=Array.isArray(result.items)?result.items:[];
+      if(isMaster){
+        var migrated=await migrateLocalKnowledgeDrafts();
+        if(migrated){
+          result=await knowledgeRequest('GET','');
+          knowledgeItems=Array.isArray(result.items)?result.items:[];
+          setKnowledgeStatus('旧版本机草稿已迁移到 Supabase，均保持待审核状态。');
+        }
+      }
       knowledgeLoaded=true;
       renderKnowledge();
-      setKnowledgeStatus('已连接 Supabase · '+knowledgeItems.length+' 条资料 · 团队共享');
+      if(!document.getElementById('kbSyncStatus').textContent.includes('已迁移')){
+        setKnowledgeStatus('已连接 Supabase · '+knowledgeItems.length+' 条资料 · 团队共享');
+      }
     }catch(error){
       setKnowledgeStatus('连接失败：'+error.message,true);
       document.getElementById('kbList').innerHTML='<div class="kb-empty">暂时无法读取云端知识库。请检查登录状态或稍后重试。</div>';
