@@ -806,14 +806,14 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   }
   function queueRemoteSave(){
     remoteDirty=true;
-    setSyncStatus('有内容待同步…');
+    setSyncStatus('已在线','ok');
     if(remoteTimer)clearTimeout(remoteTimer);
     remoteTimer=setTimeout(function(){pushSharedDialog(false);},700);
   }
   async function pushSharedDialog(keepalive){
     if(!remoteReady||remoteBusy||!remoteDirty)return;
     var token=getDialogToken();
-    if(!token){setSyncStatus('请登录拨号账号后同步','error');return;}
+    if(!token){setSyncStatus('已离线','error');return;}
     remoteBusy=true;
     try{
       var response=await fetch('/api/learn/dialog',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({document:getDialogDocument()}),keepalive:!!keepalive,cache:'no-store'});
@@ -821,9 +821,9 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       if(!response.ok||!result.success)throw new Error(result.error||'同步失败');
       remoteUpdatedAt=result.updated_at||remoteUpdatedAt;
       remoteDirty=false;
-      setSyncStatus('已同步到团队 · '+new Date().toLocaleTimeString(),'ok');
+      setSyncStatus('已同步','ok');
     }catch(e){
-      setSyncStatus('同步失败：'+(e.message||'网络异常')+'（本机暂存）','error');
+      setSyncStatus('已离线','error');
     }finally{remoteBusy=false;}
   }
   function syncDeleteControls(){
@@ -862,8 +862,8 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   }
   async function loadSharedDialog(){
     var token=getDialogToken();
-    if(!token){setSyncStatus('请先登录拨号账号，登录后自动同步','error');return;}
-    setSyncStatus('正在读取团队共享话术…');
+    if(!token){setSyncStatus('已离线','error');return;}
+    setSyncStatus('已在线','ok');
     try{
       var response=await fetch('/api/learn/dialog',{headers:{'Authorization':'Bearer '+token},cache:'no-store'});
       var result=await response.json();
@@ -872,7 +872,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
         applySharedDocument(result.document);
         remoteUpdatedAt=result.updated_at||'';
         remoteReady=true;
-        setSyncStatus('已连接团队共享话术','ok');
+        setSyncStatus('已在线','ok');
       }else{
         // 云端尚无记录时，只创建一个空白云端窗口，绝不导入本机或页面示例数据。
         clientWindows=[{id:'client-default',name:'客户1',html:''}];
@@ -881,10 +881,10 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
         renderClientTabs();
         remoteReady=true;
         remoteDirty=true;
-        setSyncStatus('云端暂无对话，正在初始化空白共享库…');
+        setSyncStatus('已在线','ok');
         await pushSharedDialog(false);
       }
-    }catch(e){remoteReady=false;setSyncStatus('共享库连接失败：'+(e.message||'网络异常'),'error');}
+    }catch(e){remoteReady=false;setSyncStatus('已离线','error');}
   }
   async function pollSharedDialog(){
     if(remoteBusy)return;
@@ -897,9 +897,9 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       if(!response.ok||!result.success)throw new Error(result.error||'读取失败');
       if(result.document&&result.updated_at&&result.updated_at!==remoteUpdatedAt){
         applySharedDocument(result.document);remoteUpdatedAt=result.updated_at;
-        setSyncStatus('团队话术已更新 · '+new Date().toLocaleTimeString(),'ok');
+        setSyncStatus('已同步','ok');
       }
-    }catch(e){setSyncStatus('共享库暂时无法连接','error');}
+    }catch(e){setSyncStatus('已离线','error');}
   }
   function renderClientTabs(){
     clientTabs.innerHTML='';
