@@ -12014,7 +12014,7 @@ function updateAutoDialBtn() {
       // 不看拨打状态或批次锁：列表中只要还有任何客户，就绝对禁止换批，但点击时明确提示。
       if (Array.isArray(importedClients) && importedClients.length > 0) {
         syncRefreshBatchButton();
-        alert('当前拨号列表还有 ' + importedClients.length + ' 位客户，请添加完客户并清空列表后再换一批。');
+        alert('当前拨号列表还有 ' + importedClients.length + ' 位客户，请添加完毕会自动转移至公海后再换一批。如遇到重复添加的客户请手动转移至公海再换一批。');
         return;
       }
       // 冷却期（转出公海后 45-60 分钟随机）未走完：第一次点换一批弹防频繁提醒，
