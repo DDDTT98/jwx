@@ -124,13 +124,23 @@
     }
     .app-shell {
       height: 100%;
+      min-height: 0;
       width: 100%;
       display: none;
       flex-direction: column;
     }
+    /* Android mobile browsers: bind the dialer to the dynamic visual viewport.
+       The browser chrome can shrink the visible area while 100% keeps the
+       layout viewport height, exposing the wallpaper over the lower list. */
+    @supports (height: 100dvh) {
+      @media (max-width: 768px) {
+        .app-shell { height: 100dvh; }
+      }
+    }
     .container {
-      flex: 1;
+      flex: 1 1 0%;
       min-height: 0;
+      height: 100%;
       width: 100%;
       max-width: none;
       margin: 0;
