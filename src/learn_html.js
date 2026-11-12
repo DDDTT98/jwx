@@ -741,10 +741,10 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       addPairDragHandle(pair);
       if(!isMaster||pair.querySelector('.pair-edit-tools'))return;
       var tools=document.createElement('div');tools.className='pair-edit-tools';
-      tools.style.cssText='position:absolute;top:5px;left:8px;right:46px;display:flex;align-items:center;justify-content:flex-start;gap:6px;min-height:23px;z-index:2';
+      tools.style.cssText='position:absolute;top:5px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:6px;min-height:23px;z-index:2;pointer-events:none';
       var edit=document.createElement('button');edit.type='button';edit.className='delete-item pair-edit';edit.textContent='编辑整组';edit.style.cssText='margin:0;box-sizing:border-box;height:23px;line-height:19px;border:1px solid #b9d5b5;border-radius:6px;background:#f4faf1;color:#39784b;font-size:11px;padding:1px 9px;white-space:nowrap';
       var remove=document.createElement('button');remove.type='button';remove.className='delete-item pair-delete';remove.textContent='删除整组';remove.style.cssText='margin:0;box-sizing:border-box;height:23px;line-height:19px;border:1px solid #e4caca;border-radius:6px;background:#fff7f7;color:#bd5555;font-size:11px;padding:1px 9px;white-space:nowrap';
-      tools.appendChild(edit);tools.appendChild(remove);pair.insertBefore(tools,pair.firstChild);
+      edit.style.cssText+=';position:absolute;left:8px;pointer-events:auto';remove.style.cssText+=';position:absolute;left:50%;transform:translateX(-50%);pointer-events:auto';tools.appendChild(edit);tools.appendChild(remove);pair.insertBefore(tools,pair.firstChild);
     });
   }
   var draggingPair=null,dragPointerId=null,dragStartY=0,dragMoved=false;
