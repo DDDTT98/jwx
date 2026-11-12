@@ -3822,15 +3822,6 @@
       <button id="dbSaveEmailConfigBtn" class="auth-btn" style="font-size:0.78rem;padding:8px 0;">保存配置</button>
       <div id="dbEmailConfigStatus" style="font-size:0.68rem; min-height:18px;"></div>
 
-      <div style="border-top:0.5px solid var(--separator);padding-top:14px;">
-        <button type="button" id="dbBackupEmailToggle" class="auth-btn" aria-expanded="false" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 2px;background:transparent;border:0;box-shadow:none;color:var(--text-soft);font-size:0.72rem;font-weight:600;">
-          <span>接收备份的邮箱（可选）</span><span id="dbBackupEmailToggleIcon" style="font-size:0.8rem;">＋</span>
-        </button>
-        <div id="dbBackupEmailFields" style="display:none;flex-direction:column;gap:6px;padding-top:8px;">
-          <input id="dbBackupEmail" class="auth-input" type="email" placeholder="your@email.com" style="font-size:0.78rem;height:34px;">
-          <div style="font-size:0.68rem;color:var(--text-light);line-height:1.5;">填写后，该邮箱也会作为自动备份接收邮箱。</div>
-        </div>
-      </div>
       <button id="dbSendBackupBtn" class="auth-btn" style="font-size:0.78rem;padding:8px 0;background:#4a6cf7;color:#fff;">发送备份</button>
       <button id="dbTestBackupBtn" class="auth-btn" style="font-size:0.78rem;padding:8px 0;background:var(--btn-bg);border:none;box-shadow:var(--shadow-card);color:var(--text-main);">测试邮件（1条客户数据）</button>
       <div id="dbBackupStatus" style="font-size:0.68rem; min-height:18px; line-height:1.4;"></div>
@@ -13301,26 +13292,12 @@ function updateAutoDialBtn() {
     }
 
     function initBackupMgrPanel() {
-      // 接收备份邮箱默认收起，点击后再展开
-      var backupEmailToggle = document.getElementById('dbBackupEmailToggle');
-      var backupEmailFields = document.getElementById('dbBackupEmailFields');
-      var backupEmailToggleIcon = document.getElementById('dbBackupEmailToggleIcon');
-      if (backupEmailToggle && backupEmailFields && backupEmailToggle.dataset.bound !== '1') {
-        backupEmailToggle.dataset.bound = '1';
-        backupEmailToggle.addEventListener('click', function() {
-          var expanded = backupEmailFields.style.display === 'none';
-          backupEmailFields.style.display = expanded ? 'flex' : 'none';
-          backupEmailToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-          if (backupEmailToggleIcon) backupEmailToggleIcon.textContent = expanded ? '－' : '＋';
-        });
-      }
       // Save email config
       var saveConfigBtn = document.getElementById('dbSaveEmailConfigBtn');
       if (saveConfigBtn) {
         saveConfigBtn.addEventListener('click', function() {
           var key = document.getElementById('dbResendApiKey').value.trim();
           var fromEmail = document.getElementById('dbBackupFromEmail').value.trim();
-          var backupEmail = document.getElementById('dbBackupEmail').value.trim();
           var status = document.getElementById('dbEmailConfigStatus');
           // Key 与发送者邮箱可留空：已配置 Worker 环境变量（RESEND_API_KEY / BHP_FROM_EMAIL）时无需填写
           if (!key && !fromEmail && !_backupHasKey) { status.textContent = '请填写发送者邮箱或 Resend API Key（或已在 Worker 环境变量配置）'; status.style.color = '#e74c3c'; return; }
@@ -13330,7 +13307,7 @@ function updateAutoDialBtn() {
           fetch('/api/dialer/stats/email-config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ resendApiKey: key || undefined, backupFromEmail: fromEmail || undefined, backupTargetEmail: backupEmail || undefined, saveOnly: true })
+            body: JSON.stringify({ resendApiKey: key || undefined, backupFromEmail: fromEmail || undefined, saveOnly: true })
           })
           .then(function(r) { return r.json(); })
           .then(function(res) {
@@ -13353,10 +13330,7 @@ function updateAutoDialBtn() {
       var sendBtn = document.getElementById('dbSendBackupBtn');
       if (sendBtn) {
         sendBtn.addEventListener('click', function() {
-          var email = document.getElementById('dbBackupEmail').value.trim();
           var status = document.getElementById('dbBackupStatus');
-          // 接收邮箱可留空：已配置 Worker 环境变量 BACKUP_TARGET_EMAIL 时直接使用
-          if (email && email.indexOf('@') === -1) { status.textContent = '邮箱格式不正确'; status.style.color = '#e74c3c'; return; }
           sendBtn.disabled = true; sendBtn.textContent = '正在导出并发送...';
           status.style.color = 'var(--text-light)';
           status.textContent = '正在从数据库导出全部客户数据，请稍候...';
@@ -13364,14 +13338,13 @@ function updateAutoDialBtn() {
           fetch('/api/dialer/stats/export-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ email: email || undefined })
+            body: JSON.stringify({})
           })
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.success) {
               status.style.color = '#07c160';
-              status.textContent = '备份邮件已发送至 ' + (res.email || email) + '！共 ' + res.count + ' 条记录。请查收附件。';
-              document.getElementById('dbBackupEmail').value = '';
+              status.textContent = '备份邮件已发送至 ' + (res.email || '默认接收邮箱') + '！共 ' + res.count + ' 条记录。请查收附件。';
             } else {
               status.style.color = '#e74c3c';
               status.textContent = res.error || '发送失败';
@@ -13386,7 +13359,6 @@ function updateAutoDialBtn() {
       var testBtn = document.getElementById('dbTestBackupBtn');
       if (testBtn) {
         testBtn.addEventListener('click', function() {
-          var email = document.getElementById('dbBackupEmail').value.trim();
           var status = document.getElementById('dbBackupStatus');
           if (email && email.indexOf('@') === -1) { status.textContent = '邮箱格式不正确'; status.style.color = '#e74c3c'; return; }
           testBtn.disabled = true; testBtn.textContent = '测试中...';
@@ -13437,10 +13409,6 @@ function updateAutoDialBtn() {
           if (res.fromEmail) {
             var fromInput = document.getElementById('dbBackupFromEmail');
             if (fromInput) { fromInput.value = res.fromEmail; fromInput.readOnly = true; }
-          }
-          if (res.targetEmail) {
-            var emailInput = document.getElementById('dbBackupEmail');
-            if (emailInput) { emailInput.value = res.targetEmail; emailInput.readOnly = true; }
           }
           var keyInput = document.getElementById('dbResendApiKey');
           if (keyInput) {
