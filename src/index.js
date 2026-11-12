@@ -4807,6 +4807,165 @@ export default {
       }
     }
 
+
+    // ==================== AI business knowledge API ====================
+    if (path === '/api/ai/knowledge') {
+      var knowledgeStatus = 400;
+      try {
+        var knowledgeAuth = request.headers.get('Authorization') || '';
+        var knowledgeToken = knowledgeAuth.startsWith('Bearer ') ? knowledgeAuth.slice(7) : '';
+        var knowledgeSession = await dialerValidateSession(env, knowledgeToken);
+        if (!knowledgeSession) {
+          knowledgeStatus = 401;
+          throw new Error('登录状态已失效，请重新登录');
+        }
+        var knowledgeAccounts = await dialerGetAccounts(env);
+        var knowledgeAccount = knowledgeAccounts.find(function(a) {
+          return a.account_id === knowledgeSession.account_id && a.active !== false;
+        });
+        if (!knowledgeAccount) {
+          knowledgeStatus = 401;
+          throw new Error('账号不存在或已停用');
+        }
+        var knowledgeIsMaster = knowledgeAccount.is_master !== false;
+        var knowledgeUrl = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/ai_business_knowledge';
+        var knowledgeHeaders = {
+          'apikey': env.SUPABASE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        };
+        var knowledgeCategories = ['products', 'profiles', 'qa', 'cases', 'compliance'];
+        function knowledgeResponse(payload, status) {
+          return new Response(JSON.stringify(payload), {
+            status: status || 200,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        if (request.method === 'GET') {
+          var knowledgeQuery = new URLSearchParams();
+          knowledgeQuery.set('select', 'id,category,title,content,source,status,created_by,updated_by,review_note,version,created_at,updated_at,published_at');
+          knowledgeQuery.set('order', 'updated_at.desc');
+          knowledgeQuery.set('limit', '500');
+          var knowledgeCategory = url.searchParams.get('category') || '';
+          if (knowledgeCategory) {
+            if (knowledgeCategories.indexOf(knowledgeCategory) < 0) throw new Error('知识分类无效');
+            knowledgeQuery.set('category', 'eq.' + knowledgeCategory);
+          }
+          if (!knowledgeIsMaster) knowledgeQuery.set('status', 'eq.published');
+          var knowledgeRead = await fetch(knowledgeUrl + '?' + knowledgeQuery.toString(), {
+            headers: knowledgeHeaders,
+            cache: 'no-store'
+          });
+          if (!knowledgeRead.ok) {
+            knowledgeStatus = 502;
+            throw new Error('读取知识库失败：' + knowledgeRead.status + ' ' + (await knowledgeRead.text()).slice(0, 240));
+          }
+          return knowledgeResponse({ success: true, items: await knowledgeRead.json(), is_master: knowledgeIsMaster });
+        }
+        if (!knowledgeIsMaster) {
+          knowledgeStatus = 403;
+          throw new Error('只有主账号可以管理知识库');
+        }
+        if (request.method === 'POST') {
+          var knowledgeBody = await request.json();
+          var newCategory = String(knowledgeBody.category || '');
+          var newTitle = String(knowledgeBody.title || '').trim();
+          var newContent = String(knowledgeBody.content || '').trim();
+          var newSource = String(knowledgeBody.source || '').trim().slice(0, 500);
+          if (knowledgeCategories.indexOf(newCategory) < 0) throw new Error('知识分类无效');
+          if (!newTitle || newTitle.length > 160) throw new Error('标题不能为空，且不能超过160字');
+          if (!newContent || newContent.length > 30000) throw new Error('内容不能为空，且不能超过30000字');
+          var knowledgeInsert = await fetch(knowledgeUrl, {
+            method: 'POST',
+            headers: Object.assign({}, knowledgeHeaders, { 'Prefer': 'return=representation' }),
+            body: JSON.stringify({
+              category: newCategory, title: newTitle, content: newContent, source: newSource,
+              status: 'draft', created_by: knowledgeSession.account_id, updated_by: knowledgeSession.account_id
+            })
+          });
+          if (!knowledgeInsert.ok) {
+            knowledgeStatus = 502;
+            throw new Error('保存知识草稿失败：' + knowledgeInsert.status + ' ' + (await knowledgeInsert.text()).slice(0, 240));
+          }
+          var insertedKnowledge = await knowledgeInsert.json();
+          return knowledgeResponse({ success: true, item: insertedKnowledge[0] || null });
+        }
+        if (request.method === 'PATCH') {
+          var editBody = await request.json();
+          var editId = String(editBody.id || '');
+          if (!/^[0-9a-f-]{36}$/i.test(editId)) throw new Error('知识条目编号无效');
+          var existingRead = await fetch(knowledgeUrl + '?id=eq.' + encodeURIComponent(editId) + '&select=id,category,title,content,source,status,version&limit=1', { headers: knowledgeHeaders, cache: 'no-store' });
+          if (!existingRead.ok) {
+            knowledgeStatus = 502;
+            throw new Error('读取待修改知识失败：' + existingRead.status);
+          }
+          var existingRows = await existingRead.json();
+          if (!existingRows.length) { knowledgeStatus = 404; throw new Error('知识条目不存在'); }
+          var existingItem = existingRows[0], updateKnowledge = {
+            updated_by: knowledgeSession.account_id,
+            updated_at: new Date().toISOString(),
+            version: Number(existingItem.version || 1) + 1
+          };
+          if (editBody.category !== undefined) {
+            if (knowledgeCategories.indexOf(editBody.category) < 0) throw new Error('知识分类无效');
+            updateKnowledge.category = editBody.category;
+          }
+          if (editBody.title !== undefined) {
+            var editTitle = String(editBody.title || '').trim();
+            if (!editTitle || editTitle.length > 160) throw new Error('标题不能为空，且不能超过160字');
+            updateKnowledge.title = editTitle;
+          }
+          if (editBody.content !== undefined) {
+            var editContent = String(editBody.content || '').trim();
+            if (!editContent || editContent.length > 30000) throw new Error('内容不能为空，且不能超过30000字');
+            updateKnowledge.content = editContent;
+          }
+          if (editBody.source !== undefined) updateKnowledge.source = String(editBody.source || '').trim().slice(0, 500);
+          if (editBody.review_note !== undefined) updateKnowledge.review_note = String(editBody.review_note || '').trim().slice(0, 1000);
+          if (editBody.status !== undefined) {
+            if (['draft', 'published', 'archived'].indexOf(editBody.status) < 0) throw new Error('知识状态无效');
+            updateKnowledge.status = editBody.status;
+            if (editBody.status === 'published') updateKnowledge.published_at = new Date().toISOString();
+            if (editBody.status === 'draft') updateKnowledge.published_at = null;
+          }
+          var knowledgeUpdate = await fetch(knowledgeUrl + '?id=eq.' + encodeURIComponent(editId), {
+            method: 'PATCH',
+            headers: Object.assign({}, knowledgeHeaders, { 'Prefer': 'return=representation' }),
+            body: JSON.stringify(updateKnowledge)
+          });
+          if (!knowledgeUpdate.ok) {
+            knowledgeStatus = 502;
+            throw new Error('更新知识失败：' + knowledgeUpdate.status + ' ' + (await knowledgeUpdate.text()).slice(0, 240));
+          }
+          var updatedRows = await knowledgeUpdate.json();
+          return knowledgeResponse({ success: true, item: updatedRows[0] || null });
+        }
+        if (request.method === 'DELETE') {
+          var deleteId = url.searchParams.get('id') || '';
+          if (!/^[0-9a-f-]{36}$/i.test(deleteId)) throw new Error('知识条目编号无效');
+          var knowledgeDelete = await fetch(knowledgeUrl + '?id=eq.' + encodeURIComponent(deleteId), {
+            method: 'DELETE',
+            headers: Object.assign({}, knowledgeHeaders, { 'Prefer': 'return=representation' })
+          });
+          if (!knowledgeDelete.ok) {
+            knowledgeStatus = 502;
+            throw new Error('删除知识失败：' + knowledgeDelete.status + ' ' + (await knowledgeDelete.text()).slice(0, 240));
+          }
+          var deletedRows = await knowledgeDelete.json();
+          if (!deletedRows.length) { knowledgeStatus = 404; throw new Error('知识条目不存在'); }
+          return knowledgeResponse({ success: true });
+        }
+        knowledgeStatus = 405;
+        return knowledgeResponse({ success: false, error: '不支持的请求方法' }, 405);
+      } catch (knowledgeError) {
+        if (knowledgeStatus === 400 && knowledgeError.message === '只有主账号可以管理知识库') knowledgeStatus = 403;
+        return new Response(JSON.stringify({ success: false, error: knowledgeError.message || '知识库请求失败' }), {
+          status: knowledgeStatus,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // ==================== Page Serving ====================
 
     // 学习中心页面（支持自定义内容）
