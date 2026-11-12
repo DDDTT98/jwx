@@ -4823,8 +4823,10 @@
       var hint = document.getElementById('androidSwitchHint');
       if (!hint) return;
 
-      // 保持原安卓提示的位置：屏幕顶部居中，不跟随客户卡片移动。
-      hint.style.top = '8px';
+      // iOS 提示下移并避开刘海安全区；其他系统保持原来的顶部位置。
+      var isIOSBrowser = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      hint.style.top = isIOSBrowser ? 'calc(env(safe-area-inset-top, 0px) + 52px)' : '8px';
       hint.style.left = '50%';
 
       hint.classList.add('show');
