@@ -1501,20 +1501,19 @@
       color: #e74c3c;
     }
 
-    /* Android browser: compact single-line copy hint pinned to the top safe area. */
+    /* Android browser: copy hint is dynamically anchored over the first customer card. */
     .android-switch-hint {
       position: fixed;
       z-index: 30;
-      top: calc(env(safe-area-inset-top, 0px) + 8px);
-      left: 6px;
-      right: 6px;
+      top: 8px;
+      left: 50%;
+      right: auto;
       width: max-content;
-      max-width: calc(100vw - 12px);
+      max-width: calc(100vw - 20px);
       box-sizing: border-box;
       display: none;
-      margin-left: auto;
-      margin-right: auto;
-      padding: 7px 8px;
+      margin: 0;
+      padding: 7px 9px;
       border: 0;
       border-radius: 18px;
       background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
@@ -1527,8 +1526,8 @@
       font-weight: 600;
       letter-spacing: 0;
       pointer-events: none;
-      -webkit-transform: none;
-      transform: none;
+      -webkit-transform: translateX(-50%);
+      transform: translateX(-50%);
       will-change: auto;
     }
     .android-switch-hint.show { display: block; }
@@ -1541,8 +1540,7 @@
       color: #374151;
       box-shadow: 0 4px 16px rgba(0,0,0,0.24);
     }
-    body.dark-mode .android-switch-hint .switch-hint-title,
-    body.dark-mode .android-switch-hint .switch-arrow {
+    body.dark-mode .android-switch-hint .switch-hint-title {
       color: #374151;
     }
 
@@ -4825,6 +4823,18 @@
       if (!isAndroid) return;
       var hint = document.getElementById('androidSwitchHint');
       if (!hint) return;
+
+      // 每次复制成功，都定位到拨号列表当前排序后的第 1 张客户卡片。
+      var firstCard = document.querySelector('.xls-dial-card');
+      if (firstCard) {
+        var rect = firstCard.getBoundingClientRect();
+        hint.style.top = Math.max(8, rect.top + 8) + 'px';
+        hint.style.left = (rect.left + rect.width / 2) + 'px';
+      } else {
+        hint.style.top = '8px';
+        hint.style.left = '50%';
+      }
+
       hint.classList.add('show');
       if (androidSwitchHintTimer) clearTimeout(androidSwitchHintTimer);
       androidSwitchHintTimer = setTimeout(function() {
