@@ -3822,10 +3822,14 @@
       <button id="dbSaveEmailConfigBtn" class="auth-btn" style="font-size:0.78rem;padding:8px 0;">保存配置</button>
       <div id="dbEmailConfigStatus" style="font-size:0.68rem; min-height:18px;"></div>
 
-      <div style="border-top:0.5px solid var(--separator);padding-top:14px;display:flex;flex-direction:column;gap:6px;">
-        <label style="font-size:0.72rem;font-weight:600;color:var(--text-soft);">接收备份的邮箱</label>
-        <input id="dbBackupEmail" class="auth-input" type="email" placeholder="your@email.com" style="font-size:0.78rem;height:34px;">
-        <div style="font-size:0.68rem; color:var(--text-light); line-height:1.5;">保存配置后，该邮箱也会作为爆破密码触发时的自动备份接收邮箱。</div>
+      <div style="border-top:0.5px solid var(--separator);padding-top:14px;">
+        <button type="button" id="dbBackupEmailToggle" class="auth-btn" aria-expanded="false" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 2px;background:transparent;border:0;box-shadow:none;color:var(--text-soft);font-size:0.72rem;font-weight:600;">
+          <span>接收备份的邮箱（可选）</span><span id="dbBackupEmailToggleIcon" style="font-size:0.8rem;">＋</span>
+        </button>
+        <div id="dbBackupEmailFields" style="display:none;flex-direction:column;gap:6px;padding-top:8px;">
+          <input id="dbBackupEmail" class="auth-input" type="email" placeholder="your@email.com" style="font-size:0.78rem;height:34px;">
+          <div style="font-size:0.68rem;color:var(--text-light);line-height:1.5;">填写后，该邮箱也会作为自动备份接收邮箱。</div>
+        </div>
       </div>
       <button id="dbSendBackupBtn" class="auth-btn" style="font-size:0.78rem;padding:8px 0;background:#4a6cf7;color:#fff;">发送备份</button>
       <button id="dbTestBackupBtn" class="auth-btn" style="font-size:0.78rem;padding:8px 0;background:var(--btn-bg);border:none;box-shadow:var(--shadow-card);color:var(--text-main);">测试邮件（1条客户数据）</button>
@@ -13297,6 +13301,19 @@ function updateAutoDialBtn() {
     }
 
     function initBackupMgrPanel() {
+      // 接收备份邮箱默认收起，点击后再展开
+      var backupEmailToggle = document.getElementById('dbBackupEmailToggle');
+      var backupEmailFields = document.getElementById('dbBackupEmailFields');
+      var backupEmailToggleIcon = document.getElementById('dbBackupEmailToggleIcon');
+      if (backupEmailToggle && backupEmailFields && backupEmailToggle.dataset.bound !== '1') {
+        backupEmailToggle.dataset.bound = '1';
+        backupEmailToggle.addEventListener('click', function() {
+          var expanded = backupEmailFields.style.display === 'none';
+          backupEmailFields.style.display = expanded ? 'flex' : 'none';
+          backupEmailToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+          if (backupEmailToggleIcon) backupEmailToggleIcon.textContent = expanded ? '－' : '＋';
+        });
+      }
       // Save email config
       var saveConfigBtn = document.getElementById('dbSaveEmailConfigBtn');
       if (saveConfigBtn) {
