@@ -123,22 +123,14 @@
       transition: background 0.3s;
     }
     .app-shell {
-      /* Keep the dialer shell anchored to the full browser viewport.
-         A percentage-height flex child can resolve against a shortened
-         Android layout viewport and expose the wallpaper below the list. */
-      position: fixed;
-      inset: 0;
-      height: auto;
-      min-height: 0;
+      height: 100%;
       width: 100%;
       display: none;
       flex-direction: column;
-      z-index: 1;
     }
     .container {
-      flex: 1 1 0%;
+      flex: 1;
       min-height: 0;
-      height: 100%;
       width: 100%;
       max-width: none;
       margin: 0;
@@ -3492,7 +3484,7 @@
       </div>
       
       <!-- Persistent customer import task center -->
-      <section id="importTaskCenter" style="margin:12px 0 16px;padding:12px;border:1px solid var(--card-border);border-radius:12px;background:var(--card-bg);box-shadow:var(--shadow-card);">
+      <section id="importTaskCenter" style="display:none;margin:12px 0 16px;padding:12px;border:1px solid var(--card-border);border-radius:12px;background:var(--card-bg);box-shadow:var(--shadow-card);">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
           <div style="min-width:0;"><div style="font-size:0.82rem;font-weight:800;color:var(--text-main);">上传任务中心</div><div style="font-size:0.64rem;color:var(--text-light);margin-top:3px;">实时查看导入进度，刷新或重新登录后仍可继续查看</div></div>
           <button type="button" id="importTaskRefreshBtn" class="btn-secondary" style="flex-shrink:0;padding:6px 10px;font-size:0.68rem;">刷新</button>
@@ -5344,9 +5336,17 @@
     }
     function renderImportTaskCenter(tasks) {
       var root = document.getElementById('importTaskList');
-      if (!root) return;
-      if (!Array.isArray(tasks) || !tasks.length) { root.innerHTML = '<div style="padding:10px 0;font-size:0.7rem;color:var(--text-light);text-align:center;">暂无上传任务</div>'; return; }
-      root.innerHTML = tasks.map(function(job) {
+      var center = document.getElementById('importTaskCenter');
+      if (!root || !center) return;
+      // Only active upload work should occupy the dialer layout. Historical
+      // completed/failed jobs remain queryable from the task API, but are not
+      // shown in the mobile dialer after work has stopped.
+      var activeTasks = (Array.isArray(tasks) ? tasks : []).filter(function(job) {
+        return ['staging', 'queued', 'running'].indexOf(String(job.status || '').toLowerCase()) !== -1;
+      });
+      center.style.display = activeTasks.length ? '' : 'none';
+      if (!activeTasks.length) { root.innerHTML = ''; return; }
+      root.innerHTML = activeTasks.map(function(job) {
         var total = Math.max(0, Number(job.total || 0));
         var staging = job.status === 'staging';
         var processed = Math.min(total, Math.max(0, Number(staging ? job.staged_count || 0 : job.processed || 0)));
@@ -5371,8 +5371,10 @@
     }
     function refreshImportTaskCenter() {
       return fetch('/api/dialer/import-jobs', { method: 'GET', cache: 'no-store' }).then(function(res) { return res.json().then(function(data) { if (!res.ok || !data.success) throw new Error(data.error || '读取上传任务失败'); return data; }); }).then(function(data) { renderImportTaskCenter(data.tasks || []); }).catch(function(err) {
-        var root = document.getElementById('importTaskList');
-        if (root && !root.querySelector('article')) root.innerHTML = '<div style="padding:8px 0;font-size:0.68rem;color:#d97706;">任务读取失败：' + esc(err.message) + '</div>';
+        // A transient task API error must not leave an empty panel occupying
+        // the customer list; the next poll will show it if active work exists.
+        var center = document.getElementById('importTaskCenter');
+        if (center && !center.querySelector('#importTaskList article')) center.style.display = 'none';
       });
     }
     function initImportTaskCenter() {
