@@ -4827,6 +4827,11 @@
       var isIOSBrowser = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       hint.style.top = isIOSBrowser ? 'calc(env(safe-area-inset-top, 0px) + 52px)' : '8px';
+      if (isIOSBrowser) {
+        hint.style.fontSize = '12px';
+        hint.style.padding = '9px 12px';
+        hint.style.fontWeight = '700';
+      }
       hint.style.left = '50%';
 
       hint.classList.add('show');
