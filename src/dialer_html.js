@@ -9009,8 +9009,12 @@
             // 隐私模式下星号仍可单独复制真实姓名，不带其他客户资料
             var copyText = isClientInfoVisible() ? (buildCopyText(client) || name) : name;
             if (!copyText) return;
-            // 所有手机浏览器点击姓名统一复制并显示现有提示，不自动跳转微信。
-            copyForAndroidWeb(copyText);
+            // iOS 点击姓名：同步复制后立即唤起微信；其他系统保持原有复制提示。
+            if (isIOSWebBrowser()) {
+              if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
+            } else {
+              copyForAndroidWeb(copyText);
+            }
 
             if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
 
@@ -9054,7 +9058,9 @@
               return;
             }
             var isCopyNote = b.dataset.copyNote === '1';
-            if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
+            if (isIOSWebBrowser() && isCopyNote) {
+              if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
+            } else if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
               copyForAndroidWeb(copyText);
             }
 
@@ -9234,10 +9240,14 @@
               saveState();
             }
 
-            // 与移动卡片视图共用跨平台复制逻辑，失败时走同步复制/错误提示兜底。
-            copyTextToClipboard(copyText);
-            // 拨号列表中复制姓名后也直接跳转微信；其他字段保持原有行为。
-            if (copyType === 'copy_name') jumpToWechat();
+            // iOS 姓名/备注：必须同步复制后再唤起微信，避免异步剪贴板失去点击手势。
+            // 其他系统沿用原有复制逻辑；姓名原有跳转行为保持不变。
+            if (isIOSWebBrowser() && (copyType === 'copy_name' || copyType === 'copy_note')) {
+              if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
+            } else {
+              copyTextToClipboard(copyText);
+              if (copyType === 'copy_name') jumpToWechat();
+            }
             // Brief flash
             var orig = btn.style.color;
             btn.style.color = '#07c160';
@@ -9546,7 +9556,13 @@ function updateAutoDialBtn() {
  var client = importedClients[currentCallIdx];
  // 复制姓名同样按复制偏好组合（与单位名称一致）
  var copyText = buildCopyText(client) || name;
- if (!openNativeWechatAddFriend(client, name, '')) copyForAndroidWeb(copyText);
+ if (!openNativeWechatAddFriend(client, name, '')) {
+   if (isIOSWebBrowser()) {
+     if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
+   } else {
+     copyForAndroidWeb(copyText);
+   }
+ }
 
  if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
 
@@ -13117,8 +13133,12 @@ function updateAutoDialBtn() {
           e.stopPropagation();
           var note = content.textContent || '';
           if (!note || note === '点击此处复制备注') return;
-          copyTextToClipboard(note);
-          showCopyLimitToast('备注已复制', false);
+          if (isIOSWebBrowser()) {
+            if (!copyAndOpenWechatOnIOS(note)) showCopyLimitToast('复制失败，请长按手动复制', true);
+          } else {
+            copyTextToClipboard(note);
+            showCopyLimitToast('备注已复制', false);
+          }
         });
       }
       if (modal && closeBtn) {
