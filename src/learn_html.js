@@ -750,7 +750,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     normalMain.hidden=!normal;
     aiWorkspace.hidden=!ai;
     knowledgeWorkspace.hidden=!knowledge;
-    if(name==='knowledge')renderKnowledge();
+    if(name==='knowledge')loadKnowledge(false);
   }
   workspaceTabs.forEach(function(tab){tab.addEventListener('click',function(){switchWorkspace(tab.dataset.workspace);});});
   openKnowledge.addEventListener('click',function(){switchWorkspace('knowledge');});
