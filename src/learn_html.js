@@ -735,6 +735,8 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     pair.insertBefore(handle,pair.firstChild);
   }
   function decoratePairDragHandles(){
+    // 主账号保存的对话 HTML 可能已包含整组操作按钮；子账号加载时必须清除，不能只阻止重新创建。
+    if(!isMaster)chat.querySelectorAll('.pair-edit-tools').forEach(function(tools){tools.remove();});
     chat.querySelectorAll('.conversation-pair,.custom-pair').forEach(function(pair){
       addPairDragHandle(pair);
       if(!isMaster||pair.querySelector('.pair-edit-tools'))return;
