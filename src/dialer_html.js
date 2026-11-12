@@ -4817,10 +4817,9 @@
       return ok;
     }
 
-    // Android 网页版：复制成功后提示切换微信，约 2.5 秒后自动消失。
+    // 全平台网页版共用：复制成功后显示现有 Android 提示组件；位置、样式和时长保持不变。
     var androidSwitchHintTimer = null;
     function showAndroidSwitchHint() {
-      if (!isAndroid) return;
       var hint = document.getElementById('androidSwitchHint');
       if (!hint) return;
 
@@ -4855,11 +4854,10 @@
       }
     }
 
-    // 手机号复制专用：Android 浏览器不自动唤起微信，复制成功后提示用户用系统底部手势切换应用。
+    // 手机号复制专用：所有手机浏览器复制成功后复用现有提示组件。
     function copyPhoneWithSwitchHint(text) {
       function onCopied() {
-        if (isAndroid) showAndroidSwitchHint();
-        else showCopyLimitToast('已复制: ' + text, false);
+        showAndroidSwitchHint();
       }
       if (!isHarmonyOS && navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(onCopied).catch(function() {
@@ -8913,13 +8911,9 @@
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
             var client = importedClients[idx];
-            // Android 网页版只复制号码，提醒用户通过系统底部手势切换微信。
-            if (isAndroid) {
-              e.preventDefault();
-              copyForAndroidWeb(phone);
-            } else {
-              syncCopy(phone);
-            }
+            // 所有手机浏览器统一只复制号码并显示现有提示，不自动跳转微信。
+            e.preventDefault();
+            copyForAndroidWeb(phone);
             recordTimeline(phone, 'add_wechat');
             if (client) {
               client.copied = true;
@@ -8956,12 +8950,8 @@
             // 隐私模式下星号仍可单独复制真实姓名，不带其他客户资料
             var copyText = isClientInfoVisible() ? (buildCopyText(client) || name) : name;
             if (!copyText) return;
-            // Android 网页版点击姓名只复制，不自动跳转微信。
-            if (isAndroid) copyForAndroidWeb(copyText);
-            else {
-              copyTextToClipboard(copyText);
-              jumpToWechat();
-            }
+            // 所有手机浏览器点击姓名统一复制并显示现有提示，不自动跳转微信。
+            copyForAndroidWeb(copyText);
 
             if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
 
@@ -9005,9 +8995,8 @@
               return;
             }
             var isCopyNote = b.dataset.copyNote === '1';
-            if (isAndroid) copyForAndroidWeb(copyText);
-            else if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
-              copyTextToClipboard(copyText);
+            if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
+              copyForAndroidWeb(copyText);
             }
 
             var cardEl = b.closest('.xls-dial-card');
@@ -9025,7 +9014,7 @@
             if (cardEl) cardEl.classList.add('copied-company');
             b.textContent = '已复制';
             b.classList.add('privacy-action-done');
-            if (!isAndroid && (isCopyNote || !(window.JWXNative && typeof window.JWXNative.openWechatAddFriend === 'function'))) jumpToWechat();
+            // 备注和单位名称复制后统一显示现有提示；不自动跳转微信。
             // 备注和单位按钮统一反馈时长，并恢复各自原始文案。
             setTimeout(function() {
               b.textContent = originalLabel;
@@ -9453,12 +9442,11 @@ function updateAutoDialBtn() {
  var client = importedClients[currentCallIdx];
  // APK 原生模式直接进入微信添加朋友入口。
  if (!openNativeWechatAddFriend(client, '', '')) {
-   if (isAndroid) copyPhoneWithSwitchHint(phone);
-   else syncCopy(phone);
+   copyPhoneWithSwitchHint(phone);
  }
  if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
 
- phoneDisp.textContent = isAndroid ? '已复制' : '已复制，正在打开微信...';
+ phoneDisp.textContent = '已复制';
 
  if (client) {
  client.copied = true;
@@ -9478,7 +9466,7 @@ function updateAutoDialBtn() {
  }
  }
 
- if (!(isAndroid && window.JWXNative && typeof window.JWXNative.openWechatAddFriend === 'function')) jumpToWechat(); // APK 原生入口已处理微信添加好友跳转
+ // 网页端复制后由用户自行切换微信；APK 原生入口仍由原生能力处理跳转。
 
  setTimeout(function() {
  phoneDisp.textContent = maskPhone(phone);
