@@ -5048,7 +5048,7 @@ export default {
           return chatImportResponse({ success: true, messages: chatMessages, uncertain: Array.isArray(chatParsed.uncertain) ? chatParsed.uncertain.slice(0, 30) : [] });
         }
         if (chatImportAction === 'save') {
-          var saveMessages = Array.isArray(chatImportBody.messages) ? chatImportBody.messages.slice(0, 2000) : [];
+          var saveMessages = Array.isArray(chatImportBody.messages) ? chatImportBody.messages.slice(0, 1200) : [];
           if (!saveMessages.length) throw new Error('没有识别到可保存的聊天消息');
           saveMessages = saveMessages.map(function(m) {
             return {
