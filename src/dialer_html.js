@@ -3476,6 +3476,15 @@
         </div>
       </div>
       
+      <!-- Persistent customer import task center -->
+      <section id="importTaskCenter" style="margin:12px 0 16px;padding:12px;border:1px solid var(--card-border);border-radius:12px;background:var(--card-bg);box-shadow:var(--shadow-card);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+          <div style="min-width:0;"><div style="font-size:0.82rem;font-weight:800;color:var(--text-main);">上传任务中心</div><div style="font-size:0.64rem;color:var(--text-light);margin-top:3px;">实时查看导入进度，刷新或重新登录后仍可继续查看</div></div>
+          <button type="button" id="importTaskRefreshBtn" class="btn-secondary" style="flex-shrink:0;padding:6px 10px;font-size:0.68rem;">刷新</button>
+        </div>
+        <div id="importTaskList" style="display:flex;flex-direction:column;gap:9px;"><div style="font-size:0.7rem;color:var(--text-light);padding:8px 0;">正在读取上传任务…</div></div>
+      </section>
+
       <!-- Controls -->
       <div class="control-bar" id="controlBar" style="display:none; flex-wrap: wrap; gap: 6px;">
         <input type="text" class="search-input" id="searchInput" placeholder="搜索" style="flex: 1; min-width: 60px;">
@@ -5272,7 +5281,7 @@
       return true;
     }
 
-    function uploadCustomersToSupabase(customers, batchLabel) {
+    function uploadCustomersToSupabase(customers, batchLabel, fileName) {
       if (!canStartNextImportBatch()) return Promise.resolve({ success: false, error: '本轮尚未清空，禁止导入下一批' });
       if (!customers || customers.length === 0) return Promise.resolve({ success: false, error: '无数据' });
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
@@ -5291,7 +5300,7 @@
           return new Promise(function(resolve) { setTimeout(resolve, 500 * Math.pow(2, attempt)); }).then(function() { return retryStage(body, attempt + 1); });
         });
       }
-      return postImport({ action: 'start', total: payload.length, batch_label: label, auto_delete_after_dial: autoDeleteAfterDial, category: (payload[0] && payload[0].category) || '公海客户' })
+      return postImport({ action: 'start', total: payload.length, batch_label: label, file_name: fileName || currentImportFileName || '未命名文件', auto_delete_after_dial: autoDeleteAfterDial, category: (payload[0] && payload[0].category) || '公海客户' })
       .then(function(started) {
         var jobId = started.job_id;
         var chain = Promise.resolve();
@@ -5315,7 +5324,50 @@
       });
     }
 
-        function updateDashboardVisibility(hasData) {
+        function importTaskStatusText(status) {
+      return ({ staging: '文件暂存中', queued: '等待处理', running: '正在导入', completed: '已完成', completed_with_errors: '部分失败', failed: '导入失败' })[status] || '处理中';
+    }
+    function renderImportTaskCenter(tasks) {
+      var root = document.getElementById('importTaskList');
+      if (!root) return;
+      if (!Array.isArray(tasks) || !tasks.length) { root.innerHTML = '<div style="padding:10px 0;font-size:0.7rem;color:var(--text-light);text-align:center;">暂无上传任务</div>'; return; }
+      root.innerHTML = tasks.map(function(job) {
+        var total = Math.max(0, Number(job.total || 0));
+        var staging = job.status === 'staging';
+        var processed = Math.min(total, Math.max(0, Number(staging ? job.staged_count || 0 : job.processed || 0)));
+        var percent = total ? Math.min(100, Math.floor(processed * 100 / total)) : 0;
+        var done = job.status === 'completed' || job.status === 'completed_with_errors' || job.status === 'failed';
+        var statusColor = job.status === 'completed' ? 'var(--accent-wechat)' : job.status === 'failed' || job.status === 'completed_with_errors' ? '#d97706' : 'var(--text-soft)';
+        var pending = Math.max(0, total - Number(job.processed || 0));
+        var stats = staging ? '已暂存 ' + processed + ' / ' + total + ' 条' : '已处理 ' + processed + ' / ' + total + ' 条';
+        var errorText = job.last_error || job.error || '';
+        return '<article style="padding:10px;border:1px solid var(--card-border);border-radius:9px;background:var(--btn-bg);">' +
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div style="min-width:0;flex:1;"><div style="font-size:0.76rem;font-weight:800;color:var(--text-main);overflow-wrap:anywhere;">' + esc(job.batch_label || '未命名批次') + '</div><div style="font-size:0.64rem;color:var(--text-soft);margin-top:4px;overflow-wrap:anywhere;">文件：' + esc(job.file_name || '未记录文件名') + '</div></div><span style="flex-shrink:0;font-size:0.64rem;font-weight:700;color:' + statusColor + ';">' + importTaskStatusText(job.status) + '</span></div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:0.66rem;color:var(--text-soft);"><span>' + stats + '</span><strong style="font-size:0.78rem;color:var(--text-main);font-variant-numeric:tabular-nums;">' + (done ? (job.status === 'failed' ? '失败' : '100%') : percent + '%') + '</strong></div>' +
+          '<div style="height:6px;margin-top:6px;border-radius:8px;background:var(--card-border);overflow:hidden;"><div style="height:100%;width:' + percent + '%;border-radius:8px;background:' + (done && job.status !== 'completed' ? '#d97706' : 'var(--accent-wechat)') + ';transition:width .25s ease;"></div></div>' +
+          '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:9px;">' +
+          '<div><div style="font-size:0.58rem;color:var(--text-light);">成功</div><div style="font-size:0.72rem;font-weight:700;color:var(--text-main);font-variant-numeric:tabular-nums;">' + Number(job.succeeded || 0) + '</div></div>' +
+          '<div><div style="font-size:0.58rem;color:var(--text-light);">重复跳过</div><div style="font-size:0.72rem;font-weight:700;color:var(--text-main);font-variant-numeric:tabular-nums;">' + Number(job.skipped || 0) + '</div></div>' +
+          '<div><div style="font-size:0.58rem;color:var(--text-light);">失败</div><div style="font-size:0.72rem;font-weight:700;color:var(--text-main);font-variant-numeric:tabular-nums;">' + Number(job.failed || 0) + '</div></div>' +
+          '<div><div style="font-size:0.58rem;color:var(--text-light);">待处理</div><div style="font-size:0.72rem;font-weight:700;color:var(--text-main);font-variant-numeric:tabular-nums;">' + (staging ? Math.max(0, total - processed) : pending) + '</div></div></div>' +
+          '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:0.57rem;color:var(--text-light);"><span>任务 ID：' + esc(job.id || '-') + '</span><span>' + esc(job.created_at ? new Date(job.created_at).toLocaleString() : '') + '</span></div>' +
+          (errorText ? '<div style="margin-top:7px;padding:7px;border-radius:6px;background:rgba(217,119,6,.08);color:#b45309;font-size:0.62rem;overflow-wrap:anywhere;">' + esc(errorText) + '</div>' : '') + '</article>';
+      }).join('');
+    }
+    function refreshImportTaskCenter() {
+      return fetch('/api/dialer/import-jobs', { method: 'GET', cache: 'no-store' }).then(function(res) { return res.json().then(function(data) { if (!res.ok || !data.success) throw new Error(data.error || '读取上传任务失败'); return data; }); }).then(function(data) { renderImportTaskCenter(data.tasks || []); }).catch(function(err) {
+        var root = document.getElementById('importTaskList');
+        if (root && !root.querySelector('article')) root.innerHTML = '<div style="padding:8px 0;font-size:0.68rem;color:#d97706;">任务读取失败：' + esc(err.message) + '</div>';
+      });
+    }
+    function initImportTaskCenter() {
+      var refreshBtn = document.getElementById('importTaskRefreshBtn');
+      if (refreshBtn) refreshBtn.addEventListener('click', refreshImportTaskCenter);
+      refreshImportTaskCenter();
+      if (!window._importTaskPollTimer) window._importTaskPollTimer = setInterval(refreshImportTaskCenter, 2500);
+    }
+
+    function updateDashboardVisibility(hasData) {
       var flexStyle = hasData ? 'flex' : 'none';
       // 圆饼图（工作记录抽屉入口）始终显示，不随客户列表有无数据隐藏
       document.getElementById('controlBar').style.display = 'none';
@@ -5361,6 +5413,7 @@
     var tempImportHeaders = [];
     var tempImportDetected = null;
     var tempImportType = 'xlsx'; // 'xlsx', 'vcf', 'unstructured'
+    var currentImportFileName = '手动导入';
     var tempUnstructuredContacts = [];
 
     // OCR Training: save original results before user edits
@@ -5947,7 +6000,7 @@
       }
 
       // 识别成功的客户不再展示在列表，直接上传数据库，成功后提示上传数量
-      uploadCustomersToSupabase(parsedCustomers, batchLabel).then(function(data) {
+      uploadCustomersToSupabase(parsedCustomers, batchLabel, currentImportFileName).then(function(data) {
         if (data && data.success) {
           showCopyLimitToast('上传成功 ' + data.count + ' 条客户' + ((data.skipped > 0) ? '，已跳过 ' + data.skipped + ' 条' : ''));
         }
@@ -5977,7 +6030,7 @@
         }
       }
       // 识别成功的客户不再展示在列表，直接上传数据库，成功后提示上传数量
-      uploadCustomersToSupabase(tempImportData, batchLabel).then(function(data) {
+      uploadCustomersToSupabase(tempImportData, batchLabel, currentImportFileName).then(function(data) {
         if (data && data.success) {
           showCopyLimitToast('上传成功 ' + data.count + ' 条客户' + ((data.skipped > 0) ? '，已跳过 ' + data.skipped + ' 条' : ''));
         }
@@ -6475,6 +6528,7 @@
 
     function handleFileImportDispatch(file) {
       if (!file) return;
+      currentImportFileName = file.name || '未命名文件';
       var ext = file.name.split('.').pop().toLowerCase();
       var sizeMB = file.size / (1024 * 1024);
       
@@ -8093,7 +8147,7 @@
  renderDialCards();
 
  // Auto-upload to Supabase
- uploadCustomersToSupabase(tempUnstructuredContacts, batchLabel);
+ uploadCustomersToSupabase(tempUnstructuredContacts, batchLabel, currentImportFileName);
 
  // Save OCR correction for training feedback loop (before reset clears state)
  saveOcrCorrection();
@@ -15006,6 +15060,7 @@ function updateAutoDialBtn() {
     safeInit('initNoteModal', initNoteModal);
     safeInit('initCustomColumnsHandlers', initCustomColumnsHandlers);
     safeInit('initAIImporter', initAIImporter);
+    safeInit('initImportTaskCenter', initImportTaskCenter);
     // 刷新/重新加载后：强制清除残留的提醒弹窗状态，防止解锁后重现
     (function() {
       var _ro = document.getElementById('reminderOverlay');
