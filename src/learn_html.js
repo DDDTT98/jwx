@@ -545,7 +545,7 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .chat{background:#e9e9e9;border:1px solid #dedede;border-radius:14px;padding:16px 12px;min-height:300px}
 .conversation-pair,.custom-pair{background:#e4f0df;border:1px solid #d7e6d1;border-radius:10px;padding:10px 8px 1px;margin:0 0 14px}
 .conversation-pair .msg:last-child,.custom-pair .msg:last-child{margin-bottom:0}
-.conversation-pair,.custom-pair{position:relative;padding-top:29px}.pair-drag-handle{position:absolute;top:5px;right:8px;border:1px solid #c8d6c2;border-radius:6px;background:#f4faf1;color:#66805f;font-size:11px;line-height:20px;padding:0 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.pair-drag-handle:active{cursor:grabbing;background:#e4f0df}.conversation-pair.is-dragging,.custom-pair.is-dragging{opacity:.45;outline:2px dashed #70a96d}.conversation-pair,.custom-pair{transition:opacity .12s ease}
+.conversation-pair,.custom-pair{position:relative;padding-top:38px}.pair-drag-handle{position:absolute;top:5px;right:8px;border:1px solid #c8d6c2;border-radius:6px;background:#f4faf1;color:#66805f;font-size:11px;line-height:20px;padding:0 8px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.pair-drag-handle:active{cursor:grabbing;background:#e4f0df}.conversation-pair.is-dragging,.custom-pair.is-dragging{opacity:.45;outline:2px dashed #70a96d}.conversation-pair,.custom-pair{transition:opacity .12s ease}
 .msg{display:flex;gap:8px;margin:0 0 17px;align-items:flex-start}
 .msg.customer{justify-content:flex-start}
 .msg.staff{justify-content:flex-end}
@@ -739,9 +739,9 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
       addPairDragHandle(pair);
       if(!isMaster||pair.querySelector('.pair-edit-tools'))return;
       var tools=document.createElement('div');tools.className='pair-edit-tools';
-      tools.style.cssText='position:absolute;top:5px;left:8px;display:flex;gap:5px;z-index:2';
-      var edit=document.createElement('button');edit.type='button';edit.className='delete-item pair-edit';edit.textContent='编辑整组';edit.style.cssText='border:1px solid #b9d5b5;border-radius:6px;background:#f4faf1;color:#39784b;font-size:11px;padding:2px 8px';
-      var remove=document.createElement('button');remove.type='button';remove.className='delete-item pair-delete';remove.textContent='删除整组';remove.style.cssText='border:1px solid #e4caca;border-radius:6px;background:#fff7f7;color:#bd5555;font-size:11px;padding:2px 8px';
+      tools.style.cssText='position:absolute;top:5px;left:8px;right:46px;display:flex;align-items:center;justify-content:flex-start;gap:6px;min-height:23px;z-index:2';
+      var edit=document.createElement('button');edit.type='button';edit.className='delete-item pair-edit';edit.textContent='编辑整组';edit.style.cssText='margin:0;box-sizing:border-box;height:23px;line-height:19px;border:1px solid #b9d5b5;border-radius:6px;background:#f4faf1;color:#39784b;font-size:11px;padding:1px 9px;white-space:nowrap';
+      var remove=document.createElement('button');remove.type='button';remove.className='delete-item pair-delete';remove.textContent='删除整组';remove.style.cssText='margin:0;box-sizing:border-box;height:23px;line-height:19px;border:1px solid #e4caca;border-radius:6px;background:#fff7f7;color:#bd5555;font-size:11px;padding:1px 9px;white-space:nowrap';
       tools.appendChild(edit);tools.appendChild(remove);pair.insertBefore(tools,pair.firstChild);
     });
   }
