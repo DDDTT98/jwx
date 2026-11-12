@@ -600,12 +600,94 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .alt-composer .field-label{margin-top:5px}
 .alt-actions{display:flex;gap:8px;justify-content:flex-end}
 .sync-status{font-size:11px;color:#7b867e;text-align:right;padding:5px 12px;min-height:20px}.sync-status.error{color:#c14b43}.sync-status.ok{color:#39845a}
+.workspace-tabs{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f7f7f7;border-bottom:1px solid #e5e5e5}
+.workspace-tab{min-height:36px;padding:7px 13px;border:1px solid #d9dfda;border-radius:9px;background:#fff;color:#536057;font-size:13px;font-weight:650;cursor:pointer}
+.workspace-tab.active{background:#e5f4e9;border-color:#9acdaa;color:#176b3b}
+.workspace-spacer{flex:1}
+.knowledge-entry{min-height:36px;padding:7px 12px;border:1px solid #cbd5ce;border-radius:9px;background:#fff;color:#365d43;font-size:12px;font-weight:650;cursor:pointer}
+.ai-workspace,.knowledge-workspace{max-width:900px;margin:16px auto;padding:0 14px 28px}
+.ai-panel,.knowledge-panel{background:#fff;border:1px solid #e1e5e2;border-radius:13px;overflow:hidden}
+.workspace-heading{padding:17px 18px;border-bottom:1px solid #edf0ed}
+.workspace-heading h2{font-size:17px;margin:0 0 6px;font-weight:750}
+.workspace-heading p{font-size:12px;line-height:1.6;color:#78827b;margin:0}
+.ai-status{margin:14px 16px 0;padding:10px 12px;border-radius:8px;background:#f5f6f5;color:#68736b;font-size:12px;line-height:1.6}
+.ai-chat{min-height:230px;max-height:48vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.ai-bubble{max-width:86%;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-bubble.customer{align-self:flex-end;background:#95ec69}
+.ai-bubble.assistant{align-self:flex-start;background:#f1f3f1;border:1px solid #e5e8e5}
+.ai-compose{display:flex;gap:8px;padding:12px;border-top:1px solid #edf0ed}
+.ai-compose textarea{flex:1;min-width:0;min-height:42px;max-height:110px;resize:vertical;border:1px solid #d9dfda;border-radius:9px;padding:10px;font:13px/1.5 inherit}
+.ai-compose button,.kb-primary{border:0;border-radius:9px;background:#198754;color:#fff;padding:0 16px;font-size:13px;font-weight:700;cursor:pointer;min-height:42px}
+.kb-layout{display:grid;grid-template-columns:205px minmax(0,1fr);min-height:430px}
+.kb-sidebar{padding:12px;border-right:1px solid #edf0ed;background:#fafbfa}
+.kb-category{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 11px;margin:0 0 5px;border:0;border-radius:8px;background:transparent;color:#4d5850;text-align:left;font-size:12px;cursor:pointer}
+.kb-category.active{background:#eaf4ed;color:#176b3b;font-weight:750}
+.kb-category small{color:#89938c;font-size:10px}
+.kb-content{min-width:0;padding:16px}
+.kb-content-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.kb-content-head h3{font-size:15px;margin:0 0 4px}
+.kb-content-head p{font-size:11px;color:#89938c;margin:0}
+.kb-toolbar{display:flex;gap:8px;margin-bottom:12px}
+.kb-toolbar input{flex:1;min-width:0;border:1px solid #dfe4e0;border-radius:8px;padding:9px 10px;font-size:12px}
+.kb-list{display:flex;flex-direction:column;gap:8px}
+.kb-empty{padding:28px 12px;text-align:center;border:1px dashed #d8dfda;border-radius:9px;color:#87918a;font-size:12px;line-height:1.7}
+.kb-item{padding:12px;border:1px solid #e5e9e6;border-radius:9px}
+.kb-item strong{display:block;font-size:13px;margin-bottom:5px}
+.kb-item p{font-size:12px;line-height:1.65;color:#69736c;white-space:pre-wrap;margin:0}
+.kb-item-meta{margin-top:8px;font-size:10px;color:#929b95}
+.kb-editor{display:none;margin-top:14px;padding:13px;border:1px solid #dfe5e0;border-radius:10px;background:#fafbfa}
+.kb-editor.open{display:block}
+.kb-editor label{display:block;font-size:11px;font-weight:700;color:#566159;margin:9px 0 5px}
+.kb-editor input,.kb-editor textarea{width:100%;border:1px solid #dce2dd;border-radius:8px;padding:9px;font:12px/1.6 inherit;background:#fff}
+.kb-editor textarea{min-height:110px;resize:vertical}
+.kb-editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.kb-secondary{min-height:38px;padding:0 13px;border:1px solid #d8dfda;border-radius:8px;background:#fff;color:#59645c;font-size:12px}
+.kb-note{font-size:11px;color:#8a948d;line-height:1.6;margin-top:12px}
+@media(max-width:560px){.workspace-tabs{gap:6px;padding:8px}.workspace-tab{padding:7px 9px;font-size:12px}.knowledge-entry{padding:7px 9px;font-size:11px}.kb-layout{grid-template-columns:1fr}.kb-sidebar{display:flex;gap:5px;overflow-x:auto;border-right:0;border-bottom:1px solid #edf0ed;padding:8px}.kb-category{width:auto;flex:0 0 auto;margin:0;padding:8px 10px;white-space:nowrap}.kb-content{padding:12px}.kb-content-head{align-items:flex-start}.kb-content-head .kb-primary{padding:0 11px}.ai-chat{min-height:200px}}
+
 @media(min-width:600px){.wrap{padding-top:22px}.chat{padding:22px 20px}.bubble{font-size:15px}}
 </style>
 </head>
 <body>
-<header class="top"><a class="back" href="/">‹ 回到拨打列表</a><div class="heading">微信对话模拟</div><button class="info-trigger" id="dialogInfoToggle" type="button" aria-label="功能介绍" aria-expanded="false" title="功能介绍">!</button><button class="add-dialog" id="openComposer" type="button">＋ 添加下一组对话</button></header><nav class="client-tabs" id="clientTabs" aria-label="客户对话窗口"></nav>
+<header class="top"><a class="back" href="/">‹ 回到拨打列表</a><div class="heading">微信对话模拟</div><button class="info-trigger" id="dialogInfoToggle" type="button" aria-label="功能介绍" aria-expanded="false" title="功能介绍">!</button><button class="add-dialog" id="openComposer" type="button">＋ 添加下一组对话</button></header>
+<nav class="workspace-tabs" aria-label="工作区切换"><button class="workspace-tab active" type="button" data-workspace="dialogs">普通模拟对话</button><button class="workspace-tab" type="button" data-workspace="ai">AI模拟业务员</button><span class="workspace-spacer"></span><button class="knowledge-entry" id="openKnowledge" type="button" hidden>知识库管理</button></nav>
+<nav class="client-tabs" id="clientTabs" aria-label="客户对话窗口"></nav>
 <div class="sync-status" id="dialogSyncStatus" aria-live="polite">正在连接共享话术库…</div><div class="dialog-info" id="dialogInfo" hidden>这里是团队共同积累真实客户沟通经验的地方。任何人遇到典型客户问题，都可以模拟客户提问并添加自己的回复话术；其他同事也可以补充不同回答，供大家参考学习。每条回复话术都支持一键复制，方便在真实沟通中灵活参考、应对客户提问。</div>
+
+<section class="ai-workspace" id="aiWorkspace" hidden>
+  <div class="ai-panel">
+    <div class="workspace-heading"><h2>AI业务经理训练室</h2><p>用真实客户问题检验业务知识与沟通方式。后续接入审核通过的知识库和 AI 模型后，才会生成真实业务回复。</p></div>
+    <div class="ai-status">当前为前端预览：AI接口尚未接入。此处不会生成虚构的贷款额度、利率、审批结果或产品承诺。</div>
+    <div class="ai-chat" id="aiChat"><div class="ai-bubble assistant">你好，我是 AI 业务员训练界面。你可以输入客户的问题，后续将由已审核的业务知识库提供回答依据。</div></div>
+    <form class="ai-compose" id="aiCompose"><textarea id="aiQuestion" placeholder="输入客户真实提问，例如：我征信有逾期，还能申请吗？" aria-label="客户问题"></textarea><button type="submit">发送</button></form>
+  </div>
+</section>
+<section class="knowledge-workspace" id="knowledgeWorkspace" hidden>
+  <div class="knowledge-panel">
+    <div class="workspace-heading"><h2>业务知识库管理</h2><p>把产品资料、客户问题、成交经验和合规要求沉淀为可审核、可检索的业务知识。</p></div>
+    <div class="kb-layout">
+      <aside class="kb-sidebar" id="kbCategories" aria-label="知识库分类">
+        <button class="kb-category active" type="button" data-category="products">贷款产品知识 <small>0</small></button>
+        <button class="kb-category" type="button" data-category="profiles">客户画像 <small>0</small></button>
+        <button class="kb-category" type="button" data-category="qa">真实问答 <small>0</small></button>
+        <button class="kb-category" type="button" data-category="cases">成交经验 <small>0</small></button>
+        <button class="kb-category" type="button" data-category="compliance">风险与合规 <small>0</small></button>
+      </aside>
+      <div class="kb-content">
+        <div class="kb-content-head"><div><h3 id="kbTitle">贷款产品知识</h3><p id="kbDescription">产品准入、申请条件、材料要求及办理流程</p></div><button class="kb-primary" id="kbAdd" type="button">＋ 添加资料</button></div>
+        <div class="kb-toolbar"><input id="kbSearch" type="search" placeholder="搜索当前分类资料" aria-label="搜索知识库"></div>
+        <div class="kb-list" id="kbList"><div class="kb-empty">当前分类还没有资料。可以先录入真实业务资料，再由管理员审核后纳入正式知识库。</div></div>
+        <form class="kb-editor" id="kbEditor">
+          <label for="kbItemTitle">资料标题</label><input id="kbItemTitle" maxlength="100" required placeholder="例如：个人信用贷款基本准入条件">
+          <label for="kbItemContent">资料内容</label><textarea id="kbItemContent" required placeholder="填写真实、可核实的业务内容；不确定的信息请标记待核实。"></textarea>
+          <label for="kbItemSource">资料来源 / 备注</label><input id="kbItemSource" maxlength="160" placeholder="例如：银行产品文件、业务经理经验、真实客户沟通">
+          <div class="kb-editor-actions"><button class="kb-secondary" id="kbCancel" type="button">取消</button><button class="kb-primary" type="submit">保存本机草稿</button></div>
+        </form>
+        <p class="kb-note">当前阶段仅保存到本机浏览器，用于验证界面与录入流程；尚未同步团队账号或 Supabase，也不会被 AI 自动调用。正式启用前需要接入云端权限、审核状态和版本记录。</p>
+      </div>
+    </div>
+  </div>
+</section>
 <main class="wrap">
 <div class="tip">点击业务员绿色话术可复制此话术，优化后应对真实客户提问</div>
 <section class="chat" id="chat">
@@ -633,6 +715,94 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 <script>
 (function(){
   var isMaster=localStorage.getItem('dialer_sess_master')==='1' && (localStorage.getItem('dialer_sess_role')||'master')==='master';
+
+  var workspaceTabs=document.querySelectorAll('[data-workspace]');
+  var clientTabsNav=document.getElementById('clientTabs');
+  var syncStatusEl=document.getElementById('dialogSyncStatus');
+  var dialogInfoEl=document.getElementById('dialogInfo');
+  var normalMain=document.querySelector('.wrap');
+  var aiWorkspace=document.getElementById('aiWorkspace');
+  var knowledgeWorkspace=document.getElementById('knowledgeWorkspace');
+  var openKnowledge=document.getElementById('openKnowledge');
+  var currentWorkspace='dialogs';
+  if(isMaster&&openKnowledge)openKnowledge.hidden=false;
+  function switchWorkspace(name){
+    if(name==='knowledge'&&!isMaster)return;
+    currentWorkspace=name;
+    workspaceTabs.forEach(function(tab){tab.classList.toggle('active',tab.dataset.workspace===name);});
+    var normal=name==='dialogs',ai=name==='ai',knowledge=name==='knowledge';
+    clientTabsNav.hidden=!normal;
+    syncStatusEl.hidden=!normal;
+    dialogInfoEl.hidden=dialogInfoEl.hidden||!normal;
+    normalMain.hidden=!normal;
+    aiWorkspace.hidden=!ai;
+    knowledgeWorkspace.hidden=!knowledge;
+    if(name==='knowledge')renderKnowledge();
+  }
+  workspaceTabs.forEach(function(tab){tab.addEventListener('click',function(){switchWorkspace(tab.dataset.workspace);});});
+  openKnowledge.addEventListener('click',function(){switchWorkspace('knowledge');});
+  var aiCompose=document.getElementById('aiCompose');
+  aiCompose.addEventListener('submit',function(event){
+    event.preventDefault();
+    var input=document.getElementById('aiQuestion'),question=input.value.trim();
+    if(!question)return;
+    appendAiBubble(question,'customer');
+    appendAiBubble('AI接口尚未接入。当前只完成训练界面，正式回答需要先检索已审核的知识库，并由模型生成回复。','assistant');
+    input.value='';
+  });
+  function appendAiBubble(content,role){
+    var bubble=document.createElement('div');bubble.className='ai-bubble '+role;bubble.textContent=content;
+    document.getElementById('aiChat').appendChild(bubble);
+    document.getElementById('aiChat').scrollTop=document.getElementById('aiChat').scrollHeight;
+  }
+  var kbDefinitions={
+    products:{title:'贷款产品知识',description:'产品准入、申请条件、材料要求及办理流程'},
+    profiles:{title:'客户画像',description:'客户需求、资质特征、资金用途与沟通阶段'},
+    qa:{title:'真实问答',description:'客户原始提问、业务经理回答及审核后的标准回复'},
+    cases:{title:'成交经验',description:'真实案例、关键转折、异议处理与复盘总结'},
+    compliance:{title:'风险与合规',description:'禁止承诺、信息核实、隐私保护与合规边界'}
+  };
+  var activeKbCategory='products';
+  var kbStoreKey='jwx_ai_business_knowledge_drafts_v1';
+  function readKnowledge(){
+    try{var data=JSON.parse(localStorage.getItem(kbStoreKey)||'{}');return data&&typeof data==='object'?data:{};}catch(error){return {};}
+  }
+  function writeKnowledge(data){try{localStorage.setItem(kbStoreKey,JSON.stringify(data));}catch(error){alert('本机存储空间不足，草稿未保存');}}
+  function renderKnowledge(){
+    var data=readKnowledge(),items=data[activeKbCategory]||[],query=document.getElementById('kbSearch').value.trim().toLowerCase();
+    document.getElementById('kbTitle').textContent=kbDefinitions[activeKbCategory].title;
+    document.getElementById('kbDescription').textContent=kbDefinitions[activeKbCategory].description;
+    document.querySelectorAll('.kb-category').forEach(function(button){
+      var key=button.dataset.category,count=(data[key]||[]).length;
+      button.classList.toggle('active',key===activeKbCategory);
+      button.querySelector('small').textContent=String(count);
+    });
+    var list=document.getElementById('kbList');list.innerHTML='';
+    items.filter(function(item){return !query||(item.title+' '+item.content+' '+(item.source||'')).toLowerCase().includes(query);}).forEach(function(item){
+      var card=document.createElement('article');card.className='kb-item';
+      var title=document.createElement('strong');title.textContent=item.title;
+      var content=document.createElement('p');content.textContent=item.content;
+      var meta=document.createElement('div');meta.className='kb-item-meta';meta.textContent='本机草稿 · '+(item.source||'未填写来源');
+      card.appendChild(title);card.appendChild(content);card.appendChild(meta);list.appendChild(card);
+    });
+    if(!list.children.length){var empty=document.createElement('div');empty.className='kb-empty';empty.textContent=query?'没有找到匹配的资料。':'当前分类还没有资料。可以先录入真实业务资料，再由管理员审核后纳入正式知识库。';list.appendChild(empty);}
+  }
+  document.getElementById('kbCategories').addEventListener('click',function(event){
+    var button=event.target.closest('.kb-category');if(!button)return;
+    activeKbCategory=button.dataset.category;document.getElementById('kbSearch').value='';document.getElementById('kbEditor').classList.remove('open');renderKnowledge();
+  });
+  document.getElementById('kbAdd').addEventListener('click',function(){document.getElementById('kbEditor').classList.add('open');document.getElementById('kbItemTitle').focus();});
+  document.getElementById('kbCancel').addEventListener('click',function(){document.getElementById('kbEditor').reset();document.getElementById('kbEditor').classList.remove('open');});
+  document.getElementById('kbSearch').addEventListener('input',renderKnowledge);
+  document.getElementById('kbEditor').addEventListener('submit',function(event){
+    event.preventDefault();
+    var title=document.getElementById('kbItemTitle').value.trim(),content=document.getElementById('kbItemContent').value.trim();
+    if(!title||!content)return;
+    var data=readKnowledge();if(!Array.isArray(data[activeKbCategory]))data[activeKbCategory]=[];
+    data[activeKbCategory].unshift({id:'draft-'+Date.now(),title:title,content:content,source:document.getElementById('kbItemSource').value.trim(),createdAt:new Date().toISOString()});
+    writeKnowledge(data);document.getElementById('kbEditor').reset();document.getElementById('kbEditor').classList.remove('open');renderKnowledge();
+  });
+
   var chat=document.getElementById('chat');
   chat.innerHTML=''; // 对话内容只允许从云端共享库加载，禁止显示 HTML 内置示例或本机旧记录。
   ['bhp_learn_dialog_alternatives_v1','bhp_learn_dialog_custom_pairs_v1','bhp_dialog_client_windows_v1','bhp_learn_dialog_deleted_v1','bhp_learn_dialog_deleted_messages_v1'].forEach(function(key){try{localStorage.removeItem(key);}catch(e){}});
