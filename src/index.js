@@ -407,7 +407,7 @@ async function createCrmBackgroundJob(env, job) {
 }
 async function processCrmBackgroundJobs(env) {
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY || !env.DATA_STORE || !env.DATA_STORE.list) return;
-  var listed = await env.DATA_STORE.list({ prefix: 'dialer:bgjob:', limit: 100 });
+  var listed = await env.DATA_STORE.list({ prefix: 'dialer:bgjob:', limit: 1000 });
   var keys = listed && listed.keys ? listed.keys : [];
   var hdr = { apikey: env.SUPABASE_KEY, Authorization: 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
   var processedJobs = 0;
