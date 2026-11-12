@@ -643,6 +643,15 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
 .kb-editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
 .kb-secondary{min-height:38px;padding:0 13px;border:1px solid #d8dfda;border-radius:8px;background:#fff;color:#59645c;font-size:12px}
 .kb-note{font-size:11px;color:#8a948d;line-height:1.6;margin-top:12px}
+.kb-item-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.kb-action{min-height:30px;padding:5px 9px;border:1px solid #dce3dd;border-radius:7px;background:#fff;color:#536057;font-size:11px}
+.kb-action.primary{border-color:#b8d9c1;background:#edf7ef;color:#176b3b}
+.kb-action.danger{border-color:#efd5d5;color:#b44b4b}
+.kb-status{display:inline-flex;margin:0 0 7px;padding:3px 7px;border-radius:5px;background:#f1f3f1;color:#68736b;font-size:10px}
+.kb-status.published{background:#eaf5ed;color:#287447}
+.kb-status.archived{background:#f4f0e9;color:#8a6a3c}
+.kb-item-meta{line-height:1.6}
+
 @media(max-width:560px){.workspace-tabs{gap:6px;padding:8px}.workspace-tab{padding:7px 9px;font-size:12px}.knowledge-entry{padding:7px 9px;font-size:11px}.kb-layout{grid-template-columns:1fr}.kb-sidebar{display:flex;gap:5px;overflow-x:auto;border-right:0;border-bottom:1px solid #edf0ed;padding:8px}.kb-category{width:auto;flex:0 0 auto;margin:0;padding:8px 10px;white-space:nowrap}.kb-content{padding:12px}.kb-content-head{align-items:flex-start}.kb-content-head .kb-primary{padding:0 11px}.ai-chat{min-height:200px}}
 
 @media(min-width:600px){.wrap{padding-top:22px}.chat{padding:22px 20px}.bubble{font-size:15px}}
@@ -681,9 +690,9 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
           <label for="kbItemTitle">资料标题</label><input id="kbItemTitle" maxlength="100" required placeholder="例如：个人信用贷款基本准入条件">
           <label for="kbItemContent">资料内容</label><textarea id="kbItemContent" required placeholder="填写真实、可核实的业务内容；不确定的信息请标记待核实。"></textarea>
           <label for="kbItemSource">资料来源 / 备注</label><input id="kbItemSource" maxlength="160" placeholder="例如：银行产品文件、业务经理经验、真实客户沟通">
-          <div class="kb-editor-actions"><button class="kb-secondary" id="kbCancel" type="button">取消</button><button class="kb-primary" type="submit">保存本机草稿</button></div>
+          <div class="kb-editor-actions"><button class="kb-secondary" id="kbCancel" type="button">取消</button><button class="kb-primary" type="submit">保存到云端</button></div>
         </form>
-        <p class="kb-note">当前阶段仅保存到本机浏览器，用于验证界面与录入流程；尚未同步团队账号或 Supabase，也不会被 AI 自动调用。正式启用前需要接入云端权限、审核状态和版本记录。</p>
+        <p class="kb-note" id="kbSyncStatus" aria-live="polite">正在连接团队知识库… 草稿仅主账号可见；发布后团队成员可读取。</p>
       </div>
     </div>
   </div>
@@ -766,47 +775,152 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     cases:{title:'成交经验',description:'真实案例、关键转折、异议处理与复盘总结'},
     compliance:{title:'风险与合规',description:'禁止承诺、信息核实、隐私保护与合规边界'}
   };
+
   var activeKbCategory='products';
-  var kbStoreKey='jwx_ai_business_knowledge_drafts_v1';
-  function readKnowledge(){
-    try{var data=JSON.parse(localStorage.getItem(kbStoreKey)||'{}');return data&&typeof data==='object'?data:{};}catch(error){return {};}
+  var knowledgeItems=[];
+  var knowledgeLoading=false;
+  var knowledgeLoaded=false;
+  var kbEditingId='';
+  var kbDefinitions={
+    products:{title:'贷款产品知识',description:'产品准入、申请条件、材料要求及办理流程'},
+    profiles:{title:'客户画像',description:'客户需求、资质特征、资金用途与沟通阶段'},
+    qa:{title:'真实问答',description:'客户原始提问、业务经理回答及审核后的标准回复'},
+    cases:{title:'成交经验',description:'真实案例、关键转折、异议处理与复盘总结'},
+    compliance:{title:'风险与合规',description:'禁止承诺、信息核实、隐私保护与合规边界'}
+  };
+  function setKnowledgeStatus(message,error){
+    var el=document.getElementById('kbSyncStatus');if(!el)return;
+    el.textContent=message;el.style.color=error?'#b44b4b':'';
   }
-  function writeKnowledge(data){try{localStorage.setItem(kbStoreKey,JSON.stringify(data));}catch(error){alert('本机存储空间不足，草稿未保存');}}
+  async function knowledgeRequest(method,path,body){
+    var token=getDialogToken();
+    if(!token)throw new Error('登录状态已失效，请重新登录');
+    var options={method:method,headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-store'}};
+    if(body!==undefined){options.headers['Content-Type']='application/json';options.body=JSON.stringify(body);}
+    var response=await fetch('/api/ai/knowledge'+(path||''),options);
+    var result=await response.json();
+    if(!response.ok||!result.success)throw new Error(result.error||'知识库请求失败');
+    return result;
+  }
+  async function loadKnowledge(force){
+    if(knowledgeLoading)return;
+    if(knowledgeLoaded&&!force){renderKnowledge();return;}
+    knowledgeLoading=true;setKnowledgeStatus('正在从 Supabase 加载团队知识库…');
+    try{
+      var result=await knowledgeRequest('GET','');
+      knowledgeItems=Array.isArray(result.items)?result.items:[];
+      knowledgeLoaded=true;
+      renderKnowledge();
+      setKnowledgeStatus('已连接 Supabase · '+knowledgeItems.length+' 条资料 · 团队共享');
+    }catch(error){
+      setKnowledgeStatus('连接失败：'+error.message,true);
+      document.getElementById('kbList').innerHTML='<div class="kb-empty">暂时无法读取云端知识库。请检查登录状态或稍后重试。</div>';
+    }finally{knowledgeLoading=false;}
+  }
   function renderKnowledge(){
-    var data=readKnowledge(),items=data[activeKbCategory]||[],query=document.getElementById('kbSearch').value.trim().toLowerCase();
+    var query=document.getElementById('kbSearch').value.trim().toLowerCase();
     document.getElementById('kbTitle').textContent=kbDefinitions[activeKbCategory].title;
     document.getElementById('kbDescription').textContent=kbDefinitions[activeKbCategory].description;
     document.querySelectorAll('.kb-category').forEach(function(button){
-      var key=button.dataset.category,count=(data[key]||[]).length;
+      var key=button.dataset.category;
       button.classList.toggle('active',key===activeKbCategory);
-      button.querySelector('small').textContent=String(count);
+      button.querySelector('small').textContent=String(knowledgeItems.filter(function(item){return item.category===key;}).length);
     });
     var list=document.getElementById('kbList');list.innerHTML='';
-    items.filter(function(item){return !query||(item.title+' '+item.content+' '+(item.source||'')).toLowerCase().includes(query);}).forEach(function(item){
+    knowledgeItems.filter(function(item){
+      return item.category===activeKbCategory&&(!query||(item.title+' '+item.content+' '+(item.source||'')).toLowerCase().includes(query));
+    }).forEach(function(item){
       var card=document.createElement('article');card.className='kb-item';
+      var status=document.createElement('span');status.className='kb-status '+item.status;
+      status.textContent=item.status==='published'?'已发布':(item.status==='archived'?'已下架':'待审核');
       var title=document.createElement('strong');title.textContent=item.title;
       var content=document.createElement('p');content.textContent=item.content;
-      var meta=document.createElement('div');meta.className='kb-item-meta';meta.textContent='本机草稿 · '+(item.source||'未填写来源');
-      card.appendChild(title);card.appendChild(content);card.appendChild(meta);list.appendChild(card);
+      var meta=document.createElement('div');meta.className='kb-item-meta';
+      meta.textContent=(item.source||'未填写来源')+' · 版本 '+(item.version||1)+' · '+new Date(item.updated_at||item.created_at).toLocaleString();
+      card.appendChild(status);card.appendChild(title);card.appendChild(content);card.appendChild(meta);
+      if(isMaster){
+        var actions=document.createElement('div');actions.className='kb-item-actions';
+        function actionButton(label,cls,handler){
+          var button=document.createElement('button');button.type='button';button.className='kb-action'+(cls?' '+cls:'');button.textContent=label;button.addEventListener('click',handler);actions.appendChild(button);
+        }
+        actionButton('编辑','',function(){openKnowledgeEditor(item);});
+        if(item.status==='published'){
+          actionButton('下架','',function(){changeKnowledgeStatus(item,'archived');});
+        }else{
+          actionButton('审核并发布','primary',function(){changeKnowledgeStatus(item,'published');});
+        }
+        actionButton('删除','danger',function(){deleteKnowledgeItem(item);});
+        card.appendChild(actions);
+      }
+      list.appendChild(card);
     });
-    if(!list.children.length){var empty=document.createElement('div');empty.className='kb-empty';empty.textContent=query?'没有找到匹配的资料。':'当前分类还没有资料。可以先录入真实业务资料，再由管理员审核后纳入正式知识库。';list.appendChild(empty);}
+    if(!list.children.length){
+      var empty=document.createElement('div');empty.className='kb-empty';
+      empty.textContent=query?'没有找到匹配的资料。':'当前分类暂无资料。点击“添加资料”录入真实业务内容。';
+      list.appendChild(empty);
+    }
+  }
+  function resetKnowledgeEditor(){
+    document.getElementById('kbEditor').reset();
+    document.getElementById('kbEditor').classList.remove('open');
+    kbEditingId='';
+    document.querySelector('#kbEditor button[type="submit"]').textContent='保存到云端';
+  }
+  function openKnowledgeEditor(item){
+    kbEditingId=item?item.id:'';
+    document.getElementById('kbItemTitle').value=item?item.title:'';
+    document.getElementById('kbItemContent').value=item?item.content:'';
+    document.getElementById('kbItemSource').value=item?item.source||'':'';
+    document.querySelector('#kbEditor button[type="submit"]').textContent=item?'保存修改并重新审核':'保存到云端';
+    document.getElementById('kbEditor').classList.add('open');
+    document.getElementById('kbItemTitle').focus();
+  }
+  async function changeKnowledgeStatus(item,status){
+    var message=status==='published'?'确认审核通过并发布这条知识？':'确认将这条知识下架？';
+    if(!confirm(message))return;
+    try{
+      await knowledgeRequest('PATCH','',{id:item.id,status:status});
+      setKnowledgeStatus(status==='published'?'已审核发布，团队成员现在可以读取。':'已下架，团队成员将无法再读取。');
+      await loadKnowledge(true);
+    }catch(error){setKnowledgeStatus(error.message,true);alert(error.message);}
+  }
+  async function deleteKnowledgeItem(item){
+    if(!confirm('确定永久删除这条知识资料？此操作不可恢复。'))return;
+    try{
+      await knowledgeRequest('DELETE','?id='+encodeURIComponent(item.id));
+      setKnowledgeStatus('资料已删除。');
+      await loadKnowledge(true);
+    }catch(error){setKnowledgeStatus(error.message,true);alert(error.message);}
   }
   document.getElementById('kbCategories').addEventListener('click',function(event){
     var button=event.target.closest('.kb-category');if(!button)return;
-    activeKbCategory=button.dataset.category;document.getElementById('kbSearch').value='';document.getElementById('kbEditor').classList.remove('open');renderKnowledge();
+    activeKbCategory=button.dataset.category;
+    document.getElementById('kbSearch').value='';
+    resetKnowledgeEditor();renderKnowledge();
   });
-  document.getElementById('kbAdd').addEventListener('click',function(){document.getElementById('kbEditor').classList.add('open');document.getElementById('kbItemTitle').focus();});
-  document.getElementById('kbCancel').addEventListener('click',function(){document.getElementById('kbEditor').reset();document.getElementById('kbEditor').classList.remove('open');});
+  document.getElementById('kbAdd').addEventListener('click',function(){openKnowledgeEditor(null);});
+  document.getElementById('kbCancel').addEventListener('click',resetKnowledgeEditor);
   document.getElementById('kbSearch').addEventListener('input',renderKnowledge);
-  document.getElementById('kbEditor').addEventListener('submit',function(event){
+  document.getElementById('kbEditor').addEventListener('submit',async function(event){
     event.preventDefault();
-    var title=document.getElementById('kbItemTitle').value.trim(),content=document.getElementById('kbItemContent').value.trim();
+    var title=document.getElementById('kbItemTitle').value.trim();
+    var content=document.getElementById('kbItemContent').value.trim();
     if(!title||!content)return;
-    var data=readKnowledge();if(!Array.isArray(data[activeKbCategory]))data[activeKbCategory]=[];
-    data[activeKbCategory].unshift({id:'draft-'+Date.now(),title:title,content:content,source:document.getElementById('kbItemSource').value.trim(),createdAt:new Date().toISOString()});
-    writeKnowledge(data);document.getElementById('kbEditor').reset();document.getElementById('kbEditor').classList.remove('open');renderKnowledge();
+    var payload={category:activeKbCategory,title:title,content:content,source:document.getElementById('kbItemSource').value.trim()};
+    try{
+      if(kbEditingId){
+        payload.id=kbEditingId;
+        payload.status='draft';
+        await knowledgeRequest('PATCH','',payload);
+        setKnowledgeStatus('修改已保存为待审核草稿，需要重新审核发布。');
+      }else{
+        await knowledgeRequest('POST','',payload);
+        setKnowledgeStatus('资料已保存到 Supabase，当前为待审核草稿。');
+      }
+      resetKnowledgeEditor();
+      await loadKnowledge(true);
+    }catch(error){setKnowledgeStatus(error.message,true);alert(error.message);}
   });
-
   var chat=document.getElementById('chat');
   chat.innerHTML=''; // 对话内容只允许从云端共享库加载，禁止显示 HTML 内置示例或本机旧记录。
   ['bhp_learn_dialog_alternatives_v1','bhp_learn_dialog_custom_pairs_v1','bhp_dialog_client_windows_v1','bhp_learn_dialog_deleted_v1','bhp_learn_dialog_deleted_messages_v1'].forEach(function(key){try{localStorage.removeItem(key);}catch(e){}});
