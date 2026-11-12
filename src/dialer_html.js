@@ -1501,20 +1501,23 @@
       color: #e74c3c;
     }
 
-    /* Android browser: compact copy hint matching the PIN unlock button. */
+    /* Android browser: copy hint stays in a low, isolated layer and avoids
+       transform-based GPU promotion, which can leave stale paint over scrollers. */
     .android-switch-hint {
       position: fixed;
-      z-index: 100020;
-      left: 50%;
+      z-index: 30;
+      left: 16px;
+      right: 16px;
       bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
       width: max-content;
       max-width: calc(100vw - 32px);
       box-sizing: border-box;
       display: none;
+      margin-left: auto;
+      margin-right: auto;
       padding: 9px 14px 7px;
       border: 0;
       border-radius: 22px;
-      transform: translateX(-50%);
       background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
       color: #4b5563;
       box-shadow: 0 4px 14px rgba(40,50,65,0.12);
@@ -1524,6 +1527,9 @@
       font-weight: 600;
       letter-spacing: .1px;
       pointer-events: none;
+      -webkit-transform: none;
+      transform: none;
+      will-change: auto;
     }
     .android-switch-hint.show { display: block; }
     .android-switch-hint .switch-hint-title {
