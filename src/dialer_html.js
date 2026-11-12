@@ -4692,6 +4692,18 @@
       window.location.href = getWechatLaunchUrl();
     }
 
+    function isIOSWebBrowser() {
+      return /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    // iOS 恢复旧机制：在真实点击事件内同步复制号码，随后立即唤起微信。
+    function copyAndOpenWechatOnIOS(text) {
+      if (!syncCopy(String(text || ''))) return false;
+      jumpToWechat();
+      return true;
+    }
+
     // JWX Android APK 原生添加好友入口：复制手机号并直达微信“添加朋友”页面。
     function openNativeWechatAddFriend(client, fallbackName, fallbackCompany) {
       if (!isAndroid || !window.JWXNative || typeof window.JWXNative.openWechatAddFriend !== 'function') return false;
@@ -8954,9 +8966,13 @@
             var oldText = b.textContent;
             if (oldText === '已复制，正在打开微信...') return;
             var client = importedClients[idx];
-            // 所有手机浏览器统一只复制号码并显示现有提示，不自动跳转微信。
+            // iOS：点击添加VX同步复制号码并直接唤起微信；安卓/鸿蒙保持原有提示机制。
             e.preventDefault();
-            copyForAndroidWeb(phone);
+            if (isIOSWebBrowser()) {
+              if (!copyAndOpenWechatOnIOS(phone)) showCopyLimitToast('复制失败，请长按手动复制', true);
+            } else {
+              copyForAndroidWeb(phone);
+            }
             recordTimeline(phone, 'add_wechat');
             if (client) {
               client.copied = true;
@@ -9484,8 +9500,14 @@ function updateAutoDialBtn() {
  if (oldText === '已复制，正在打开微信...') return;
 
  var client = importedClients[currentCallIdx];
- // APK 原生模式直接进入微信添加朋友入口。
- if (!openNativeWechatAddFriend(client, '', '')) copyForAndroidWeb(phone);
+ // APK 使用原生添加好友入口；iOS 网页同步复制后直接唤起微信。
+ if (!openNativeWechatAddFriend(client, '', '')) {
+   if (isIOSWebBrowser()) {
+     if (!copyAndOpenWechatOnIOS(phone)) showCopyLimitToast('复制失败，请长按手动复制', true);
+   } else {
+     copyForAndroidWeb(phone);
+   }
+ }
  if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
 
  phoneDisp.textContent = '已复制';
