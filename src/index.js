@@ -4966,6 +4966,198 @@ export default {
       }
     }
 
+    // ==================== AI personal-WeChat screenshot import ====================
+    if (path === '/api/ai/chat-import') {
+      var chatImportStatus = 400;
+      try {
+        var chatImportAuth = request.headers.get('Authorization') || '';
+        var chatImportToken = chatImportAuth.startsWith('Bearer ') ? chatImportAuth.slice(7) : '';
+        var chatImportSession = await dialerValidateSession(env, chatImportToken);
+        if (!chatImportSession) { chatImportStatus = 401; throw new Error('登录状态已失效，请重新登录'); }
+        var chatImportAccounts = await dialerGetAccounts(env);
+        var chatImportAccount = chatImportAccounts.find(function(a) {
+          return a.account_id === chatImportSession.account_id && a.active !== false;
+        });
+        if (!chatImportAccount) { chatImportStatus = 401; throw new Error('账号不存在或已停用'); }
+        if (chatImportAccount.is_master === false) { chatImportStatus = 403; throw new Error('只有主账号可以导入和提炼微信聊天记录'); }
+        var chatImportBase = env.SUPABASE_URL.replace(/\/$/, '');
+        var chatImportHeaders = {
+          'apikey': env.SUPABASE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+          'Content-Type': 'application/json'
+        };
+        function chatImportResponse(payload, status) {
+          return new Response(JSON.stringify(payload), {
+            status: status || 200,
+            headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        function chatImportRedact(value) {
+          return String(value || '')
+            .replace(/\b1[3-9]\d{9}\b/g, '[手机号已脱敏]')
+            .replace(/\b\d{17}[\dXx]\b/g, '[身份证号已脱敏]')
+            .replace(/\b\d{16,19}\b/g, '[银行卡号已脱敏]');
+        }
+        if (request.method === 'GET') {
+          var chatImportRead = await fetch(chatImportBase + '/rest/v1/ai_chat_imports?select=id,source_files,representative,customer_alias,messages,status,created_at,refined_at&order=created_at.desc&limit=30', {
+            headers: chatImportHeaders, cache: 'no-store'
+          });
+          if (!chatImportRead.ok) { chatImportStatus = 502; throw new Error('读取聊天导入记录失败：' + chatImportRead.status); }
+          return chatImportResponse({ success: true, items: await chatImportRead.json() });
+        }
+        if (request.method !== 'POST') { chatImportStatus = 405; return chatImportResponse({ success: false, error: '不支持的请求方法' }, 405); }
+        var chatImportBody = await request.json();
+        var chatImportAction = String(chatImportBody.action || '');
+        if (chatImportAction === 'extract') {
+          var chatImage = String(chatImportBody.image || '');
+          if (!/^data:image\/(png|jpeg|webp);base64,/i.test(chatImage)) throw new Error('图片格式不支持，请使用 PNG、JPG 或 WebP');
+          if (chatImage.length > 5700000) throw new Error('单张识别分段过大，请降低截图分辨率后重试');
+          var chatVisionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
+          if (!chatVisionKey) throw new Error('尚未配置视觉识别 API Key，请先在 AI 设置中配置 Gemini 视觉密钥');
+          var chatVisionPrompt = '你是微信聊天截图OCR与对话结构恢复专家。请逐条读取图片中可见的微信聊天气泡，按从上到下的顺序输出。通常左侧白色气泡是客户，右侧绿色气泡是业务员；如果无法可靠判断发言方，speaker必须为unknown，不要猜。保留消息原文，不要总结，不要补写被遮挡或看不清的内容。时间戳只在截图中明确可见时填写。对手机号、身份证号、银行卡号不要输出完整数字，统一写为[隐私信息已遮蔽]。忽略微信界面按钮、状态栏、昵称头像以外的无关UI。只输出JSON对象，不要markdown：{"messages":[{"speaker":"customer|staff|unknown","time":"","content":""}],"uncertain":[]}。图片可能是长截图切片，边缘处的消息可能在相邻切片重复，照常识别，后续会自动合并。';
+          var chatVisionResp = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + chatVisionKey },
+            body: JSON.stringify({
+              model: 'gemini-2.5-flash',
+              messages: [{ role: 'user', content: [
+                { type: 'text', text: chatVisionPrompt },
+                { type: 'image_url', image_url: { url: chatImage } }
+              ] }],
+              max_tokens: 5000,
+              temperature: 0.1
+            })
+          });
+          if (!chatVisionResp.ok) {
+            chatImportStatus = 502;
+            throw new Error('截图识别服务返回错误：' + chatVisionResp.status + ' ' + (await chatVisionResp.text()).slice(0, 260));
+          }
+          var chatVisionData = await chatVisionResp.json();
+          var chatVisionText = String(chatVisionData.choices && chatVisionData.choices[0] && chatVisionData.choices[0].message && chatVisionData.choices[0].message.content || '').trim();
+          chatVisionText = chatVisionText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+          var chatParsed = null;
+          try { chatParsed = JSON.parse(chatVisionText); } catch (chatParseError) {
+            var chatJsonMatch = chatVisionText.match(/\{[\s\S]*\}/);
+            if (chatJsonMatch) { try { chatParsed = JSON.parse(chatJsonMatch[0]); } catch (ignoreChatParse) {} }
+          }
+          if (!chatParsed || !Array.isArray(chatParsed.messages)) throw new Error('AI未能返回有效的聊天结构，请换清晰截图重试');
+          var chatMessages = chatParsed.messages.slice(0, 500).map(function(m) {
+            var speaker = ['customer','staff','unknown'].indexOf(String(m.speaker || '')) >= 0 ? String(m.speaker) : 'unknown';
+            return { speaker: speaker, time: String(m.time || '').slice(0, 40), content: chatImportRedact(String(m.content || '').trim()).slice(0, 4000) };
+          }).filter(function(m) { return !!m.content; });
+          return chatImportResponse({ success: true, messages: chatMessages, uncertain: Array.isArray(chatParsed.uncertain) ? chatParsed.uncertain.slice(0, 30) : [] });
+        }
+        if (chatImportAction === 'save') {
+          var saveMessages = Array.isArray(chatImportBody.messages) ? chatImportBody.messages.slice(0, 2000) : [];
+          if (!saveMessages.length) throw new Error('没有识别到可保存的聊天消息');
+          saveMessages = saveMessages.map(function(m) {
+            return {
+              speaker: ['customer','staff','unknown'].indexOf(String(m.speaker || '')) >= 0 ? String(m.speaker) : 'unknown',
+              time: String(m.time || '').slice(0, 40),
+              content: chatImportRedact(String(m.content || '').trim()).slice(0, 4000)
+            };
+          }).filter(function(m) { return !!m.content; });
+          var saveTranscript = saveMessages.map(function(m) {
+            var role = m.speaker === 'customer' ? '客户' : (m.speaker === 'staff' ? '业务员' : '发言方待确认');
+            return (m.time ? '[' + m.time + '] ' : '') + role + '：' + m.content;
+          }).join('\n').slice(0, 120000);
+          var savePayload = {
+            source_files: Array.isArray(chatImportBody.source_files) ? chatImportBody.source_files.slice(0, 20).map(function(v){return String(v).slice(0,180);}) : [],
+            representative: String(chatImportBody.representative || '').trim().slice(0, 80),
+            customer_alias: String(chatImportBody.customer_alias || '').trim().slice(0, 80),
+            raw_text: saveTranscript,
+            messages: saveMessages,
+            status: 'pending_review',
+            created_by: chatImportSession.account_id
+          };
+          var chatSaveResp = await fetch(chatImportBase + '/rest/v1/ai_chat_imports', {
+            method: 'POST',
+            headers: Object.assign({}, chatImportHeaders, { 'Prefer': 'return=representation' }),
+            body: JSON.stringify(savePayload)
+          });
+          if (!chatSaveResp.ok) { chatImportStatus = 502; throw new Error('保存聊天记录失败：' + chatSaveResp.status + ' ' + (await chatSaveResp.text()).slice(0, 240)); }
+          var chatSavedRows = await chatSaveResp.json();
+          return chatImportResponse({ success: true, item: chatSavedRows[0] || null, message_count: saveMessages.length });
+        }
+        if (chatImportAction === 'refine') {
+          var refineId = String(chatImportBody.id || '');
+          if (!/^[0-9a-f-]{36}$/i.test(refineId)) throw new Error('导入记录编号无效');
+          var refineRead = await fetch(chatImportBase + '/rest/v1/ai_chat_imports?id=eq.' + encodeURIComponent(refineId) + '&select=id,source_files,representative,customer_alias,raw_text,messages&limit=1', { headers: chatImportHeaders, cache: 'no-store' });
+          if (!refineRead.ok) { chatImportStatus = 502; throw new Error('读取聊天内容失败：' + refineRead.status); }
+          var refineRows = await refineRead.json();
+          if (!refineRows.length) { chatImportStatus = 404; throw new Error('聊天导入记录不存在'); }
+          var refineItem = refineRows[0];
+          var refineProvider = await env.DATA_STORE.get('config:ai_provider') || 'gemini';
+          var refineVisionKey = await env.DATA_STORE.get('config:vision_api_key') || '';
+          var refineAiKey = await env.DATA_STORE.get('config:ai_api_key') || await env.DATA_STORE.get('config:deepseek_api_key') || env.AI_API_KEY || env.DEEPSEEK_API_KEY || '';
+          var refineKey = refineProvider === 'gemini' ? (refineVisionKey || refineAiKey) : refineAiKey;
+          if (!refineKey) throw new Error('未配置可用的 AI API Key，请先完成 AI 设置');
+          var refineBase = await env.DATA_STORE.get('config:ai_api_base') || env.AI_API_BASE || '';
+          var refineModel = await env.DATA_STORE.get('config:ai_model') || env.AI_API_MODEL || '';
+          if (!refineBase) refineBase = refineProvider === 'gemini' ? 'https://generativelanguage.googleapis.com/v1beta/openai/' : 'https://api.deepseek.com/v1/';
+          if (!refineBase.endsWith('/')) refineBase += '/';
+          if (!refineModel) refineModel = refineProvider === 'gemini' ? 'gemini-2.5-flash' : 'deepseek-chat';
+          var refinePrompt = '你是资深、审慎的个人信用贷款业务培训专家。请从真实微信对话中提炼可复用的业务知识，而不是简单复述聊天。严格遵守：不得把聊天中的未经证实的额度、利率、审批时效、通过率或银行政策写成事实；遇到夸大承诺、诱导隐瞒征信/负债、保证放款等表达，必须标注风险并建议合规改写；不确定的信息明确写待核实；不得恢复或推测已脱敏的个人信息。仅输出JSON对象：{"knowledge":[{"category":"qa|profiles|cases|compliance|products","title":"不超过60字","content":"可独立阅读的知识内容","reason":"提炼依据或注意事项"}]}。优先提炼客户真实问题与业务员回答、客户异议处理、需求识别和跟进节奏；重复或信息不足的对话可以不提炼，最多生成12条。';
+          var refineInput = refineItem.raw_text || '';
+          if (refineInput.length > 90000) refineInput = refineInput.slice(0, 90000);
+          var refineResp = await fetch(refineBase + 'chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + refineKey },
+            body: JSON.stringify({
+              model: refineModel,
+              messages: [
+                { role: 'system', content: refinePrompt },
+                { role: 'user', content: '业务员：' + (refineItem.representative || '未填写') + '\n客户标记：' + (refineItem.customer_alias || '未填写') + '\n聊天记录：\n' + refineInput }
+              ],
+              temperature: 0.2,
+              max_tokens: 6000
+            })
+          });
+          if (!refineResp.ok) { chatImportStatus = 502; throw new Error('AI提炼失败：' + refineResp.status + ' ' + (await refineResp.text()).slice(0, 260)); }
+          var refineData = await refineResp.json();
+          var refineText = String(refineData.choices && refineData.choices[0] && refineData.choices[0].message && refineData.choices[0].message.content || '').trim();
+          refineText = refineText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+          var refineJson = null;
+          try { refineJson = JSON.parse(refineText); } catch (refineParseError) {
+            var refineMatch = refineText.match(/\{[\s\S]*\}/);
+            if (refineMatch) { try { refineJson = JSON.parse(refineMatch[0]); } catch (ignoreRefineParse) {} }
+          }
+          var refineKnowledge = refineJson && Array.isArray(refineJson.knowledge) ? refineJson.knowledge.slice(0, 12) : [];
+          if (!refineKnowledge.length) throw new Error('AI没有提炼出可入库的有效知识，请检查对话内容');
+          var allowedRefineCategories = ['products','profiles','qa','cases','compliance'];
+          var knowledgeRows = refineKnowledge.map(function(k) {
+            return {
+              category: allowedRefineCategories.indexOf(String(k.category || '')) >= 0 ? String(k.category) : 'qa',
+              title: String(k.title || '微信真实沟通经验').trim().slice(0, 160),
+              content: String(k.content || '').trim().slice(0, 30000),
+              source: ('微信聊天导入：' + (refineItem.representative || '未填写业务员') + ' · ' + (refineItem.source_files || []).join('、') + ' · 导入编号 ' + refineItem.id).slice(0, 500),
+              status: 'draft',
+              created_by: chatImportSession.account_id,
+              updated_by: chatImportSession.account_id
+            };
+          }).filter(function(k) { return !!k.content; });
+          if (!knowledgeRows.length) throw new Error('AI提炼结果为空，未写入知识库');
+          var insertRefined = await fetch(chatImportBase + '/rest/v1/ai_business_knowledge', {
+            method: 'POST',
+            headers: Object.assign({}, chatImportHeaders, { 'Prefer': 'return=representation' }),
+            body: JSON.stringify(knowledgeRows)
+          });
+          if (!insertRefined.ok) { chatImportStatus = 502; throw new Error('保存知识库草稿失败：' + insertRefined.status + ' ' + (await insertRefined.text()).slice(0, 260)); }
+          var insertedRefinedRows = await insertRefined.json();
+          var markRefined = await fetch(chatImportBase + '/rest/v1/ai_chat_imports?id=eq.' + encodeURIComponent(refineId), {
+            method: 'PATCH',
+            headers: Object.assign({}, chatImportHeaders, { 'Prefer': 'return=minimal' }),
+            body: JSON.stringify({ status: 'refined', extracted_knowledge: insertedRefinedRows.map(function(k){return {id:k.id,category:k.category,title:k.title};}), refined_at: new Date().toISOString() })
+          });
+          if (!markRefined.ok) { chatImportStatus = 502; throw new Error('知识草稿已生成，但更新导入状态失败：' + markRefined.status); }
+          return chatImportResponse({ success: true, created: insertedRefinedRows.length, items: insertedRefinedRows });
+        }
+        throw new Error('未知的聊天导入操作');
+      } catch (chatImportError) {
+        return chatImportResponse({ success: false, error: chatImportError.message || '聊天导入失败' }, chatImportStatus);
+      }
+    }
+
     // ==================== Page Serving ====================
 
     // 学习中心页面（支持自定义内容）
