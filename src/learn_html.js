@@ -724,6 +724,8 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
   var aiWorkspace=document.getElementById('aiWorkspace');
   var knowledgeWorkspace=document.getElementById('knowledgeWorkspace');
   var openKnowledge=document.getElementById('openKnowledge');
+  var infoToggleButton=document.getElementById('dialogInfoToggle');
+  var addDialogButton=document.getElementById('openComposer');
   var currentWorkspace='dialogs';
   if(isMaster&&openKnowledge)openKnowledge.hidden=false;
   function switchWorkspace(name){
@@ -733,6 +735,8 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     var normal=name==='dialogs',ai=name==='ai',knowledge=name==='knowledge';
     clientTabsNav.hidden=!normal;
     syncStatusEl.hidden=!normal;
+    infoToggleButton.hidden=!normal;
+    addDialogButton.hidden=!normal;
     dialogInfoEl.hidden=dialogInfoEl.hidden||!normal;
     normalMain.hidden=!normal;
     aiWorkspace.hidden=!ai;
