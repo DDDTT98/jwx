@@ -1504,7 +1504,7 @@
     /* Android browser: copy hint is dynamically anchored over the first customer card. */
     .android-switch-hint {
       position: fixed;
-      z-index: 30;
+      z-index: 100002;
       top: 8px;
       left: 50%;
       right: auto;
@@ -4835,10 +4835,11 @@
       }, 2500);
     }
     function copyForAndroidWeb(text) {
+      // iOS Safari 的剪贴板 Promise 可能延迟或被系统拒绝；提示先在本次点击中立即显示。
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(String(text)).then(showAndroidSwitchHint).catch(function() {
-          if (syncCopy(String(text))) showAndroidSwitchHint();
-          else showCopyLimitToast('复制失败，请长按手动复制', true);
+        showAndroidSwitchHint();
+        navigator.clipboard.writeText(String(text)).catch(function() {
+          if (!syncCopy(String(text))) showCopyLimitToast('复制失败，请长按手动复制', true);
         });
       } else if (syncCopy(String(text))) {
         showAndroidSwitchHint();
@@ -9434,9 +9435,7 @@ function updateAutoDialBtn() {
 
  var client = importedClients[currentCallIdx];
  // APK 原生模式直接进入微信添加朋友入口。
- if (!openNativeWechatAddFriend(client, '', '')) {
-   copyPhoneWithSwitchHint(phone);
- }
+ if (!openNativeWechatAddFriend(client, '', '')) copyForAndroidWeb(phone);
  if (client) recordTimeline(client.phone || client.mobile, 'add_wechat');
 
  phoneDisp.textContent = '已复制';
@@ -9475,7 +9474,7 @@ function updateAutoDialBtn() {
  var client = importedClients[currentCallIdx];
  // 复制姓名同样按复制偏好组合（与单位名称一致）
  var copyText = buildCopyText(client) || name;
- if (!openNativeWechatAddFriend(client, name, '')) copyTextToClipboard(copyText);
+ if (!openNativeWechatAddFriend(client, name, '')) copyForAndroidWeb(copyText);
 
  if (client) recordTimeline(client.phone || client.mobile, 'copy_name');
 
@@ -9517,7 +9516,7 @@ function updateAutoDialBtn() {
  var client = importedClients[currentCallIdx];
  // 按复制偏好组合（姓名/单位/公积金/日期）；全部未勾选时兜底仅单位名称
  var copyText = buildCopyText(client) || company;
- if (!openNativeWechatAddFriend(client, '', company)) copyTextToClipboard(copyText);
+ if (!openNativeWechatAddFriend(client, '', company)) copyForAndroidWeb(copyText);
 
  if (client) recordTimeline(client.phone || client.mobile, 'copy_company');
 
