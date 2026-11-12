@@ -123,19 +123,17 @@
       transition: background 0.3s;
     }
     .app-shell {
-      height: 100%;
+      /* Keep the dialer shell anchored to the full browser viewport.
+         A percentage-height flex child can resolve against a shortened
+         Android layout viewport and expose the wallpaper below the list. */
+      position: fixed;
+      inset: 0;
+      height: auto;
       min-height: 0;
       width: 100%;
       display: none;
       flex-direction: column;
-    }
-    /* Android mobile browsers: bind the dialer to the dynamic visual viewport.
-       The browser chrome can shrink the visible area while 100% keeps the
-       layout viewport height, exposing the wallpaper over the lower list. */
-    @supports (height: 100dvh) {
-      @media (max-width: 768px) {
-        .app-shell { height: 100dvh; }
-      }
+      z-index: 1;
     }
     .container {
       flex: 1 1 0%;
