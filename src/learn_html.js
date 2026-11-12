@@ -817,6 +817,21 @@ html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,
     }finally{remoteBusy=false;}
   }
   function syncDeleteControls(){
+    // 为历史云端 HTML 补齐逐条删除按钮：旧消息可能是在该功能加入前保存的。
+    chat.querySelectorAll('.msg.customer').forEach(function(row){
+      var tools=row.querySelector('.message-tools');
+      if(!tools){tools=document.createElement('div');tools.className='message-tools';var wrap=row.querySelector('.bubble-wrap');if(wrap)wrap.appendChild(tools);}
+      if(tools&&!tools.querySelector('.delete-message')){
+        var btn=document.createElement('button');btn.type='button';btn.className='delete-item delete-message';btn.textContent='删除此提问';tools.appendChild(btn);
+      }
+    });
+    chat.querySelectorAll('.msg.staff').forEach(function(row){
+      var tools=row.querySelector('.reply-tools');
+      if(!tools){tools=document.createElement('div');tools.className='reply-tools';var wrap=row.querySelector('.bubble-wrap');if(wrap)wrap.appendChild(tools);}
+      if(tools&&!tools.querySelector('.delete-message')){
+        var btn=document.createElement('button');btn.type='button';btn.className='delete-item delete-message';btn.textContent='删除此回答';tools.appendChild(btn);
+      }
+    });
     chat.querySelectorAll('.delete-message,.delete-alternative').forEach(function(btn){btn.hidden=!isMaster;});
   }
   function applySharedDocument(doc){
