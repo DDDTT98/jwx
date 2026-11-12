@@ -1501,31 +1501,31 @@
       color: #e74c3c;
     }
 
-    /* Android browser: copy hint stays in a low, isolated layer and avoids
-       transform-based GPU promotion, which can leave stale paint over scrollers. */
+    /* Android browser: compact single-line copy hint pinned to the top safe area. */
     .android-switch-hint {
       position: fixed;
       z-index: 30;
-      left: 16px;
-      right: 16px;
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+      top: calc(env(safe-area-inset-top, 0px) + 8px);
+      left: 6px;
+      right: 6px;
       width: max-content;
-      max-width: calc(100vw - 32px);
+      max-width: calc(100vw - 12px);
       box-sizing: border-box;
       display: none;
       margin-left: auto;
       margin-right: auto;
-      padding: 9px 14px 7px;
+      padding: 7px 8px;
       border: 0;
-      border-radius: 22px;
+      border-radius: 18px;
       background: linear-gradient(180deg, #ffffff 0%, #e9ecef 100%);
       color: #4b5563;
       box-shadow: 0 4px 14px rgba(40,50,65,0.12);
       text-align: center;
-      font-size: 12px;
-      line-height: 1.45;
+      white-space: nowrap;
+      font-size: clamp(8px, 2.7vw, 10px);
+      line-height: 1.2;
       font-weight: 600;
-      letter-spacing: .1px;
+      letter-spacing: 0;
       pointer-events: none;
       -webkit-transform: none;
       transform: none;
@@ -1534,14 +1534,6 @@
     .android-switch-hint.show { display: block; }
     .android-switch-hint .switch-hint-title {
       color: #4b5563;
-      font-weight: 700;
-    }
-    .android-switch-hint .switch-arrow {
-      display: block;
-      margin: 3px auto 0;
-      color: #4b5563;
-      font-size: 17px;
-      line-height: 1;
       font-weight: 700;
     }
     body.dark-mode .android-switch-hint {
@@ -2971,8 +2963,7 @@
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
-    <span class="switch-hint-title">已复制</span>，请底部屏幕边缘悬浮条左右滑动切换微信粘贴
-    <span class="switch-arrow" aria-hidden="true">↓</span>
+    <span class="switch-hint-title">已复制</span>，请在屏幕底部悬浮条左右滑切换微信粘贴添加
   </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
