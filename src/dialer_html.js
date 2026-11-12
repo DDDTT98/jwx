@@ -3636,6 +3636,7 @@
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowCompany" style="accent-color:var(--accent-wechat);width:16px;height:16px;">单位名称</label>
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowFund" style="accent-color:var(--accent-wechat);width:16px;height:16px;">公积金</label>
         <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowInstitution" style="accent-color:var(--accent-wechat);width:16px;height:16px;">在库机构</label>
+        <label style="display:flex;align-items:center;gap:7px;"><input type="checkbox" id="dbCardShowType" style="accent-color:var(--accent-wechat);width:16px;height:16px;">类型</label>
       </div>
       <div style="font-size:.6rem;color:var(--text-soft);margin-top:8px;line-height:1.5;">姓名、手机号固定显示；其他字段可按需要开启或隐藏，修改后立即应用到客户卡片。</div>
     </section>
@@ -4186,7 +4187,7 @@
     var DB_CUSTOM_SETTINGS_K = 'dialer_custom_settings:';
     function getDbCustomSettingsKey() { return DB_CUSTOM_SETTINGS_K + (getSessionAccountId() || getOrCreateAccountId()); }
     function getDbCustomSettings() {
-      var defaults = { company: true, fund: true, institution: true, wallpaperCategories: ['landscape'] };
+      var defaults = { company: true, fund: true, institution: true, type: false, wallpaperCategories: ['landscape'] };
       try {
         var saved = JSON.parse(localStorage.getItem(getDbCustomSettingsKey()) || 'null');
         if (!saved || typeof saved !== 'object') return defaults;
@@ -4194,6 +4195,7 @@
           company: saved.company !== false,
           fund: saved.fund !== false,
           institution: saved.institution !== false,
+          type: saved.type === true,
           wallpaperCategories: Array.isArray(saved.wallpaperCategories) && saved.wallpaperCategories.length
             ? saved.wallpaperCategories.filter(function(v) { return ['landscape','anime'].indexOf(v) >= 0; })
             : defaults.wallpaperCategories
@@ -8857,7 +8859,7 @@
             '<div class="client-card-tags" style="margin-top: 2px;">' +
               (showClientInfo && cardDisplaySettings.company ? (c.company ? '<span class="client-card-tag client-card-tag-company" data-company="' + esc(c.company) + '" data-idx="' + i + '" title="点击复制单位名称">' + esc(c.company) + '</span>' : '') : '<span class="client-card-tag client-card-tag-company' + (c.note_copied ? ' privacy-action-done' : '') + '" data-company="' + esc(c.note || '') + '" data-idx="' + i + '" data-copy-note="1" title="点击复制备注" style="font-size:0.9rem;font-weight:800;padding:7px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;">' + (c.note_copied ? '已复制' : '复制备注') + '</span>') +
               (displayBatchLabel(c.batch_label) ? '<span class="client-card-tag" style="background:rgba(74,108,247,0.08);color:#4a6cf7;font-weight:700;" title="导入批次">' + esc(c.batch_label) + '</span>' : '') +
-              (showClientInfo && c.custom && c.custom.__batch_type ? '<span class="client-card-tag" style="background:rgba(0,150,136,0.10);color:#008577;font-weight:800;" title="客户类型">' + esc(c.custom.__batch_type) + '</span>' : '') +
+              (showClientInfo && cardDisplaySettings.type && c.custom && c.custom.__batch_type ? '<span class="client-card-tag" style="background:rgba(0,150,136,0.10);color:#008577;font-weight:800;" title="客户类型">' + esc(c.custom.__batch_type) + '</span>' : '') +
               (showClientInfo && cardDisplaySettings.fund && c.fund ? '<span class="client-card-tag crm-fund-tag" data-fund="' + esc(c.fund) + '" data-idx="' + i + '" title="点击复制公积金基数" style="background:rgba(255,152,0,0.08);color:#f57c00;font-weight:700;cursor:pointer;">公积金: ' + esc(c.fund) + '</span>' : '') +
               (showClientInfo && cardDisplaySettings.institution && (c.storage_institution || c.storageInstitution) ? '<span class="client-card-tag" title="机构名称" style="background:rgba(33,150,243,0.08);color:#1976d2;font-weight:700;">' + esc(c.storage_institution || c.storageInstitution) + '</span>' : '') +
               (showClientInfo && c.unit_nature ? '<span class="client-card-tag" title="单位性质">' + esc(c.unit_nature) + '</span>' : '') +
@@ -11097,12 +11099,14 @@ function updateAutoDialBtn() {
       var company = document.getElementById('dbCardShowCompany');
       var fund = document.getElementById('dbCardShowFund');
       var institution = document.getElementById('dbCardShowInstitution');
+      var type = document.getElementById('dbCardShowType');
       var wallpaperChecks = overlay.querySelectorAll('[data-wallpaper-category]');
       function sync() {
         var settings = getDbCustomSettings();
         if (company) company.checked = settings.company;
         if (fund) fund.checked = settings.fund;
         if (institution) institution.checked = settings.institution;
+        if (type) type.checked = settings.type;
         wallpaperChecks.forEach(function(cb) { cb.checked = settings.wallpaperCategories.indexOf(cb.dataset.wallpaperCategory) >= 0; });
       }
       function persistCardFields() {
@@ -11110,10 +11114,11 @@ function updateAutoDialBtn() {
         settings.company = !!(company && company.checked);
         settings.fund = !!(fund && fund.checked);
         settings.institution = !!(institution && institution.checked);
+        settings.type = !!(type && type.checked);
         saveDbCustomSettings(settings);
         if (typeof renderDialCards === 'function') renderDialCards();
       }
-      [company, fund, institution].forEach(function(cb) { if (cb) cb.addEventListener('change', persistCardFields); });
+      [company, fund, institution, type].forEach(function(cb) { if (cb) cb.addEventListener('change', persistCardFields); });
       wallpaperChecks.forEach(function(cb) {
         cb.addEventListener('change', function() {
           var settings = getDbCustomSettings();
