@@ -4855,8 +4855,59 @@
         androidSwitchHintTimer = null;
       }, 2500);
     }
+    // Android 浏览器：先同步复制，再尝试唤醒微信；若页面没有进入后台，视为唤醒未成功并提示滑动悬浮条。
+    var androidWechatLaunchTimer = null;
+    function copyAndTryWechatOnAndroid(text) {
+      if (!syncCopy(String(text || ''))) {
+        showCopyLimitToast('复制失败，请长按手动复制', true);
+        return false;
+      }
+
+      var launchHandled = false;
+      function cleanup() {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('pagehide', onPageHide);
+        if (androidWechatLaunchTimer) {
+          clearTimeout(androidWechatLaunchTimer);
+          androidWechatLaunchTimer = null;
+        }
+      }
+      function onVisibilityChange() {
+        if (document.hidden) {
+          launchHandled = true;
+          cleanup();
+        }
+      }
+      function onPageHide() {
+        launchHandled = true;
+        cleanup();
+      }
+
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      window.addEventListener('pagehide', onPageHide);
+      if (androidWechatLaunchTimer) clearTimeout(androidWechatLaunchTimer);
+
+      try {
+        // 不设置网页 fallback，避免微信未安装时跳去其他网页而误判为成功。
+        window.location.href = 'intent://#Intent;scheme=weixin;end';
+      } catch (err) {
+        cleanup();
+      }
+
+      androidWechatLaunchTimer = setTimeout(function() {
+        if (launchHandled) return;
+        cleanup();
+        showAndroidSwitchHint();
+      }, 1300);
+      return true;
+    }
+
     function copyForAndroidWeb(text) {
-      // iOS Safari 的剪贴板 Promise 可能延迟或被系统拒绝；提示先在本次点击中立即显示。
+      if (isAndroid && !isHarmonyOS) {
+        copyAndTryWechatOnAndroid(text);
+        return;
+      }
+      // iOS / 鸿蒙等其他系统沿用原有复制提示机制。
       if (navigator.clipboard && navigator.clipboard.writeText) {
         showAndroidSwitchHint();
         navigator.clipboard.writeText(String(text)).catch(function() {
@@ -4869,8 +4920,12 @@
       }
     }
 
-    // 手机号复制专用：所有手机浏览器复制成功后复用现有提示组件。
+    // 手机号复制专用：Android 浏览器同样先尝试唤醒微信；其他平台保持原有行为。
     function copyPhoneWithSwitchHint(text) {
+      if (isAndroid && !isHarmonyOS) {
+        copyAndTryWechatOnAndroid(text);
+        return;
+      }
       function onCopied() {
         showAndroidSwitchHint();
       }
