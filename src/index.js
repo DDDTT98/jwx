@@ -4871,6 +4871,15 @@ export default {
     workerEnv.DATA_STORE = createSupabaseStore(env);
     env = workerEnv;
     try { await processCrmBackgroundJobs(env); } catch (jobErr) { console.error('[crm-background-jobs]', jobErr.message); }
+    // Every 15 minutes, return unadded dialer customers to their source account after 48 hours.
+    if (event && event.cron === '*/15 * * * *') {
+      try {
+        var recycledDialerCount = await createSupabaseClient(env).recycleExpiredDialerClaims();
+        if (recycledDialerCount > 0) console.log('[dialer-48h-recycle] returned customers:', recycledDialerCount);
+      } catch (recycleErr) {
+        console.error('[dialer-48h-recycle] failed:', recycleErr.message);
+      }
+    }
     // The every-minute trigger is only for queued CRM jobs; keep the daily/weekly report on its original cron.
     if (event && event.cron && event.cron !== '0 13 * * *') return;
     try {
