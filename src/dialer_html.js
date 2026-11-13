@@ -3033,7 +3033,7 @@
               </svg>
               <span class="drawer-ring-value" id="drawerWorkRingText">0</span>
             </div>
-            <span class="drawer-ring-label">今日操作客户</span>
+            <span class="drawer-ring-label">今日姓名/单位复制</span>
             <div style="width:100%;margin-top:7px;display:flex;justify-content:center;gap:12px;font-size:0.7rem;color:var(--text-light);white-space:nowrap;">
               <span>本周 <strong id="drawerWeekOperatedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
               <span>本月 <strong id="drawerMonthOperatedVal" style="color:var(--text-main);font-weight:700;">0</strong></span>
@@ -5357,7 +5357,7 @@
         if (!mobileSet[m]) { mobiles.push(m); mobileSet[m] = true; }
       }
       // 不允许只转走有手机号的部分客户：否则客户端会把这一轮误判为完整成功，
-      // 无手机号的已操作客户会残留在列表并污染下一轮的 50/10 人边界。
+      // 无手机号的已姓名/单位复制会残留在列表并污染下一轮的 50/10 人边界。
       if (missingMobileCount > 0 || !mobiles.length) {
         _reminderShown = false;
         _pendingReminderClient = null;
@@ -14073,7 +14073,7 @@ function updateAutoDialBtn() {
         return;
       }
       var totals = { add:0, operated:0, rounds:0, supplement:0, remaining:0 };
-      var html = '<div style="overflow-x:auto;"><table style="width:100%;min-width:660px;border-collapse:collapse;font-size:.78rem;color:var(--text-main);"><thead><tr style="color:var(--text-light);text-align:left;border-bottom:1px solid var(--card-border);"><th style="padding:10px 7px;font-weight:750;">子账户</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加次数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">操作客户</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加轮数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">主账号补充</th><th style="padding:10px 7px;text-align:right;font-weight:750;">剩余数量</th></tr></thead><tbody>';
+      var html = '<div style="overflow-x:auto;"><table style="width:100%;min-width:660px;border-collapse:collapse;font-size:.78rem;color:var(--text-main);"><thead><tr style="color:var(--text-light);text-align:left;border-bottom:1px solid var(--card-border);"><th style="padding:10px 7px;font-weight:750;">子账户</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加次数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">姓名/单位复制</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加轮数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">主账号补充</th><th style="padding:10px 7px;text-align:right;font-weight:750;">剩余数量</th></tr></thead><tbody>';
       rows.forEach(function(row) {
         var add = Number(row['add_' + suffix] || 0);
         var operated = Number(row['operated_' + suffix] || 0);
