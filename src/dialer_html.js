@@ -5376,10 +5376,16 @@
           var legacySaved = localStorage.getItem(CLIENTS_K);
           var legacyBatch = localStorage.getItem(ACTIVE_BATCH_ID_K) || '';
           if (legacySaved !== null) {
-            saved = legacySaved;
-            batchId = legacyBatch;
-            localStorage.setItem(accountClientsKey, legacySaved);
-            if (legacyBatch) localStorage.setItem(accountBatchKey, legacyBatch);
+            var legacyRows = [];
+            try { legacyRows = JSON.parse(legacySaved); } catch (legacyParseError) {}
+            // A non-empty legacy list without a batch ID cannot be ownership-verified.
+            // Keep it untouched as a backup instead of exposing another account's data.
+            if (!Array.isArray(legacyRows) || legacyRows.length === 0 || legacyBatch) {
+              saved = legacySaved;
+              batchId = legacyBatch;
+              localStorage.setItem(accountClientsKey, legacySaved);
+              if (legacyBatch) localStorage.setItem(accountBatchKey, legacyBatch);
+            }
           }
         }
 
