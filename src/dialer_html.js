@@ -9248,7 +9248,7 @@
                   '<span class="client-card-text" style="color:var(--accent-wechat);">' + (showClientInfo ? esc(c.callNote) : '☆') + '</span>' +
                 '</div>' +
               '</div>' : '') +
-            (c.last_operation ?
+            (c.last_operation && String(typeof c.last_operation === 'string' ? c.last_operation : (c.last_operation.type || c.last_operation.action || c.last_operation.operation || '')).trim().toLowerCase() !== 'import' ?
               '<div class="client-card-body" style="margin-top: 4px;">' +
                 '<div class="client-card-content-block" style="background:rgba(255,193,7,0.05); padding: 6px 8px; border-radius: var(--radius-xs);">' +
                   '<span class="client-card-label" style="color:#f57c00; font-weight:800; font-size:0.52rem;">最近操作</span>' +
@@ -9513,7 +9513,7 @@
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) : esc(c.note||'')) + '"' + (showClientInfo ? '' : ' style="font-size:14px;font-weight:800;padding:8px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;"') + '>' + (showClientInfo ? esc(c.company||'-') : '复制备注') + '</span>' + (showClientInfo ? wlBadge : '') + '</td>' +
             '<td class="col-note">' + (showClientInfo ? esc(c.note||'-') : '☆') + '</td>' +
             '<td class="col-batch">' + '<span style="font-size:11px;background:rgba(74,108,247,0.08);color:#4a6cf7;padding:1px 6px;border-radius:3px;">' + (showClientInfo ? (displayBatchLabel(c.batch_label) || '-') : '☆') + '</span>' + '</td>' +
-            '<td class="col-lastop" style="font-size:0.52rem;">' + (c.last_operation ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
+            '<td class="col-lastop" style="font-size:0.52rem;">' + (c.last_operation && String(typeof c.last_operation === 'string' ? c.last_operation : (c.last_operation.type || c.last_operation.action || c.last_operation.operation || '')).trim().toLowerCase() !== 'import' ? TimelineDisplay.render(c.last_operation) : '-') + '</td>' +
             '<td class="col-action"><a href="tel:' + esc(phoneVal) + '" style="display:inline-block;padding:3px 10px;background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:700;">拨打</a></td>' +
           '</tr>';
         }).join('');
