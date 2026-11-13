@@ -308,10 +308,12 @@ async function fetchCooldownRow(env, accountId, date, deviceId) {
 async function upsertCooldownRow(env, accountId, date, deviceId, row) {
   await env.DATA_STORE.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
 }
-// 统计指定日期范围内实际操作的去重客户数（同一手机号跨日只计一次）。
-async function clientOperationRangeUniqueCount(env, accountId, startDate, endDate) {
+// 单次扫描账号操作记录，同时计算当天/本周/本月的去重客户数。
+async function clientOperationRangeUniqueCount(env, accountId, dayStart, weekStart, monthStart, endDate) {
   var prefix = 'client_ops_all:' + accountId + ':';
-  var mobiles = new Set();
+  var dayMobiles = new Set();
+  var weekMobiles = new Set();
+  var monthMobiles = new Set();
   var cursor;
   do {
     var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
@@ -321,11 +323,14 @@ async function clientOperationRangeUniqueCount(env, accountId, startDate, endDat
       if (sep < 0) return;
       var opDate = rest.slice(0, sep);
       var mobile = rest.slice(sep + 1);
-      if (opDate >= startDate && opDate <= endDate && mobile) mobiles.add(mobile);
+      if (!mobile || opDate < monthStart || opDate > endDate) return;
+      monthMobiles.add(mobile);
+      if (opDate >= weekStart) weekMobiles.add(mobile);
+      if (opDate === dayStart) dayMobiles.add(mobile);
     });
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  return mobiles.size;
+  return { day: dayMobiles.size, week: weekMobiles.size, month: monthMobiles.size };
 }
 
 // device_id 只允许安全字符，防止拼接进数据键
@@ -1661,9 +1666,10 @@ export default {
         for (var doi = 0; doi < dcSubAccounts.length; doi++) {
           var dcOpAccountId = dcSubAccounts[doi].account_id;
           var dcOpItem = dcStats[dcOpAccountId];
-          dcOpItem.operated_day = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcTodayKey, dcTodayKey);
-          dcOpItem.operated_week = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcWeekKey, dcTodayKey);
-          dcOpItem.operated_month = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcMonthKey, dcTodayKey);
+          var dcOpCounts = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcTodayKey, dcWeekKey, dcMonthKey, dcTodayKey);
+          dcOpItem.operated_day = dcOpCounts.day;
+          dcOpItem.operated_week = dcOpCounts.week;
+          dcOpItem.operated_month = dcOpCounts.month;
         }
 
         // 轮数按每个账号的每日云端 work_stats 累加，兼容多设备。
