@@ -14900,6 +14900,7 @@ function updateAutoDialBtn() {
 
 
     var _wallpaperLoaded = false;
+    var _wallpaperRefreshTimer = null;
 
     function applyWallpaper(url) {
       var bg = 'url(' + url + ')';
@@ -15037,6 +15038,15 @@ function updateAutoDialBtn() {
       }
       _wallpaperLoaded = false;
       tryNext();
+    }
+
+    function scheduleWallpaperRefresh() {
+      if (_wallpaperRefreshTimer) window.clearTimeout(_wallpaperRefreshTimer);
+      _wallpaperRefreshTimer = window.setTimeout(function() {
+        _wallpaperLoaded = false;
+        loadWallpaper(true);
+        scheduleWallpaperRefresh();
+      }, 6 * 60 * 60 * 1000);
     }
 
     function syncAllOverlayWallpapers() {
@@ -15480,6 +15490,7 @@ function updateAutoDialBtn() {
       }
     }
     safeInit('loadWallpaper', loadWallpaper);
+    safeInit('scheduleWallpaperRefresh', scheduleWallpaperRefresh);
     safeInit('initAuth', initAuth);
     safeInit('initDark', initDark);
     safeInit('initFileInputs', initFileInputs);
