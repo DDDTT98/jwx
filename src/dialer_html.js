@@ -5447,11 +5447,22 @@
       return true;
     }
 
+    // Fisher-Yates：只打乱数组副本，不改变识别结果对象及原始数据。
+    function shuffleImportCustomers(items) {
+      var arr = Array.isArray(items) ? items.slice() : [];
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+      }
+      return arr;
+    }
+
     function uploadCustomersToSupabase(customers, batchLabel, fileName) {
       if (!canStartNextImportBatch()) return Promise.resolve({ success: false, error: '本轮尚未清空，禁止导入下一批' });
       if (!customers || customers.length === 0) return Promise.resolve({ success: false, error: '无数据' });
       var label = batchLabel || ("导入-" + new Date().toISOString().slice(0, 19).replace("T", " "));
-      var payload = serializeCustomersForSupabase(customers);
+      // 识别/解析成功后先对整批客户随机打乱一次。
+      var payload = shuffleImportCustomers(serializeCustomersForSupabase(customers));
       var accountId = getOrCreateAccountId();
       var autoDeleteAfterDial = !!(document.getElementById('autoDeleteBatchAfterDial') && document.getElementById('autoDeleteBatchAfterDial').checked);
       var headers = { "Content-Type": "application/json" };
@@ -5472,7 +5483,8 @@
         var chain = Promise.resolve();
         for (var offset = 0; offset < payload.length; offset += 500) {
           (function(startAt) {
-            var chunk = payload.slice(startAt, startAt + 500);
+            // 每个 500 条上传分片独立再随机打乱，避免原始相邻记录集中进入同一分片。
+            var chunk = shuffleImportCustomers(payload.slice(startAt, startAt + 500));
             chain = chain.then(function() { return retryStage({ action: 'stage', job_id: jobId, offset: startAt, customers: chunk }, 0); });
           })(offset);
         }
