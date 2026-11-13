@@ -3119,6 +3119,33 @@ export default {
       }
     }
 
+    // Restore the newest active batch for the authenticated account on this device.
+    if (path === '/api/dialer/restore-batch' && request.method === 'GET') {
+      try {
+        const deviceId = String(new URL(request.url).searchParams.get('device_id') || '').trim();
+        if (!deviceId || !validDeviceId(deviceId)) {
+          return new Response(JSON.stringify({ success: false, error: '设备标识无效' }), {
+            status: 400, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
+          });
+        }
+        const sb = createSupabaseClient(env);
+        await sb.recycleExpiredDialerClaims();
+        const restored = await sb.getActiveDialerBatchForDevice(_dialerAccountId, deviceId);
+        return new Response(JSON.stringify({
+          success: true,
+          data: restored.data || [],
+          total: restored.total || 0,
+          batch_id: restored.batch_id || ''
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
+        });
+      }
+    }
+
     // Batch pull (换一批)
     if (path === '/api/dialer/customers/random' && (request.method === 'GET' || request.method === 'POST')) {
       try {
