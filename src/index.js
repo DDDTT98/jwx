@@ -1507,6 +1507,7 @@ export default {
         var dSession=await dialerValidateSession(env,dToken); if(!dSession) throw new Error('未登录');
         var dAccounts=await dialerGetAccounts(env), dCaller=dAccounts.find(function(a){return a.account_id===dSession.account_id;});
         if(!dCaller || dCaller.is_master===false) throw new Error('只有主账号可以查看设备');
+        if (!Number(dSession.dashboard_auth_until) || Number(dSession.dashboard_auth_until) <= Date.now()) throw new Error('数据库看板授权已过期，请先验证密码');
         var childMap={}; dAccounts.forEach(function(a){if(a.is_master===false)childMap[a.account_id]=a;});
         var dRows=await listDialerDeviceSessions(env), nowMs=Date.now();
         var devices=await Promise.all(dRows.filter(function(row){var p=row.payload||{};return !!childMap[p.account_id]&&!!p.device_id;}).map(async function(row){
@@ -1526,6 +1527,7 @@ export default {
         var kSession=await dialerValidateSession(env,kToken); if(!kSession) throw new Error('未登录');
         var kAccounts=await dialerGetAccounts(env), kCaller=kAccounts.find(function(a){return a.account_id===kSession.account_id;});
         if(!kCaller || kCaller.is_master===false) throw new Error('只有主账号可以强制下线设备');
+        if (!Number(kSession.dashboard_auth_until) || Number(kSession.dashboard_auth_until) <= Date.now()) throw new Error('数据库看板授权已过期，请先验证密码');
         var kBody=await request.json();
         var kRows=await listDialerDeviceSessions(env);
         if (kBody.account_id && kBody.device_id && typeof kBody.banned === 'boolean') {
@@ -2932,7 +2934,7 @@ export default {
         path === '/api/dialer/stats/email-config' ||
         path === '/api/dialer/stats/export-email' ||
         path === '/api/dialer/stats/backup-test' ||
-        path.startsWith('/api/dialer/work-stats');
+        false;
       if (_dashboardSensitivePath && _gateRole === 'master' &&
           (!Number(_session.dashboard_auth_until) || Number(_session.dashboard_auth_until) <= Date.now())) {
         return new Response(JSON.stringify({ error: '数据库看板授权已过期，请重新验证密码' }), {
