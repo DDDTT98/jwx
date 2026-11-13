@@ -11289,142 +11289,86 @@ function updateAutoDialBtn() {
       }
     }
 
-    // ====== Database Password Gate ======
-    var DB_PWD_K = 'db_access_pwd_hash';
+    // ====== Database Password Gate (server-side Supabase verification) ======
+    try { localStorage.removeItem('db_access_pwd_hash'); } catch (_) {}
     var dbPwdCallback = null;
-    var dbPwdSessionAuthed = false; // Once authenticated this session, don't ask again
 
-    function hashPwd(pwd) {
-      // Simple salted hash for localStorage (not cryptographically secure, but beats plaintext)
-      var salt = 'megz_db_salt_2024';
-      var combined = salt + ':' + pwd;
-      var hash = 0;
-      for (var i = 0; i < combined.length; i++) {
-        var char = combined.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0;
-      }
-      return 'mz_' + Math.abs(hash).toString(36);
-    }
-
-    function getDbPassword() {
-      return localStorage.getItem(DB_PWD_K) || '';
-    }
-
-    function showDbPasswordGate(callback) {
+    function showDbPasswordGate(callback, isSetup) {
       dbPwdCallback = callback;
       var overlay = document.getElementById('dbPwdOverlay');
       var input = document.getElementById('dbPwdInput');
       var error = document.getElementById('dbPwdError');
       var cancelBtn = document.getElementById('dbPwdCancelBtn');
       var confirmBtn = document.getElementById('dbPwdConfirmBtn');
-
-      // 密码弹窗必须独立挂到 body：避免被 app-shell / iOS Safari 的层叠上下文遮挡。
       if (!overlay || !input || !error || !cancelBtn || !confirmBtn) {
         console.error('[db-auth] password gate DOM is incomplete');
         var notice = document.getElementById('bootFallbackNotice');
-        if (notice) {
-          notice.style.display = 'block';
-          notice.textContent = '数据库密码窗口初始化失败，请刷新页面后重试。';
-        }
+        if (notice) { notice.style.display = 'block'; notice.textContent = '数据库密码窗口初始化失败，请刷新页面后重试。'; }
         return;
       }
       if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
-
-      var savedHash = '';
-      try {
-        savedHash = getDbPassword();
-      } catch (storageError) {
-        error.textContent = '浏览器本地存储不可用，请退出无痕模式后重试';
-        error.style.display = 'block';
-        return;
-      }
-      var isFirstTime = !savedHash;
-
       input.value = '';
-      input.placeholder = '';
-      error.textContent = '';
-      error.style.display = 'none';
-
-      // 不依赖延迟动画才能显示；强制覆盖可能存在的旧层级/隐藏样式。
+      input.placeholder = isSetup ? '首次设置 8 位密码' : '输入看板密码';
+      input.autocomplete = isSetup ? 'new-password' : 'current-password';
+      error.textContent = isSetup ? '首次使用，请设置 8 位字母+数字密码' : '';
+      error.style.display = isSetup ? 'block' : 'none';
       overlay.style.setProperty('display', 'flex', 'important');
       overlay.style.setProperty('position', 'fixed', 'important');
       overlay.style.setProperty('inset', '0', 'important');
       overlay.style.setProperty('z-index', '2147483647', 'important');
       overlay.style.setProperty('visibility', 'visible', 'important');
       overlay.classList.add('active');
-
-      function focusPasswordInput() {
-        try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
-      }
-      setTimeout(focusPasswordInput, 60);
-
-      function doConfirm() {
+      function focusInput() { try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); } }
+      setTimeout(focusInput, 60);
+      async function doConfirm() {
         var pwd = input.value.trim();
-        var validNewPassword = /^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd);
-        var legacyPasswordMatch = !isFirstTime && pwd.length === 6 && hashPwd(pwd) === savedHash;
-        if (!validNewPassword && !legacyPasswordMatch) {
-          error.textContent = '请输入 8 位字母和数字组合密码';
-          error.style.display = 'block';
-          input.value = '';
-          focusPasswordInput();
-          return;
+        if (!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd)) {
+          error.textContent = '请输入 8 位字母和数字组合密码'; error.style.display = 'block'; input.value = ''; focusInput(); return;
         }
-
-        if (isFirstTime) {
-          // 首次使用时设置本地数据库密码；存储失败时绝不绕过验证。
-          try {
-            localStorage.setItem(DB_PWD_K, hashPwd(pwd));
-          } catch (storageError) {
-            error.textContent = '无法保存密码，请检查浏览器本地存储设置';
-            error.style.display = 'block';
-            return;
-          }
+        confirmBtn.disabled = true;
+        try {
+          var resp = await fetch('/api/dialer/auth/dashboard-password/verify', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
+            body: JSON.stringify({ password: pwd }), cache: 'no-store'
+          });
+          var result = await resp.json();
+          if (!resp.ok || !result.success) throw new Error(result.error || '密码验证失败');
           closeDbPasswordGate();
-          dbPwdCallback && dbPwdCallback();
-          dbPwdCallback = null;
-        } else if (legacyPasswordMatch) {
-          var upgradedPassword = window.prompt('检测到旧版 6 位看板密码，请设置新的 8 位字母+数字密码：');
-          if (!upgradedPassword || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(upgradedPassword)) {
-            error.textContent = '请设置符合要求的 8 位新密码后再进入看板';
-            error.style.display = 'block';
-            input.value = '';
-            focusPasswordInput();
-            return;
-          }
-          try { localStorage.setItem(DB_PWD_K, hashPwd(upgradedPassword)); }
-          catch (storageError) { error.textContent = '新密码保存失败，请检查浏览器存储权限'; error.style.display = 'block'; return; }
-          closeDbPasswordGate();
-          dbPwdCallback && dbPwdCallback();
-          dbPwdCallback = null;
-        } else if (hashPwd(pwd) === savedHash) {
-          closeDbPasswordGate();
-          dbPwdCallback && dbPwdCallback();
-          dbPwdCallback = null;
-        } else {
-          error.textContent = '密码不正确，请重新输入';
-          error.style.display = 'block';
-          input.value = '';
-          focusPasswordInput();
-        }
+          window._dbDashboardAccessActive = true;
+          var cb = dbPwdCallback; dbPwdCallback = null;
+          if (cb) cb();
+        } catch (e) {
+          error.textContent = e.message || '验证失败，请重试'; error.style.display = 'block';
+          input.value = ''; focusInput();
+        } finally { confirmBtn.disabled = false; }
       }
-
       confirmBtn.onclick = doConfirm;
-      input.onkeydown = function(e) {
-        if (e.key === 'Enter') doConfirm();
-      };
-      cancelBtn.onclick = function() {
-        closeDbPasswordGate();
-        dbPwdCallback = null;
-      };
+      input.onkeydown = function(e) { if (e.key === 'Enter') doConfirm(); };
+      cancelBtn.onclick = function() { closeDbPasswordGate(); dbPwdCallback = null; };
+    }
+
+    function ensureDbDashboardAccess(callback) {
+      if (!getSessionToken() || !getSessionAccountId()) {
+        if (typeof showAuthScreen === 'function') showAuthScreen();
+        return;
+      }
+      fetch('/api/dialer/auth/dashboard-password/status', {
+        headers: { 'Authorization': 'Bearer ' + getSessionToken() }, cache: 'no-store'
+      }).then(function(r) {
+        return r.json().then(function(data) { if (!r.ok || !data.success) throw new Error(data.error || '无法读取看板权限'); return data; });
+      }).then(function(data) {
+        if (!data.is_master) { window._dbDashboardAccessActive = false; callback(); return; }
+        if (data.authorized) { window._dbDashboardAccessActive = true; callback(); return; }
+        showDbPasswordGate(callback, !data.configured);
+      }).catch(function(e) {
+        var notice = document.getElementById('bootFallbackNotice');
+        if (notice) { notice.style.display = 'block'; notice.textContent = e.message || '数据库看板权限验证失败，请重试。'; }
+      });
     }
 
     function closeDbPasswordGate() {
       var overlay = document.getElementById('dbPwdOverlay');
-      if (overlay) {
-        overlay.classList.remove('active');
-        setTimeout(function() { overlay.style.display = 'none'; }, 250);
-      }
+      if (overlay) { overlay.classList.remove('active'); setTimeout(function() { overlay.style.display = 'none'; }, 250); }
     }
 
     // 批量删除 — 无需密码验证
@@ -11486,13 +11430,7 @@ function updateAutoDialBtn() {
 
     function openDBDashboard(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
-      // 数据库看板统一使用当前账号 PIN 登录会话，不再接受浏览器本地共享密码。
-      if (!getSessionToken() || !getSessionAccountId()) {
-        if (typeof showAuthScreen === 'function') showAuthScreen();
-        return;
-      }
-      dbPwdSessionAuthed = true;
-      _openDBDashboardInner();
+      ensureDbDashboardAccess(function(){ _openDBDashboardInner(); });
     }
 
     var _viewAccountId = '';
@@ -11815,23 +11753,19 @@ function updateAutoDialBtn() {
     function openDBMobile() {
       var ov = document.getElementById('dbOverlay');
       if (!ov) return;
-      // #dbm 直达入口同样必须已有本账号 PIN 登录会话。
-      if (!getSessionToken() || !getSessionAccountId()) {
-        if (typeof showAuthScreen === 'function') showAuthScreen();
-        return;
-      }
-      syncManagerTabVisibility();
-      ov.classList.add('mobile-layout');
-      ov.classList.add('active');
-      // 旧版独立精简界面不再作为主入口，避免功能缺失与两套数据状态不一致。
-      var legacyMobile = document.getElementById('dbMobileOverlay');
-      if (legacyMobile) legacyMobile.classList.remove('active');
-      // 进入时维持当前筛选/分页/勾选状态；只有尚未加载数据时才请求。
-      if (!DB.allData || !DB.allData.length) dbFetch();
+      ensureDbDashboardAccess(function() {
+        syncManagerTabVisibility();
+        ov.classList.add('mobile-layout');
+        ov.classList.add('active');
+        var legacyMobile = document.getElementById('dbMobileOverlay');
+        if (legacyMobile) legacyMobile.classList.remove('active');
+        if (!DB.allData || !DB.allData.length) dbFetch();
+      });
     }
     window.openDBMobile = openDBMobile;
 
     function closeDBMobile() {
+      window._dbDashboardAccessActive = false;
       var ov = document.getElementById('dbOverlay');
       if (ov) {
         ov.classList.remove('mobile-layout');
@@ -13569,16 +13503,19 @@ function updateAutoDialBtn() {
         });
       }
 
-      // Database dashboard password: this is a browser-local gate, separate from account PIN.
+      // Database dashboard password: the Worker verifies and stores the hash in Supabase.
       var dbPwdSave=document.getElementById('dbDashboardPwdSave');
       if(dbPwdSave) dbPwdSave.addEventListener('click',function(){
         var oldPwd=document.getElementById('dbDashboardPwdOld').value.trim(), newPwd=document.getElementById('dbDashboardPwdNew').value.trim();
-        var status=document.getElementById('dbDashboardPwdStatus'), saved=getDbPassword();
+        var status=document.getElementById('dbDashboardPwdStatus');
         status.style.color='#e74c3c';
-        if(!oldPwd||hashPwd(oldPwd)!==saved){status.textContent='当前看板密码不正确';return;}
         if(!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(newPwd)){status.textContent='新密码必须为 8 位字母和数字组合';return;}
-        try{localStorage.setItem(DB_PWD_K,hashPwd(newPwd));status.style.color='#07c160';status.textContent='看板密码修改成功（仅当前浏览器）';document.getElementById('dbDashboardPwdOld').value='';document.getElementById('dbDashboardPwdNew').value='';}
-        catch(e){status.textContent='保存失败，请检查浏览器存储权限';}
+        dbPwdSave.disabled=true; status.textContent='正在通过数据库验证并保存...';
+        fetch('/api/dialer/auth/dashboard-password/change',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getSessionToken()},body:JSON.stringify({old_password:oldPwd,new_password:newPwd}),cache:'no-store'})
+        .then(function(r){return r.json().then(function(data){if(!r.ok||!data.success)throw new Error(data.error||'修改失败');return data;});})
+        .then(function(){status.style.color='#07c160';status.textContent='数据库看板密码已更新，所有设备即时生效';document.getElementById('dbDashboardPwdOld').value='';document.getElementById('dbDashboardPwdNew').value='';})
+        .catch(function(e){status.textContent=e.message||'修改失败';})
+        .finally(function(){dbPwdSave.disabled=false;});
       });
 
       // Account TOTP 2FA settings
