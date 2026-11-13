@@ -2876,7 +2876,7 @@ export default {
     // ==================== Central Auth Gate ====================
 
     var _dialerAccountId = '';
-    if (path.startsWith('/api/dialer/') && !path.startsWith('/api/dialer/auth/') && !path.startsWith('/api/dialer/stats/') && path !== '/api/dialer/destruct') {
+    if (path.startsWith('/api/dialer/') && !path.startsWith('/api/dialer/auth/') && path !== '/api/dialer/destruct') {
       var _authHeader = request.headers.get('Authorization') || '';
       var _sessionToken = _authHeader.startsWith('Bearer ') ? _authHeader.slice(7) : '';
       var _session = await dialerValidateSession(env, _sessionToken);
@@ -2891,7 +2891,20 @@ export default {
       var _gateAccounts=await dialerGetAccounts(env),_gateCaller=_gateAccounts.find(function(a){return a.account_id===_session.account_id;});
       if(!_gateCaller || _gateCaller.active===false) return new Response(JSON.stringify({error:'账户不存在或已停用'}),{status:401,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'}});
       var _gateRole=_gateCaller.is_master!==false?'master':(_gateCaller.role==='manager'?'manager':'member');
-      if (request.headers.get('X-DB-Dashboard-Request') === '1' && _gateRole === 'master' &&
+      var _dashboardSensitivePath =
+        path === '/api/dialer/customers' ||
+        path === '/api/dialer/accounts' ||
+        path === '/api/dialer/customers/reassign' ||
+        path === '/api/dialer/stats/accounts' ||
+        path === '/api/dialer/stats/consumption' ||
+        path === '/api/dialer/stats/upload-records' ||
+        path === '/api/dialer/stats/master-pull-records' ||
+        path === '/api/dialer/stats/migrate' ||
+        path === '/api/dialer/stats/email-config' ||
+        path === '/api/dialer/stats/export-email' ||
+        path === '/api/dialer/stats/backup-test' ||
+        path.startsWith('/api/dialer/work-stats');
+      if (_dashboardSensitivePath && _gateRole === 'master' &&
           (!Number(_session.dashboard_auth_until) || Number(_session.dashboard_auth_until) <= Date.now())) {
         return new Response(JSON.stringify({ error: '数据库看板授权已过期，请重新验证密码' }), {
           status: 403, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
