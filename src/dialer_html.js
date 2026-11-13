@@ -14916,14 +14916,14 @@ function updateAutoDialBtn() {
 
     function loadWallpaper(forceRefresh) {
       if (_wallpaperLoaded && !forceRefresh) return;
-      var cached = localStorage.getItem('bhp_wp_url_v2');
+      var cached = localStorage.getItem('bhp_wp_url_v3');
       if (cached && !forceRefresh) applyWallpaper(cached);
       var settings = getDbCustomSettings();
       var allowed = ['landscape', 'anime'];
       var categories = (settings.wallpaperCategories || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
       if (!categories.length) categories = ['landscape'];
       var queries = {
-        landscape: ['landscape nature mountain', 'scenic nature mountains lake', 'mountain landscape', 'forest landscape', 'lake landscape', 'waterfall landscape', 'coastal landscape', 'nature scenery'],
+        landscape: ['alpine lake sunrise landscape', 'misty mountain lake scenery', 'snowy mountain reflection landscape', 'dramatic coastal cliffs ocean scenery', 'autumn mountain valley landscape', 'emerald lake forest mountains', 'quiet fjord landscape', 'sunset over mountain lake'],
         space: ['galaxy', 'nebula', 'universe', 'outer space', 'cosmos', 'milky way', 'starfield', 'planets'],
         people: ['portrait photography people', 'street portrait people photography'],
         // 花朵类使用短关键词逐个轮询，避免长组合词过度限制搜索结果。
@@ -14984,7 +14984,7 @@ function updateAutoDialBtn() {
                   return;
                 }
                 _wallpaperLoaded = true;
-                localStorage.setItem('bhp_wp_url_v2', data.file_url);
+                localStorage.setItem('bhp_wp_url_v3', data.file_url);
                 applyWallpaper(data.file_url);
               };
               img.onerror = tryNext;
@@ -15003,7 +15003,7 @@ function updateAutoDialBtn() {
         var img = new Image();
         img.onload = function() {
           _wallpaperLoaded = true;
-          localStorage.setItem('bhp_wp_url_v2', endpoint);
+          localStorage.setItem('bhp_wp_url_v3', endpoint);
           applyWallpaper(endpoint);
         };
         img.onerror = tryNext;
@@ -15015,7 +15015,7 @@ function updateAutoDialBtn() {
 
     function syncAllOverlayWallpapers() {
       // 优先从缓存恢复
-      var cached = localStorage.getItem('bhp_wp_url_v2') || localStorage.getItem('bhp_wp_url');
+      var cached = localStorage.getItem('bhp_wp_url_v3') || localStorage.getItem('bhp_wp_url');
       if (cached) { applyWallpaper(cached); return; }
       var globalEl = document.getElementById('globalWallpaper');
       if (!globalEl) return;
