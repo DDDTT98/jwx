@@ -1427,16 +1427,15 @@ export function createSupabaseClient(env) {
     return Number(result) || 0;
   }
 
-  /** Restore the newest unexpired, unadded dialer batch owned by this account and device. */
+  /** Restore the newest device batch, including customers already marked as added to WeChat. */
   async function getActiveDialerBatchForDevice(accountId, deviceId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!accountId || !deviceId) return { data: [], batch_id: '', total: 0 };
-    var cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    // Expiry RPC clears dialer_batch_id only for unadded customers after 48 hours.
+    // Added-to-WeChat customers keep their batch membership and must remain restorable.
     var url = baseUrl + '/rest/v1/customers?select=*'
       + '&account_id=eq.' + encodeURIComponent(String(accountId))
       + '&dialer_device_id=eq.' + encodeURIComponent(String(deviceId))
-      + '&dialer_claimed_at=gt.' + encodeURIComponent(cutoff)
-      + '&dialer_wechat_added_at=is.null'
       + '&dialer_batch_id=not.is.null'
       + '&order=dialer_claimed_at.desc&limit=500';
     var resp = await fetch(url, { headers: headers() });
@@ -1454,17 +1453,16 @@ export function createSupabaseClient(env) {
     return { data: batchRows, batch_id: newestBatchId, total: batchRows.length };
   }
 
-  /** Check whether a device still owns any unadded customer in its dialer batch. */
+  /** Check whether a device still owns any customer in its dialer batch, including added customers. */
   async function hasActiveDialerBatch(accountId, deviceId, batchId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
     if (!accountId || !deviceId || !batchId) return false;
-    var cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    // Added customers remain part of the visible batch; only the expiry RPC releases unadded rows.
     var url = baseUrl + '/rest/v1/customers?select=mobile'
       + '&account_id=eq.' + encodeURIComponent(String(accountId))
       + '&dialer_device_id=eq.' + encodeURIComponent(String(deviceId))
       + '&dialer_batch_id=eq.' + encodeURIComponent(String(batchId))
-      + '&dialer_claimed_at=gt.' + encodeURIComponent(cutoff)
-      + '&dialer_wechat_added_at=is.null&limit=1';
+      + '&limit=1';
     var resp = await fetch(url, { headers: headers() });
     if (!resp.ok) {
       var err = await resp.text();
