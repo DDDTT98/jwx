@@ -1567,6 +1567,134 @@ export default {
       }
     }
 
+    // GET /api/dialer/stats/consumption — 主账号查看各子账号当天/本周/本月数据消耗
+    if (path === '/api/dialer/stats/consumption' && request.method === 'GET') {
+      try {
+        var dcAuth = request.headers.get('Authorization') || '';
+        var dcToken = dcAuth.startsWith('Bearer ') ? dcAuth.slice(7) : '';
+        var dcSession = await dialerValidateSession(env, dcToken);
+        if (!dcSession) throw new Error('未登录');
+        var dcAccounts = await dialerGetAccounts(env);
+        var dcMaster = dcAccounts.find(function(a) { return a.account_id === dcSession.account_id && a.is_master !== false; });
+        if (!dcMaster) throw new Error('仅主账号可查看数据消耗');
+
+        // 所有周期统一按北京时间计算，周一为每周起点。
+        var dcNow = new Date(Date.now() + 8 * 60 * 60 * 1000);
+        var dcToday = new Date(Date.UTC(dcNow.getUTCFullYear(), dcNow.getUTCMonth(), dcNow.getUTCDate()));
+        var dcWeek = new Date(dcToday.getTime());
+        dcWeek.setUTCDate(dcWeek.getUTCDate() - ((dcWeek.getUTCDay() + 6) % 7));
+        var dcMonth = new Date(Date.UTC(dcNow.getUTCFullYear(), dcNow.getUTCMonth(), 1));
+        var dcDayStart = new Date(dcToday.getTime() - 8 * 60 * 60 * 1000);
+        var dcWeekStart = new Date(dcWeek.getTime() - 8 * 60 * 60 * 1000);
+        var dcMonthStart = new Date(dcMonth.getTime() - 8 * 60 * 60 * 1000);
+        var dcNowIso = new Date().toISOString();
+        var dcStarts = {
+          day: dcDayStart.toISOString(),
+          week: dcWeekStart.toISOString(),
+          month: dcMonthStart.toISOString()
+        };
+        var dcStats = {};
+        var dcSubAccounts = dcAccounts.filter(function(a) { return a && a.is_master === false; });
+        dcSubAccounts.forEach(function(a) {
+          dcStats[a.account_id] = {
+            account_id: a.account_id,
+            account_name: a.real_name || a.account_name || a.label || String(a.account_id).slice(0, 12),
+            add_day: 0, add_week: 0, add_month: 0,
+            rounds_day: 0, rounds_week: 0, rounds_month: 0,
+            master_supplement_day: 0, master_supplement_week: 0, master_supplement_month: 0,
+            remaining_count: 0
+          };
+        });
+
+        if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
+        var dcHeaders = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
+        // 逐页读取客户轻量字段：添加次数按“添加微信时间”计数，剩余量只统计未添加且不在公海的客户。
+        var dcOffset = 0, dcPageSize = 1000;
+        while (true) {
+          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,dialer_wechat_added_at,category&order=account_id.asc', {
+            headers: Object.assign({}, dcHeaders, { 'Range': dcOffset + '-' + (dcOffset + dcPageSize - 1) })
+          });
+          if (!dcCustomerResp.ok) throw new Error('读取客户消耗数据失败：' + dcCustomerResp.status + ' ' + (await dcCustomerResp.text()).slice(0, 200));
+          var dcCustomerRows = await dcCustomerResp.json();
+          if (!Array.isArray(dcCustomerRows) || !dcCustomerRows.length) break;
+          dcCustomerRows.forEach(function(row) {
+            var item = dcStats[row.account_id];
+            if (!item) return;
+            var addedAt = row.dialer_wechat_added_at ? new Date(row.dialer_wechat_added_at).getTime() : 0;
+            if (addedAt) {
+              if (addedAt >= dcDayStart.getTime()) item.add_day++;
+              if (addedAt >= dcWeekStart.getTime()) item.add_week++;
+              if (addedAt >= dcMonthStart.getTime()) item.add_month++;
+            } else if (String(row.category || '') !== '公海客户') {
+              item.remaining_count++;
+            }
+          });
+          if (dcCustomerRows.length < dcPageSize) break;
+          dcOffset += dcPageSize;
+        }
+
+        // 轮数按每个账号的每日云端 work_stats 累加，兼容多设备。
+        for (var di = 0; di < dcSubAccounts.length; di++) {
+          var dcAccountId = dcSubAccounts[di].account_id;
+          var dcPrefix = 'work_stats:' + dcAccountId + ':';
+          var dcCursor;
+          do {
+            var dcList = await env.DATA_STORE.list({ prefix: dcPrefix, cursor: dcCursor, limit: 1000 });
+            for (var dk = 0; dk < dcList.keys.length; dk++) {
+              var dcKey = dcList.keys[dk].name;
+              var dcDate = dcKey.slice(dcPrefix.length);
+              if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dcDate)) continue;
+              var dcDateStart = new Date(dcDate + 'T00:00:00+08:00').getTime();
+              var dcRaw = await env.DATA_STORE.get(dcKey);
+              if (!dcRaw) continue;
+              var dcWork = JSON.parse(dcRaw);
+              var dcRounds = Math.max(0, parseInt(dcWork.rounds, 10) || 0);
+              var dcItem = dcStats[dcAccountId];
+              if (!dcItem) continue;
+              if (dcDateStart >= dcDayStart.getTime() && dcDateStart <= Date.now()) dcItem.rounds_day += dcRounds;
+              if (dcDateStart >= dcWeekStart.getTime() && dcDateStart <= Date.now()) dcItem.rounds_week += dcRounds;
+              if (dcDateStart >= dcMonthStart.getTime() && dcDateStart <= Date.now()) dcItem.rounds_month += dcRounds;
+            }
+            dcCursor = dcList.list_complete ? undefined : dcList.cursor;
+          } while (dcCursor);
+        }
+
+        // 主账号补充流水：按目标子账号及发生时间分别汇总。
+        var dcPullOffset = 0, dcPullPageSize = 1000;
+        while (true) {
+          var dcPullUrl = env.SUPABASE_URL + '/rest/v1/master_customer_pull_logs?select=target_account_id,loaded_count,created_at&created_at=gte.' + encodeURIComponent(dcMonthStart.toISOString()) + '&created_at=lte.' + encodeURIComponent(dcNowIso) + '&order=created_at.asc&limit=' + dcPullPageSize + '&offset=' + dcPullOffset;
+          var dcPullResp = await fetch(dcPullUrl, { headers: dcHeaders });
+          if (!dcPullResp.ok) throw new Error('读取主账号补充流水失败：' + dcPullResp.status + ' ' + (await dcPullResp.text()).slice(0, 200));
+          var dcPullRows = await dcPullResp.json();
+          if (!Array.isArray(dcPullRows) || !dcPullRows.length) break;
+          dcPullRows.forEach(function(row) {
+            var item = dcStats[row.target_account_id];
+            if (!item) return;
+            var count = Math.max(0, parseInt(row.loaded_count, 10) || 0);
+            var ts = new Date(row.created_at).getTime();
+            if (ts >= dcDayStart.getTime()) item.master_supplement_day += count;
+            if (ts >= dcWeekStart.getTime()) item.master_supplement_week += count;
+            if (ts >= dcMonthStart.getTime()) item.master_supplement_month += count;
+          });
+          if (dcPullRows.length < dcPullPageSize) break;
+          dcPullOffset += dcPullPageSize;
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          timezone: 'Asia/Shanghai',
+          accounts: dcSubAccounts.map(function(a) { return dcStats[a.account_id]; })
+        }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: e.message === '未登录' ? 401 : (e.message.indexOf('仅主账号') === 0 ? 403 : 500),
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // GET /api/dialer/stats/upload-records — 上传/添加记录时间线（当天/本周/本月）
     // 子账号只返回自己的记录，主账号返回所有账号
     if (path === '/api/dialer/stats/upload-records' && request.method === 'GET') {
