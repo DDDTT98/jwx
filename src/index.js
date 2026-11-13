@@ -308,6 +308,26 @@ async function fetchCooldownRow(env, accountId, date, deviceId) {
 async function upsertCooldownRow(env, accountId, date, deviceId, row) {
   await env.DATA_STORE.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
 }
+// 统计指定日期范围内实际复制/添加微信的去重客户数（同一手机号跨日只计一次）。
+async function clientOperationCopyRangeCount(env, accountId, startDate, endDate) {
+  var prefix = 'client_ops_copy:' + accountId + ':';
+  var mobiles = new Set();
+  var cursor;
+  do {
+    var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
+    (page.keys || []).forEach(function(item) {
+      var rest = item.name.slice(prefix.length);
+      var sep = rest.indexOf(':');
+      if (sep < 0) return;
+      var opDate = rest.slice(0, sep);
+      var mobile = rest.slice(sep + 1);
+      if (opDate >= startDate && opDate <= endDate && mobile) mobiles.add(mobile);
+    });
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return mobiles.size;
+}
+
 // device_id 只允许安全字符，防止拼接进数据键
 function validDeviceId(id) {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{4,64}$/.test(id);
@@ -1588,6 +1608,9 @@ export default {
         var dcWeekStart = new Date(dcWeek.getTime() - 8 * 60 * 60 * 1000);
         var dcMonthStart = new Date(dcMonth.getTime() - 8 * 60 * 60 * 1000);
         var dcNowIso = new Date().toISOString();
+        var dcTodayKey = dcToday.toISOString().slice(0, 10);
+        var dcWeekKey = dcWeek.toISOString().slice(0, 10);
+        var dcMonthKey = dcMonth.toISOString().slice(0, 10);
         var dcStarts = {
           day: dcDayStart.toISOString(),
           week: dcWeekStart.toISOString(),
@@ -1601,6 +1624,7 @@ export default {
             account_name: a.real_name || a.account_name || a.label || String(a.account_id).slice(0, 12),
             add_day: 0, add_week: 0, add_month: 0,
             rounds_day: 0, rounds_week: 0, rounds_month: 0,
+            operated_day: 0, operated_week: 0, operated_month: 0,
             master_supplement_day: 0, master_supplement_week: 0, master_supplement_month: 0,
             remaining_count: 0
           };
@@ -1631,6 +1655,15 @@ export default {
           });
           if (dcCustomerRows.length < dcPageSize) break;
           dcOffset += dcPageSize;
+        }
+
+        // 操作客户数按真实复制资料/添加微信记录统计；按账号隔离，周期内手机号去重。
+        for (var doi = 0; doi < dcSubAccounts.length; doi++) {
+          var dcOpAccountId = dcSubAccounts[doi].account_id;
+          var dcOpItem = dcStats[dcOpAccountId];
+          dcOpItem.operated_day = await clientOperationCopyRangeCount(env, dcOpAccountId, dcTodayKey, dcTodayKey);
+          dcOpItem.operated_week = await clientOperationCopyRangeCount(env, dcOpAccountId, dcWeekKey, dcTodayKey);
+          dcOpItem.operated_month = await clientOperationCopyRangeCount(env, dcOpAccountId, dcMonthKey, dcTodayKey);
         }
 
         // 轮数按每个账号的每日云端 work_stats 累加，兼容多设备。
