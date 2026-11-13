@@ -692,7 +692,8 @@ export default {
         const toTags = values => (values || []).map(value => ({ name: String(value || ''), alias: '' }));
 
         // Source 1: Bing 每日首页壁纸。该公开首页数据接口未作为稳定开发者 API 文档化，失败时继续使用后备图库。
-        if (type === 'landscape') {
+        const skipBing = url.searchParams.get('skipBing') === '1';
+        if (type === 'landscape' && !skipBing) {
           try {
             const bingUrl = 'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN';
             const bingResp = await fetch(bingUrl, {
