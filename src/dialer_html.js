@@ -3523,6 +3523,13 @@
       <div style="display:flex;justify-content:flex-end;">
         <button id="copyPrefCloseBtn" title="关闭" style="background:none;border:none;font-size:0.95rem;cursor:pointer;color:var(--text-soft);padding:2px;line-height:1;">❌</button>
       </div>
+      <div style="margin:0 0 13px;padding:10px 11px;border:1px solid var(--card-border);border-radius:11px;background:var(--btn-bg);">
+        <label for="androidWechatAutoLaunchToggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:0.76rem;font-weight:800;color:var(--text-main);cursor:pointer;">
+          <span>安卓浏览器复制后自动唤醒微信</span>
+          <input type="checkbox" id="androidWechatAutoLaunchToggle" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--accent-wechat);">
+        </label>
+        <div style="margin-top:5px;font-size:0.62rem;line-height:1.5;color:var(--text-light);">开启后，复制时尝试跳转微信；关闭后，复制完成直接提示滑动底部悬浮条。此设置按当前账户保存。</div>
+      </div>
       <div style="font-size:0.7rem;color:var(--text-light);font-weight:700;margin:0 0 12px;">点击客户卡片「单位名称」时，按勾选的要素组合复制；先勾选的排前面</div>
       <button id="copyPrefOpenDBBtn" type="button" style="display:none;width:100%;margin:0 0 14px;padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;background:var(--btn-bg);color:var(--text-main);font-size:0.78rem;font-weight:800;text-align:left;cursor:pointer;">▦ 数据库看板 <span style="float:right;color:var(--text-light);font-weight:600;">进入 ›</span></button>
       <div style="display:flex;flex-direction:column;gap:10px;font-size:0.78rem;font-weight:600;color:var(--text-main);">
@@ -4855,12 +4862,29 @@
         androidSwitchHintTimer = null;
       }, 2500);
     }
-    // Android 浏览器：先同步复制，再尝试唤醒微信；若页面没有进入后台，视为唤醒未成功并提示滑动悬浮条。
+    // 安卓浏览器自动唤醒微信开关：按账户分别保存，默认关闭。
+    var ANDROID_WECHAT_AUTO_LAUNCH_K = 'android_wechat_auto_launch_v1:';
+    function isAndroidWechatAutoLaunchEnabled() {
+      var accountId = (typeof getSessionAccountId === 'function' && getSessionAccountId()) ||
+        (typeof getOrCreateAccountId === 'function' && getOrCreateAccountId()) || 'default';
+      return localStorage.getItem(ANDROID_WECHAT_AUTO_LAUNCH_K + accountId) === '1';
+    }
+    function setAndroidWechatAutoLaunchEnabled(enabled) {
+      var accountId = (typeof getSessionAccountId === 'function' && getSessionAccountId()) ||
+        (typeof getOrCreateAccountId === 'function' && getOrCreateAccountId()) || 'default';
+      localStorage.setItem(ANDROID_WECHAT_AUTO_LAUNCH_K + accountId, enabled ? '1' : '0');
+    }
+
+    // Android 浏览器：先同步复制；开关关闭时直接提示，开启时才尝试唤醒微信。
     var androidWechatLaunchTimer = null;
     function copyAndTryWechatOnAndroid(text) {
       if (!syncCopy(String(text || ''))) {
         showCopyLimitToast('复制失败，请长按手动复制', true);
         return false;
+      }
+      if (!isAndroidWechatAutoLaunchEnabled()) {
+        showAndroidSwitchHint();
+        return true;
       }
 
       var launchHandled = false;
@@ -13002,6 +13026,8 @@ function updateAutoDialBtn() {
       // 渲染弹窗：勾选状态 + 勾选顺序序号（先勾的序号小、排前面）
       function renderPrefPanel() {
         var p = getCopyPref();
+        var androidWechatToggle = document.getElementById('androidWechatAutoLaunchToggle');
+        if (androidWechatToggle) androidWechatToggle.checked = isAndroidWechatAutoLaunchEnabled();
         for (var fi = 0; fi < COPY_FIELDS.length; fi++) {
           var f = COPY_FIELDS[fi];
           var ids = CPF_IDS[f.key];
@@ -13090,6 +13116,13 @@ function updateAutoDialBtn() {
       overlay.addEventListener('click', function(e) {
         if (e.target === this) overlay.classList.remove('active');
       });
+      var androidWechatToggle = document.getElementById('androidWechatAutoLaunchToggle');
+      if (androidWechatToggle) {
+        androidWechatToggle.addEventListener('change', function() {
+          setAndroidWechatAutoLaunchEnabled(this.checked);
+          showCopyLimitToast(this.checked ? '已开启自动唤醒微信' : '已关闭自动唤醒微信', false);
+        });
+      }
       document.getElementById('cpfName').addEventListener('change', function() { toggleField('name', this.checked); });
       document.getElementById('cpfPhone').addEventListener('change', function() { toggleField('phone', this.checked); });
       document.getElementById('cpfCompany').addEventListener('change', function() { toggleField('company', this.checked); });
