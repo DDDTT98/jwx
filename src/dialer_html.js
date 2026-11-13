@@ -9174,7 +9174,8 @@
           var badgeHtml = '';
           var cardClass = 'xls-dial-card';
           if (c.phone_copied) cardClass += ' copied-card';
-          if (c.company_copied || c.note_copied) cardClass += ' copied-company';
+          // 号码、单位或备注任一项已复制：云端恢复后统一显示为淡出透明卡片。
+          if (c.phone_copied || c.company_copied || c.note_copied) cardClass += ' copied-company';
           if (c.fund_copied) cardClass += ' copied-card'; // 复制过公积金：卡片浅绿光晕提醒
           var phoneVal = c.phone || c.mobile || '';
           if (c.dialedStatus === 'success') {
@@ -9295,7 +9296,7 @@
             b.style.setProperty('font-weight', '800', 'important');
             b.style.setProperty('text-shadow', '0 0 6px rgba(229,57,53,.14)', 'important');
             var card = document.getElementById('xdc_' + idx);
-            if (card) card.classList.add('copied-card');
+            if (card) { card.classList.add('copied-card'); card.classList.add('copied-company'); }
 
             // 微信跳转由当前真实点击的 <a href="intent://..."> 默认行为完成，不能再二次模拟跳转。
 
@@ -9845,6 +9846,7 @@ function updateAutoDialBtn() {
  var card = document.getElementById('xdc_' + currentCallIdx);
  if (card) {
  card.classList.add('copied-card');
+ card.classList.add('copied-company');
  var cardPhoneBtn = card.querySelector('.client-phone-btn');
  if (cardPhoneBtn) {
  cardPhoneBtn.classList.add('copied');
