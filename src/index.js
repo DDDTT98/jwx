@@ -1651,7 +1651,6 @@ export default {
             account_name: a.real_name || a.account_name || a.label || String(a.account_id).slice(0, 12),
             add_day: 0, add_week: 0, add_month: 0,
             rounds_day: 0, rounds_week: 0, rounds_month: 0,
-            operated_day: 0, operated_week: 0, operated_month: 0,
             master_supplement_day: 0, master_supplement_week: 0, master_supplement_month: 0,
             remaining_count: 0
           };
@@ -1659,10 +1658,10 @@ export default {
 
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
         var dcHeaders = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY };
-        // 逐页读取客户轻量字段：添加次数按“添加微信时间”计数，剩余量只统计未添加且不在公海的客户。
+        // 剩余量只统计当前未添加、且不在公海的客户；“添加次数”统一按姓名/单位已操作客户数统计。
         var dcOffset = 0, dcPageSize = 1000;
         while (true) {
-          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,mobile,dialer_wechat_added_at,category&order=account_id.asc,mobile.asc', {
+          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,mobile,category&order=account_id.asc,mobile.asc', {
             headers: Object.assign({}, dcHeaders, { 'Range': dcOffset + '-' + (dcOffset + dcPageSize - 1) })
           });
           if (!dcCustomerResp.ok) throw new Error('读取客户消耗数据失败：' + dcCustomerResp.status + ' ' + (await dcCustomerResp.text()).slice(0, 200));
@@ -1671,12 +1670,7 @@ export default {
           dcCustomerRows.forEach(function(row) {
             var item = dcStats[row.account_id];
             if (!item) return;
-            var addedAt = row.dialer_wechat_added_at ? new Date(row.dialer_wechat_added_at).getTime() : 0;
-            if (addedAt) {
-              if (addedAt >= dcDayStart.getTime()) item.add_day++;
-              if (addedAt >= dcWeekStart.getTime()) item.add_week++;
-              if (addedAt >= dcMonthStart.getTime()) item.add_month++;
-            } else if (String(row.category || '') !== '公海客户') {
+            if (String(row.category || '') !== '公海客户' && !row.dialer_wechat_added_at) {
               item.remaining_count++;
             }
           });
@@ -1692,9 +1686,10 @@ export default {
         dcSubAccounts.forEach(function(a) {
           var item = dcStats[a.account_id];
           var counts = dcOperationCounts[a.account_id] || { day: 0, week: 0, month: 0 };
-          item.operated_day = counts.day;
-          item.operated_week = counts.week;
-          item.operated_month = counts.month;
+          // 每个客户在对应周期内按手机号去重；复制姓名/单位任一项即计为一次客户操作。
+          item.add_day = counts.day;
+          item.add_week = counts.week;
+          item.add_month = counts.month;
         });
 
         // 轮数按每个账号的每日云端 work_stats 累加，兼容多设备。
