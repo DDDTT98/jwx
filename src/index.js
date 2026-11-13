@@ -261,13 +261,13 @@ async function countStorePrefix(env, prefix) {
 function clientOperationKey(accountId, date, mobile, kind) {
   return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\D/g, ''));
 }
-// 按统计周期对客户手机号去重：同一客户在周期内多天拨打/操作只计 1 人
+// 按统计周期对客户手机号去重：仅姓名/单位名称复制计入资料复制客户
 async function clientOperationSingleAccountCounts(env, accountId, startDate, endDate) {
   var dateObj = new Date(endDate + 'T00:00:00Z');
   var weekStart = addDays(endDate, -((dateObj.getUTCDay() + 6) % 7));
   var result = { week_operated_count: 0, month_operated_count: 0, week_dialed_count: 0, month_dialed_count: 0 };
   for (var k = 0; k < 2; k++) {
-    var kind = k === 0 ? 'all' : 'dial';
+    var kind = k === 0 ? 'profile' : 'dial';
     var prefix = 'client_ops_' + kind + ':' + accountId + ':';
     var weekMobiles = new Set();
     var monthMobiles = new Set();
@@ -320,7 +320,7 @@ async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, 
   while (true) {
     var params = new URLSearchParams({
       select: 'account_id,operation_date,mobile',
-      operation_type: 'eq.all',
+      operation_type: 'eq.profile',
       account_id: 'in.(' + accountIds.join(',') + ')',
       and: '(operation_date.gte.' + monthStart + ',operation_date.lte.' + endDate + ')',
       order: 'operation_date.asc,account_id.asc,mobile.asc',
@@ -1983,7 +1983,7 @@ export default {
         wsResp.cooldown_ms = rawCdMs === 0 ? 0 : Math.max(rawCdMs, 15 * 60 * 1000);
         wsResp.week_count = wm.week_count;
         wsResp.month_count = wm.month_count;
-        wsResp.operated_count = await countStorePrefix(env, 'client_ops_all:' + wsSession.account_id + ':' + wsDate + ':');
+        wsResp.operated_count = await countStorePrefix(env, 'client_ops_profile:' + wsSession.account_id + ':' + wsDate + ':');
         wsResp.dialed_count = await countStorePrefix(env, 'client_ops_dial:' + wsSession.account_id + ':' + wsDate + ':');
         wsResp.week_operated_count = wsOps.week_operated_count;
         wsResp.month_operated_count = wsOps.month_operated_count;
@@ -3436,10 +3436,9 @@ export default {
         var transferredToPool = false;
         // 每个账号、日期、客户只写一次；重复复制/拨打不会重复累计
         if (cleanMobile) {
-          await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'all'), '1');
-          // 日报统计所有复制客户资料的操作（号码/姓名/单位/备注/公积金及添加VX），不统计单纯拨打。
-          if (entry.type === 'add_wechat' || /^copy_/.test(entry.type)) {
-            await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'copy'), '1');
+          // 只统计客户卡片上的姓名或单位名称复制；同一客户当天只写一条，重复复制不重复计数。
+          if (entry.type === 'copy_name' || entry.type === 'copy_company') {
+            await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'profile'), '1');
           }
           if (['dial', 'call_success', 'call_failed'].indexOf(entry.type) >= 0) {
             await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
