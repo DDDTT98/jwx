@@ -5222,23 +5222,78 @@
       return repaired;
     }
 
+    function renderRestoredDialerList() {
+      if (importedClients.length > 0) {
+        var repairedNoteCompanies = repairLegacyNoteCompanyFields(importedClients);
+        if (repairedNoteCompanies > 0) saveState();
+      }
+      updateDashboardVisibility(true);
+      renderDialCards();
+    }
+
+    // Refresh must verify ownership with the server before restoring a cached batch.
+    // If the 48-hour claim expired, clear the whole device list while keeping customers in the subaccount pool.
+    var _dialerBatchValidationPending = false;
+    function validatePersistedDialerBatch() {
+      if (_dialerBatchValidationPending || !Array.isArray(importedClients) || !importedClients.length || !_activeDialerBatchId) {
+        renderRestoredDialerList();
+        return Promise.resolve();
+      }
+      _dialerBatchValidationPending = true;
+      var url = '/api/dialer/batch-status?device_id=' + encodeURIComponent(_dialerDeviceId)
+        + '&batch_id=' + encodeURIComponent(_activeDialerBatchId);
+      return fetch(url, {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + getSessionToken() }
+      }).then(function(r) {
+        return r.json().then(function(body) {
+          if (!r.ok || !body || body.success !== true) {
+            throw new Error((body && body.error) || ('HTTP ' + r.status));
+          }
+          if (!body.active) {
+            importedClients = [];
+            try {
+              localStorage.setItem(CLIENTS_K, '[]');
+              localStorage.removeItem(ACTIVE_BATCH_ID_K);
+            } catch (e) {}
+            _activeDialerBatchId = '';
+          }
+          renderRestoredDialerList();
+        });
+      }).catch(function(err) {
+        // A network/auth failure is not proof of expiry; retain the cache and retry on next focus.
+        console.warn('[dialer] batch validation failed; cached list retained:', err);
+        renderRestoredDialerList();
+      }).then(function() {
+        _dialerBatchValidationPending = false;
+      });
+    }
+
     function loadPersistedState() {
       try {
         var saved = localStorage.getItem(CLIENTS_K);
         if (saved) {
           importedClients = JSON.parse(saved);
-          if (importedClients.length > 0) {
-            // 自动纠正历史 OCR 把完整单位名称误放入备注的记录；仅本地规则高置信命中才修改。
-            var repairedNoteCompanies = repairLegacyNoteCompanyFields(importedClients);
-            if (repairedNoteCompanies > 0) saveState();
-            updateDashboardVisibility(true);
-            renderDialCards();
+          if (!Array.isArray(importedClients)) importedClients = [];
+          if (importedClients.length > 0 && _activeDialerBatchId) {
+            // Do not render the cached list until the server confirms that this device still owns it.
+            validatePersistedDialerBatch();
+          } else {
+            renderRestoredDialerList();
           }
         }
       } catch (err) {
         console.error('Failed to load state:', err);
       }
     }
+
+    // Re-check an already-open page when the user returns after a long idle period.
+    window.addEventListener('focus', function() {
+      if (importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch();
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch();
+    });
 
     function saveState() {
       try {
