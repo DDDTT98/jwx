@@ -3171,7 +3171,7 @@ export default {
           const sb = createSupabaseClient(env);
           const result = await sb.claimCustomersForDialer(accountId, accountId, deviceId, batchId, limit, excludeMobiles, 600);
           if (result && result.error) throw new Error(result.error);
-          const data = result.data || [];
+          let data = result.data || [];
 
           // 子账号补充规则：先取本账号可拨数据；不足本批 50 条时，只从主账号补足差额。
           // 例如本账号可拨 30 条，仅补 20 条；已有 50 条则不向主账号请求。
@@ -3211,6 +3211,9 @@ export default {
               }
             }
           }
+
+          // 主账号自有客户与子账号补充客户合并后统一随机打乱，避免按导入顺序或来源顺序展示。
+          data = dialerShuffleArray(data);
 
           // 每次实际从主账号转入客户后，写入 Supabase 独立流水表，供数据库看板查询
           if (masterLoadedCount > 0 && env.SUPABASE_URL && env.SUPABASE_KEY) {
