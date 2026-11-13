@@ -1534,6 +1534,58 @@ export default {
       }
     }
 
+
+    // 数据库看板独立密码：主账号使用 Supabase 服务端哈希验证；子账号仅依赖自己的登录 PIN。
+    if (path === '/api/dialer/auth/dashboard-password' && request.method === 'POST') {
+      try {
+        var dpAuth = request.headers.get('Authorization') || '';
+        var dpToken = dpAuth.startsWith('Bearer ') ? dpAuth.slice(7) : '';
+        var dpSession = await dialerValidateSession(env, dpToken);
+        if (!dpSession) throw new Error('未登录');
+        var dpAccounts = await dialerGetAccounts(env);
+        var dpCaller = dpAccounts.find(function(a) { return a.account_id === dpSession.account_id; });
+        if (!dpCaller || dpCaller.active === false) throw new Error('账户不可用');
+        if (dpCaller.is_master === false) {
+          return new Response(JSON.stringify({ success: true, required: false }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        }
+        if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('数据库服务未配置');
+        var dpBody = await request.json();
+        var dpUrl = env.SUPABASE_URL.replace(/\\/$/, '') + '/rest/v1/dialer_dashboard_passwords?account_id=eq.' + encodeURIComponent(dpSession.account_id) + '&select=account_id,password_salt,password_hash';
+        var dpHeaders = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
+        var dpRead = await fetch(dpUrl, { headers: dpHeaders });
+        if (!dpRead.ok) throw new Error('读取看板密码失败');
+        var dpRows = await dpRead.json();
+        var dpRow = Array.isArray(dpRows) && dpRows.length ? dpRows[0] : null;
+        var dpAction = String(dpBody.action || 'verify');
+        var dpPassword = String(dpBody.password || '');
+        if (dpAction === 'set') {
+          if (dpRow) throw new Error('看板密码已设置，请输入现有密码');
+          if (!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(dpPassword)) throw new Error('密码必须为 8 位字母和数字组合');
+          var dpSaltBytes = new Uint8Array(16); crypto.getRandomValues(dpSaltBytes);
+          var dpSalt = Array.from(dpSaltBytes).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+          var dpKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
+          var dpBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpSalt), iterations: 180000, hash: 'SHA-256' }, dpKey, 256);
+          var dpHash = Array.from(new Uint8Array(dpBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+          var dpWrite = await fetch(env.SUPABASE_URL.replace(/\\/$/, '') + '/rest/v1/dialer_dashboard_passwords', {
+            method: 'POST', headers: Object.assign({}, dpHeaders, { 'Prefer': 'return=minimal' }),
+            body: JSON.stringify({ account_id: dpSession.account_id, password_salt: dpSalt, password_hash: dpHash })
+          });
+          if (!dpWrite.ok) throw new Error(dpWrite.status === 409 ? '看板密码已设置，请重新验证' : '保存看板密码失败');
+          return new Response(JSON.stringify({ success: true, configured: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        }
+        if (!dpRow) return new Response(JSON.stringify({ success: true, setup_required: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        if (!dpPassword) throw new Error('请输入数据库看板密码');
+        var dpVerifyKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
+        var dpVerifyBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpRow.password_salt), iterations: 180000, hash: 'SHA-256' }, dpVerifyKey, 256);
+        var dpVerifyHash = Array.from(new Uint8Array(dpVerifyBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        if (dpVerifyHash !== dpRow.password_hash) throw new Error('密码不正确，请重新输入');
+        return new Response(JSON.stringify({ success: true, verified: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+      } catch (e) {
+        var dpStatus = e.message === '未登录' ? 401 : (e.message === '账户不可用' ? 403 : 400);
+        return new Response(JSON.stringify({ success: false, error: e.message || '看板密码验证失败' }), { status: dpStatus, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+      }
+    }
+
     // ==================== Stats API ====================
 
     // GET /api/dialer/accounts — 账号列表（所有已登录账号可用，用于数据分配目标选择；不含统计数据）
