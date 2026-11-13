@@ -8750,6 +8750,13 @@
 
     var _dialerListScrollRestoredKey = '';
 
+    // 拨号列表姓名脱敏：列表只显示首字，其余字符以星号代替；真实姓名仍保留在数据和复制属性中。
+    function maskDialerName(name) {
+      var value = String(name || '');
+      if (!value) return '';
+      return value.charAt(0) + '*'.repeat(Math.max(0, value.length - 1));
+    }
+
     function renderDialCards() {
       ensureWhitelistCompaniesLoaded();
       syncRefreshBatchButton();
@@ -8884,7 +8891,7 @@
             '<div class="client-card-top">' +
               '<div class="client-card-primary" style="display: flex; align-items: center; width: 100%; gap: 6px;">' +
                 '<span class="corner-seq"><span>' + seq + '</span></span>' +
-                '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(c.name) : '☆') + '</span>' +
+                '<span class="client-card-name-btn" data-name="' + esc(c.name || '') + '" data-idx="' + i + '" title="点击复制姓名" style="flex: 0 0 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; cursor:pointer;">' + (showClientInfo ? esc(maskDialerName(c.name)) : '☆') + '</span>' +
                 '<span class="client-card-phone-wrap" style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; min-width: 0;">' +
                   '<a href="' + getWechatLaunchUrl() + '" class="' + phoneClass + '" data-phone="' + esc(phoneVal) + '" data-idx="' + i + '" title="' + (showClientInfo ? '点击复制号码' : '点击添加微信') + '" style="font-size: 0.82rem;cursor:pointer;text-decoration:none;' + (c.phone_copied ? 'color:#e53935 !important;font-weight:800 !important;text-shadow:0 0 6px rgba(229,57,53,.14);' : '') + '">' + (showClientInfo ? esc(maskPhone(phoneVal)) : (c.phone_copied ? '已添加' : '添加VX')) + '</a>' +
                   (function() {
@@ -9034,7 +9041,7 @@
             // 复制姓名只反馈姓名自身，不改变“添加VX/已添加”的状态与颜色。
 
             setTimeout(function() {
-              b.textContent = name;
+              b.textContent = showClientInfo ? maskDialerName(name) : '☆';
               b.style.color = oldColor;
             }, 1000);
           });
@@ -9201,7 +9208,7 @@
           return '<tr class="' + rowClass + '" data-idx="' + idx + '">' +
             '<td class="col-no">' + rowNo + '</td>' +
             '<td class="col-status">' + badgeHtml + '</td>' +
-            '<td class="col-name"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc(c.name||'') : '☆') + '" title="点击复制">' + (showClientInfo ? esc(c.name||'-') : '☆') + '</span></td>' +
+            '<td class="col-name"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc(c.name||'') : '☆') + '" title="点击复制">' + (showClientInfo ? esc(maskDialerName(c.name||'-')) : '☆') + '</span></td>' +
             '<td class="col-phone"><span class="crm-copy-btn' + (c.phone_copied ? ' copied-phone' : '') + '" data-copy="' + esc(phoneVal) + '" title="点击复制">' + esc(phoneVal ? maskPhone(phoneVal) : '-') + '</span></td>' +
             '<td class="col-company"><span class="crm-copy-btn" data-copy="' + (showClientInfo ? esc((c.name && c.name !== '-' ? c.name + ' ' : '') + (c.company||'')) : esc(c.note||'')) + '"' + (showClientInfo ? '' : ' style="font-size:14px;font-weight:800;padding:8px 13px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;"') + '>' + (showClientInfo ? esc(c.company||'-') : '复制备注') + '</span>' + (showClientInfo ? wlBadge : '') + '</td>' +
             '<td class="col-note">' + (showClientInfo ? esc(c.note||'-') : '☆') + '</td>' +
