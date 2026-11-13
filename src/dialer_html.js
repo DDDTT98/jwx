@@ -929,9 +929,7 @@
     }
     /* Global wallpaper — shared by main interface & lock screen */
     .global-wallpaper {
-      /* 主拨号列表不显示全屏壁纸层，避免任何图片层遮挡客户卡片或拦截操作 */
-      display: none !important;
-      pointer-events: none;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background-size: cover; background-position: center;
       background-image: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       z-index: 0; opacity: 1;
