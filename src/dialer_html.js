@@ -4157,7 +4157,12 @@
     var ACTIVE_BATCH_ID_K = 'standalone_dialer_active_batch_id';
     var _dialerDeviceId = getOrCreateDeviceId();
     var _activeDialerBatchId = '';
-    try { _activeDialerBatchId = localStorage.getItem(ACTIVE_BATCH_ID_K) || ''; } catch (e) {}
+    function getClientsStorageKey() {
+      return CLIENTS_K + ':' + encodeURIComponent(getSessionAccountId() || 'anonymous');
+    }
+    function getActiveBatchStorageKey() {
+      return ACTIVE_BATCH_ID_K + ':' + encodeURIComponent(getSessionAccountId() || 'anonymous');
+    }
     function getActiveDialerBatchId() { return _activeDialerBatchId; }
     function getOrCreateDeviceId() {
       try {
@@ -4173,7 +4178,7 @@
     }
     function createDialerBatchId() {
       _activeDialerBatchId = 'batch_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
-      try { localStorage.setItem(ACTIVE_BATCH_ID_K, _activeDialerBatchId); } catch (e) {}
+      try { localStorage.setItem(getActiveBatchStorageKey(), _activeDialerBatchId); } catch (e) {}
       return _activeDialerBatchId;
     }
 
@@ -4288,6 +4293,11 @@
     if(!window._bhpDeviceHeartbeatTimer){sendDeviceHeartbeat();window._bhpDeviceHeartbeatTimer=setInterval(sendDeviceHeartbeat,15000);}
 
     function saveSession(acct) {
+      var previousAccountId = getSessionAccountId();
+      if (previousAccountId && previousAccountId !== String(acct.account_id || '')) {
+        // Persist the previous account before switching the active storage namespace.
+        saveState();
+      }
       localStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
       localStorage.setItem(SESS_AID_K, acct.account_id || '');
       localStorage.setItem(SESS_MASTER_K, acct.is_master ? '1' : '0');
@@ -5247,13 +5257,72 @@
       renderDialCards();
     }
 
-    // Refresh must verify ownership with the server before restoring a cached batch.
-    // If the 48-hour claim expired, clear the whole device list while keeping customers in the subaccount pool.
+    // Account-scoped browser cache. A login switch must never validate or clear another account's batch.
     var _dialerBatchValidationPending = false;
-    function validatePersistedDialerBatch() {
-      if (_dialerBatchValidationPending || !Array.isArray(importedClients) || !importedClients.length || !_activeDialerBatchId) {
+    var _dialerStateLoadVersion = 0;
+
+    function restoreActiveDialerBatchFromCloud(loadVersion) {
+      var token = getSessionToken();
+      if (!token || !getSessionAccountId()) {
         renderRestoredDialerList();
         return Promise.resolve();
+      }
+      var url = '/api/dialer/restore-batch?device_id=' + encodeURIComponent(_dialerDeviceId);
+      return fetch(url, {
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function(r) {
+        return r.json().then(function(body) {
+          if (loadVersion !== _dialerStateLoadVersion) return;
+          if (!r.ok || !body || body.success !== true) {
+            throw new Error((body && body.error) || ('HTTP ' + r.status));
+          }
+          var rows = Array.isArray(body.data) ? body.data : [];
+          if (!rows.length || !body.batch_id) {
+            renderRestoredDialerList();
+            return;
+          }
+          importedClients = rows.map(function(c) {
+            var noteObj = {};
+            var noteRaw = String(c.note || '').trim();
+            if (noteRaw.indexOf('{') === 0) {
+              try { noteObj = JSON.parse(noteRaw); } catch (e) { noteObj = { note: noteRaw }; }
+            } else {
+              noteObj = { note: noteRaw };
+            }
+            return {
+              name: c.name || '未知',
+              phone: c.mobile || '',
+              mobile: c.mobile || '',
+              company: c.company_name || '',
+              note: noteObj.note || '',
+              custom: noteObj.custom || '',
+              fund: c.fund || noteObj.fund || '',
+              storage_institution: c.storage_institution || c.storageInstitution || '',
+              whitelist_name: '',
+              category: c.category || '',
+              batch_label: c.batch_label || '',
+              dialedStatus: 'todo',
+              dialedAt: null
+            };
+          });
+          for (var i = 0; i < importedClients.length; i++) sanitizeClientFields(importedClients[i]);
+          _activeDialerBatchId = String(body.batch_id);
+          try { localStorage.setItem(getActiveBatchStorageKey(), _activeDialerBatchId); } catch (e) {}
+          saveState();
+          renderRestoredDialerList();
+          showCopyLimitToast('已从云端恢复 ' + importedClients.length + ' 位未添加客户', true);
+        });
+      }).catch(function(err) {
+        if (loadVersion !== _dialerStateLoadVersion) return;
+        console.warn('[dialer] cloud batch restore failed:', err);
+        renderRestoredDialerList();
+      });
+    }
+
+    function validatePersistedDialerBatch(loadVersion) {
+      if (_dialerBatchValidationPending || !Array.isArray(importedClients) || !importedClients.length || !_activeDialerBatchId) {
+        return restoreActiveDialerBatchFromCloud(loadVersion);
       }
       _dialerBatchValidationPending = true;
       var url = '/api/dialer/batch-status?device_id=' + encodeURIComponent(_dialerDeviceId)
@@ -5263,57 +5332,82 @@
         headers: { 'Authorization': 'Bearer ' + getSessionToken() }
       }).then(function(r) {
         return r.json().then(function(body) {
+          if (loadVersion !== _dialerStateLoadVersion) return;
           if (!r.ok || !body || body.success !== true) {
             throw new Error((body && body.error) || ('HTTP ' + r.status));
           }
           if (!body.active) {
             importedClients = [];
             try {
-              localStorage.setItem(CLIENTS_K, '[]');
-              localStorage.removeItem(ACTIVE_BATCH_ID_K);
+              localStorage.setItem(getClientsStorageKey(), '[]');
+              localStorage.removeItem(getActiveBatchStorageKey());
             } catch (e) {}
             _activeDialerBatchId = '';
+            return restoreActiveDialerBatchFromCloud(loadVersion);
           }
           renderRestoredDialerList();
         });
       }).catch(function(err) {
-        // A network/auth failure is not proof of expiry; retain the cache and retry on next focus.
+        if (loadVersion !== _dialerStateLoadVersion) return;
+        // A network/auth failure is not proof of expiry; retain the account-scoped cache.
         console.warn('[dialer] batch validation failed; cached list retained:', err);
         renderRestoredDialerList();
       }).then(function() {
-        _dialerBatchValidationPending = false;
+        if (loadVersion === _dialerStateLoadVersion) _dialerBatchValidationPending = false;
       });
     }
 
     function loadPersistedState() {
+      var loadVersion = ++_dialerStateLoadVersion;
+      _dialerBatchValidationPending = false;
+      importedClients = [];
+      _activeDialerBatchId = '';
       try {
-        var saved = localStorage.getItem(CLIENTS_K);
-        if (saved) {
-          importedClients = JSON.parse(saved);
-          if (!Array.isArray(importedClients)) importedClients = [];
-          if (importedClients.length > 0 && _activeDialerBatchId) {
-            // Do not render the cached list until the server confirms that this device still owns it.
-            validatePersistedDialerBatch();
-          } else {
-            renderRestoredDialerList();
+        var accountClientsKey = getClientsStorageKey();
+        var accountBatchKey = getActiveBatchStorageKey();
+        var saved = localStorage.getItem(accountClientsKey);
+        var batchId = localStorage.getItem(accountBatchKey) || '';
+
+        // One-time compatibility copy from the pre-fix shared keys. Ownership is still
+        // verified against the signed-in account before the list can be used.
+        if (saved === null) {
+          var legacySaved = localStorage.getItem(CLIENTS_K);
+          var legacyBatch = localStorage.getItem(ACTIVE_BATCH_ID_K) || '';
+          if (legacySaved !== null) {
+            saved = legacySaved;
+            batchId = legacyBatch;
+            localStorage.setItem(accountClientsKey, legacySaved);
+            if (legacyBatch) localStorage.setItem(accountBatchKey, legacyBatch);
           }
         }
+
+        _activeDialerBatchId = batchId;
+        if (saved !== null) {
+          importedClients = JSON.parse(saved);
+          if (!Array.isArray(importedClients)) importedClients = [];
+        }
+        if (importedClients.length > 0 && _activeDialerBatchId) {
+          validatePersistedDialerBatch(loadVersion);
+        } else {
+          restoreActiveDialerBatchFromCloud(loadVersion);
+        }
       } catch (err) {
-        console.error('Failed to load state:', err);
+        console.error('Failed to load account dialer state:', err);
+        restoreActiveDialerBatchFromCloud(loadVersion);
       }
     }
 
-    // Re-check an already-open page when the user returns after a long idle period.
+    // Re-check only the currently signed-in account's list when returning to the page.
     window.addEventListener('focus', function() {
-      if (importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch();
+      if (importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch(_dialerStateLoadVersion);
     });
     document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch();
+      if (!document.hidden && importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch(_dialerStateLoadVersion);
     });
 
     function saveState() {
       try {
-        localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+        localStorage.setItem(getClientsStorageKey(), JSON.stringify(importedClients));
       } catch (err) {
         console.error('Failed to save state:', err);
       }
@@ -12367,7 +12461,7 @@ function updateAutoDialBtn() {
                   sanitizeClientFields(importedClients[si]);
                 }
 
-                localStorage.setItem(CLIENTS_K, JSON.stringify(importedClients));
+                localStorage.setItem(getClientsStorageKey(), JSON.stringify(importedClients));
                 renderDialCards();
                 updateStats();
                 if (Number(res.master_loaded || 0) > 0 && Number(res.master_daily_remaining) === 0) {
@@ -14698,6 +14792,8 @@ function updateAutoDialBtn() {
       document.getElementById('authLoginOverlay').classList.add('auth-hidden');
       document.getElementById('authSetupOverlay').classList.add('auth-hidden');
       document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
+      // Switch the visible dialer list to the signed-in account's own cache / cloud claim.
+      loadPersistedState();
       // Load dynamic configs
       loadReminderConfig();
       fetchWorkStats(); // 拉取云端工作数据（Supabase，按账号，实时同步）
@@ -15376,7 +15472,6 @@ function updateAutoDialBtn() {
       if (window._reminderTimer) { clearInterval(window._reminderTimer); window._reminderTimer = null; }
     })();
 
-    safeInit('loadPersistedState', loadPersistedState);
     safeInit('initCustViewer', initCustViewer);
     safeInit('initAccountMgrPanel', initAccountMgrPanel);
     safeInit('initBackupMgrPanel', initBackupMgrPanel);
