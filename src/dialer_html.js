@@ -3129,7 +3129,7 @@
         <div style="padding:30px 10px;text-align:center;color:var(--text-light);font-size:.85rem;">正在加载数据…</div>
       </div>
       <div style="padding:9px 16px 13px;border-top:1px solid var(--card-border);font-size:.68rem;line-height:1.5;color:var(--text-light);">
-        添加次数按已添加微信的客户数统计；添加轮数按云端每日轮数累计；剩余数量为当前未添加、非公海客户库存。统计时间按北京时间。
+        添加次数按姓名/单位已操作的客户数统计，同一客户在对应周期内按手机号去重；添加轮数按云端每日轮数累计；剩余数量为当前未添加、非公海客户库存。统计时间按北京时间。
       </div>
     </div>
   </div>
@@ -14073,17 +14073,16 @@ function updateAutoDialBtn() {
         return;
       }
       var totals = { add:0, operated:0, rounds:0, supplement:0, remaining:0 };
-      var html = '<div style="overflow-x:auto;"><table style="width:100%;min-width:660px;border-collapse:collapse;font-size:.78rem;color:var(--text-main);"><thead><tr style="color:var(--text-light);text-align:left;border-bottom:1px solid var(--card-border);"><th style="padding:10px 7px;font-weight:750;">子账户</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加次数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">姓名/单位复制</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加轮数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">主账号补充</th><th style="padding:10px 7px;text-align:right;font-weight:750;">剩余数量</th></tr></thead><tbody>';
+      var html = '<div style="overflow-x:auto;"><table style="width:100%;min-width:660px;border-collapse:collapse;font-size:.78rem;color:var(--text-main);"><thead><tr style="color:var(--text-light);text-align:left;border-bottom:1px solid var(--card-border);"><th style="padding:10px 7px;font-weight:750;">子账户</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加次数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加轮数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">主账号补充</th><th style="padding:10px 7px;text-align:right;font-weight:750;">剩余数量</th></tr></thead><tbody>';
       rows.forEach(function(row) {
         var add = Number(row['add_' + suffix] || 0);
-        var operated = Number(row['operated_' + suffix] || 0);
         var rounds = Number(row['rounds_' + suffix] || 0);
         var supplement = Number(row['master_supplement_' + suffix] || 0);
         var remaining = Number(row.remaining_count || 0);
-        totals.add += add; totals.operated += operated; totals.rounds += rounds; totals.supplement += supplement; totals.remaining += remaining;
-        html += '<tr style="border-bottom:1px solid var(--card-border);"><td style="padding:12px 7px;font-weight:750;white-space:nowrap;">' + escHtml(String(row.account_name || '未命名账户')) + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + add + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;font-weight:800;">' + operated + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + rounds + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + supplement + '</td><td style="padding:12px 7px;text-align:right;font-weight:850;font-variant-numeric:tabular-nums;">' + remaining + '</td></tr>';
+        totals.add += add; totals.rounds += rounds; totals.supplement += supplement; totals.remaining += remaining;
+        html += '<tr style="border-bottom:1px solid var(--card-border);"><td style="padding:12px 7px;font-weight:750;white-space:nowrap;">' + escHtml(String(row.account_name || '未命名账户')) + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + add + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + rounds + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + supplement + '</td><td style="padding:12px 7px;text-align:right;font-weight:850;font-variant-numeric:tabular-nums;">' + remaining + '</td></tr>';
       });
-      html += '</tbody><tfoot><tr style="background:var(--btn-bg);font-weight:850;"><td style="padding:12px 7px;">合计</td><td style="padding:12px 7px;text-align:center;">' + totals.add + '</td><td style="padding:12px 7px;text-align:center;">' + totals.operated + '</td><td style="padding:12px 7px;text-align:center;">' + totals.rounds + '</td><td style="padding:12px 7px;text-align:center;">' + totals.supplement + '</td><td style="padding:12px 7px;text-align:right;">' + totals.remaining + '</td></tr></tfoot></table></div>';
+      html += '</tbody><tfoot><tr style="background:var(--btn-bg);font-weight:850;"><td style="padding:12px 7px;">合计</td><td style="padding:12px 7px;text-align:center;">' + totals.add + '</td><td style="padding:12px 7px;text-align:center;">' + totals.rounds + '</td><td style="padding:12px 7px;text-align:center;">' + totals.supplement + '</td><td style="padding:12px 7px;text-align:right;">' + totals.remaining + '</td></tr></tfoot></table></div>';
       content.innerHTML = html;
     }
     function openConsumptionStats() {
