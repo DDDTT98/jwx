@@ -11307,7 +11307,6 @@ function updateAutoDialBtn() {
       }
       if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
       input.value = '';
-      input.placeholder = '8 位字母+数字';
       error.textContent = '';
       error.style.display = 'none';
       overlay.style.setProperty('display', 'flex', 'important');
