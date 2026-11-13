@@ -11352,23 +11352,13 @@ function updateAutoDialBtn() {
 
     function openDBDashboard(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
-      if (dbPwdSessionAuthed) {
-        _openDBDashboardInner();
+      // 数据库看板统一使用当前账号 PIN 登录会话，不再接受浏览器本地共享密码。
+      if (!getSessionToken() || !getSessionAccountId()) {
+        if (typeof showAuthScreen === 'function') showAuthScreen();
         return;
       }
-      var savedHash = getDbPassword();
-      if (!savedHash) {
-        // First time: must set password
-        showDbPasswordGate(function() {
-          dbPwdSessionAuthed = true;
-          _openDBDashboardInner();
-        });
-        return;
-      }
-      showDbPasswordGate(function() {
-        dbPwdSessionAuthed = true;
-        _openDBDashboardInner();
-      });
+      dbPwdSessionAuthed = true;
+      _openDBDashboardInner();
     }
 
     var _viewAccountId = '';
