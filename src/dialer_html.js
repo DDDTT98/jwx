@@ -3791,6 +3791,18 @@
         <button id="dbChangePinBtn" class="btn-secondary" style="padding:0 12px; height:32px; font-size:0.72rem;">修改</button>
       </div>
       <div id="dbChangePinError" style="font-size:0.62rem; min-height:16px;"></div>
+
+      <div id="dbDashboardPwdSettings" style="display:none;flex-direction:column;gap:7px;border-top:0.5px solid var(--card-border);padding-top:12px;">
+        <div style="font-size:0.85rem;font-weight:900;color:var(--text-main);">数据库看板独立密码</div>
+        <div style="font-size:0.68rem;line-height:1.5;color:var(--text-light);">仅主账户使用。密码哈希保存在 Supabase，服务端验证，所有设备共用，不保存在浏览器本地。</div>
+        <div style="display:flex;gap:6px;">
+          <input type="password" id="dbDashboardPwdOld" maxlength="8" placeholder="当前看板密码" autocomplete="current-password" style="flex:1;min-width:0;height:34px;padding:0 8px;font-size:.75rem;border:0.5px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);" readonly onfocus="this.removeAttribute('readonly')">
+          <input type="password" id="dbDashboardPwdNew" maxlength="8" placeholder="新 8 位字母+数字" autocomplete="new-password" style="flex:1;min-width:0;height:34px;padding:0 8px;font-size:.75rem;border:0.5px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);" readonly onfocus="this.removeAttribute('readonly')">
+        </div>
+        <button id="dbDashboardPwdSave" type="button" class="btn-secondary" style="height:34px;font-size:.72rem;">修改看板密码</button>
+        <div id="dbDashboardPwdStatus" style="font-size:.62rem;min-height:16px;"></div>
+      </div>
+
       <div style="border-top:0.5px solid var(--card-border);padding-top:12px;display:flex;flex-direction:column;gap:7px;">
         <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:900;color:var(--text-main);">
           <input type="checkbox" id="db2faToggle" style="width:17px;height:17px;accent-color:var(--accent-wechat);"> 启用 2FA 双重验证
@@ -11290,9 +11302,10 @@ function updateAutoDialBtn() {
     }
 
     // ====== Database Password Gate (Supabase server-side) ======
+    try { localStorage.removeItem('db_access_pwd_hash'); } catch (_) {}
     var dbPwdCallback = null;
 
-    function showDbPasswordGate(callback) {
+    function showDbPasswordGate(callback, isSetup) {
       dbPwdCallback = callback;
       var overlay = document.getElementById('dbPwdOverlay');
       var input = document.getElementById('dbPwdInput');
@@ -11307,9 +11320,10 @@ function updateAutoDialBtn() {
       }
       if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
       input.value = '';
-      input.placeholder = '8 位字母+数字';
-      error.textContent = '';
-      error.style.display = 'none';
+      input.placeholder = isSetup ? '首次设置 8 位密码' : '8 位字母+数字';
+      input.autocomplete = isSetup ? 'new-password' : 'current-password';
+      error.textContent = isSetup ? '首次使用，请设置 8 位字母和数字组合密码' : '';
+      error.style.display = isSetup ? 'block' : 'none';
       overlay.style.setProperty('display', 'flex', 'important');
       overlay.style.setProperty('position', 'fixed', 'important');
       overlay.style.setProperty('inset', '0', 'important');
@@ -11321,10 +11335,9 @@ function updateAutoDialBtn() {
       setTimeout(focusInput, 60);
 
       async function requestPassword(action, password) {
-        var token = getSessionToken();
         var response = await fetch('/api/dialer/auth/dashboard-password', {
           method: 'POST', cache: 'no-store',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
           body: JSON.stringify({ action: action, password: password || '' })
         });
         var result = await response.json().catch(function() { return {}; });
@@ -11369,12 +11382,29 @@ function updateAutoDialBtn() {
       cancelBtn.onclick = function() { closeDbPasswordGate(); dbPwdCallback = null; };
     }
 
+    function ensureDbDashboardAccess(callback) {
+      if (!getSessionToken() || !getSessionAccountId()) {
+        if (typeof showAuthScreen === 'function') showAuthScreen();
+        return;
+      }
+      fetch('/api/dialer/auth/dashboard-password', {
+        method: 'POST', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getSessionToken() },
+        body: JSON.stringify({ action: 'status' })
+      }).then(function(r) {
+        return r.json().then(function(data) { if (!r.ok || !data.success) throw new Error(data.error || '无法读取看板权限'); return data; });
+      }).then(function(data) {
+        if (!data.required || data.authorized) { callback(); return; }
+        showDbPasswordGate(callback, !data.configured);
+      }).catch(function(e) {
+        var notice = document.getElementById('bootFallbackNotice');
+        if (notice) { notice.style.display = 'block'; notice.textContent = e.message || '数据库看板权限验证失败，请重试。'; }
+      });
+    }
+
     function closeDbPasswordGate() {
       var overlay = document.getElementById('dbPwdOverlay');
-      if (overlay) {
-        overlay.classList.remove('active');
-        setTimeout(function() { overlay.style.display = 'none'; }, 250);
-      }
+      if (overlay) { overlay.classList.remove('active'); setTimeout(function() { overlay.style.display = 'none'; }, 250); }
     }
 
     // 批量删除 — 无需密码验证
@@ -11436,16 +11466,7 @@ function updateAutoDialBtn() {
 
     function openDBDashboard(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
-      if (!getSessionToken() || !getSessionAccountId()) {
-        if (typeof showAuthScreen === 'function') showAuthScreen();
-        return;
-      }
-      // 子账号仅凭自己的 PIN 会话进入自己的看板；主账号必须额外验证独立看板密码。
-      if (!isSessionMaster()) {
-        _openDBDashboardInner();
-        return;
-      }
-      showDbPasswordGate(function() { _openDBDashboardInner(); });
+      ensureDbDashboardAccess(function(){ _openDBDashboardInner(); });
     }
 
     var _viewAccountId = '';
@@ -11455,6 +11476,8 @@ function updateAutoDialBtn() {
       var controls = document.getElementById('dbAccountViewControls');
       var sel = document.getElementById('dbViewAccountSel');
       var migrateBtn = document.getElementById('dbMigrateBtn');
+      var dashboardPwdSettings = document.getElementById('dbDashboardPwdSettings');
+      if (dashboardPwdSettings) dashboardPwdSettings.style.display = isSessionMaster() ? 'flex' : 'none';
       if (!isSessionMaster()) {
         if (controls) controls.style.display = 'none';
         return;
@@ -11768,19 +11791,14 @@ function updateAutoDialBtn() {
     function openDBMobile() {
       var ov = document.getElementById('dbOverlay');
       if (!ov) return;
-      // #dbm 直达入口同样必须已有本账号 PIN 登录会话。
-      if (!getSessionToken() || !getSessionAccountId()) {
-        if (typeof showAuthScreen === 'function') showAuthScreen();
-        return;
-      }
-      syncManagerTabVisibility();
-      ov.classList.add('mobile-layout');
-      ov.classList.add('active');
-      // 旧版独立精简界面不再作为主入口，避免功能缺失与两套数据状态不一致。
-      var legacyMobile = document.getElementById('dbMobileOverlay');
-      if (legacyMobile) legacyMobile.classList.remove('active');
-      // 进入时维持当前筛选/分页/勾选状态；只有尚未加载数据时才请求。
-      if (!DB.allData || !DB.allData.length) dbFetch();
+      ensureDbDashboardAccess(function() {
+        syncManagerTabVisibility();
+        ov.classList.add('mobile-layout');
+        ov.classList.add('active');
+        var legacyMobile = document.getElementById('dbMobileOverlay');
+        if (legacyMobile) legacyMobile.classList.remove('active');
+        if (!DB.allData || !DB.allData.length) dbFetch();
+      });
     }
     window.openDBMobile = openDBMobile;
 
@@ -13522,16 +13540,19 @@ function updateAutoDialBtn() {
         });
       }
 
-      // Database dashboard password: this is a browser-local gate, separate from account PIN.
+      // Database dashboard password: update the shared Supabase record through the Worker.
       var dbPwdSave=document.getElementById('dbDashboardPwdSave');
       if(dbPwdSave) dbPwdSave.addEventListener('click',function(){
         var oldPwd=document.getElementById('dbDashboardPwdOld').value.trim(), newPwd=document.getElementById('dbDashboardPwdNew').value.trim();
-        var status=document.getElementById('dbDashboardPwdStatus'), saved=getDbPassword();
+        var status=document.getElementById('dbDashboardPwdStatus');
         status.style.color='#e74c3c';
-        if(!oldPwd||hashPwd(oldPwd)!==saved){status.textContent='当前看板密码不正确';return;}
         if(!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(newPwd)){status.textContent='新密码必须为 8 位字母和数字组合';return;}
-        try{localStorage.setItem(DB_PWD_K,hashPwd(newPwd));status.style.color='#07c160';status.textContent='看板密码修改成功（仅当前浏览器）';document.getElementById('dbDashboardPwdOld').value='';document.getElementById('dbDashboardPwdNew').value='';}
-        catch(e){status.textContent='保存失败，请检查浏览器存储权限';}
+        dbPwdSave.disabled=true; status.textContent='正在通过数据库验证并保存...';
+        fetch('/api/dialer/auth/dashboard-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+getSessionToken()},body:JSON.stringify({action:'change',old_password:oldPwd,new_password:newPwd}),cache:'no-store'})
+        .then(function(r){return r.json().then(function(data){if(!r.ok||!data.success)throw new Error(data.error||'修改失败');return data;});})
+        .then(function(){status.style.color='#07c160';status.textContent='数据库看板密码已更新，所有设备即时生效';document.getElementById('dbDashboardPwdOld').value='';document.getElementById('dbDashboardPwdNew').value='';})
+        .catch(function(e){status.textContent=e.message||'修改失败';})
+        .finally(function(){dbPwdSave.disabled=false;});
       });
 
       // Account TOTP 2FA settings

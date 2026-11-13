@@ -112,6 +112,20 @@ async function dialerValidateSession(env, token) {
   return session;
 }
 
+
+async function dialerDashboardPasswordDigest(password, saltHex) {
+  var key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  var bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(saltHex), iterations: 180000, hash: 'SHA-256' }, key, 256);
+  return Array.from(new Uint8Array(bits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+function dialerDashboardPasswordEquals(a, b) {
+  a = String(a || ''); b = String(b || '');
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 async function listDialerDeviceSessions(env) {
   var url = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_sessions?select=session_token,payload,created_at,expires_at&order=created_at.desc&limit=1000';
   var resp = await fetch(url, { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY } });
@@ -1317,6 +1331,7 @@ export default {
         var aa=await dialerGetAccounts(env), caller=aa.find(function(a){return a.account_id===ss.account_id;});
         if(!caller || caller.active===false) throw new Error('账户不可用');
         var role=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        if (role === 'master' && (!Number(ss.dashboard_auth_until) || Number(ss.dashboard_auth_until) <= Date.now())) throw new Error('数据库看板授权已过期，请先验证密码');
         var visible=aa.filter(function(a){return role==='master' || (role==='manager' && (a.account_id===caller.account_id || a.parent_account_id===caller.account_id)) || (role==='member' && a.account_id===caller.account_id);});
         var root=aa.find(function(a){return a.is_master!==false;});
         return new Response(JSON.stringify({accounts:visible.map(function(a){return {
@@ -1453,6 +1468,7 @@ export default {
         var dSession=await dialerValidateSession(env,dToken); if(!dSession) throw new Error('未登录');
         var dAccounts=await dialerGetAccounts(env), dCaller=dAccounts.find(function(a){return a.account_id===dSession.account_id;});
         if(!dCaller || dCaller.is_master===false) throw new Error('只有主账号可以查看设备');
+        if (!Number(dSession.dashboard_auth_until) || Number(dSession.dashboard_auth_until) <= Date.now()) throw new Error('数据库看板授权已过期，请先验证密码');
         var childMap={}; dAccounts.forEach(function(a){if(a.is_master===false)childMap[a.account_id]=a;});
         var dRows=await listDialerDeviceSessions(env), nowMs=Date.now();
         var devices=await Promise.all(dRows.filter(function(row){var p=row.payload||{};return !!childMap[p.account_id]&&!!p.device_id;}).map(async function(row){
@@ -1472,6 +1488,7 @@ export default {
         var kSession=await dialerValidateSession(env,kToken); if(!kSession) throw new Error('未登录');
         var kAccounts=await dialerGetAccounts(env), kCaller=kAccounts.find(function(a){return a.account_id===kSession.account_id;});
         if(!kCaller || kCaller.is_master===false) throw new Error('只有主账号可以强制下线设备');
+        if (!Number(kSession.dashboard_auth_until) || Number(kSession.dashboard_auth_until) <= Date.now()) throw new Error('数据库看板授权已过期，请先验证密码');
         var kBody=await request.json();
         var kRows=await listDialerDeviceSessions(env);
         if (kBody.account_id && kBody.device_id && typeof kBody.banned === 'boolean') {
@@ -1535,7 +1552,8 @@ export default {
     }
 
 
-    // 数据库看板独立密码：主账号使用 Supabase 服务端哈希验证；子账号仅依赖自己的登录 PIN。
+
+    // 数据库看板独立密码：密码哈希只存 Supabase，授权状态只存服务端登录会话。
     if (path === '/api/dialer/auth/dashboard-password' && request.method === 'POST') {
       try {
         var dpAuth = request.headers.get('Authorization') || '';
@@ -1550,36 +1568,68 @@ export default {
         }
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('数据库服务未配置');
         var dpBody = await request.json();
-        var dpUrl = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_dashboard_passwords?account_id=eq.' + encodeURIComponent(dpSession.account_id) + '&select=account_id,password_salt,password_hash';
+        var dpBase = env.SUPABASE_URL.replace(/\/$/, '');
+        var dpUrl = dpBase + '/rest/v1/dialer_dashboard_passwords?account_id=eq.' + encodeURIComponent(dpSession.account_id) + '&select=account_id,password_salt,password_hash';
         var dpHeaders = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
-        var dpRead = await fetch(dpUrl, { headers: dpHeaders });
+        var dpRead = await fetch(dpUrl, { headers: dpHeaders, cache: 'no-store' });
         if (!dpRead.ok) throw new Error('读取看板密码失败');
         var dpRows = await dpRead.json();
         var dpRow = Array.isArray(dpRows) && dpRows.length ? dpRows[0] : null;
         var dpAction = String(dpBody.action || 'verify');
-        var dpPassword = String(dpBody.password || '');
+        var dpPassword = String(dpBody.password || '').trim();
+
+        if (dpAction === 'status') {
+          return new Response(JSON.stringify({
+            success: true, required: true, configured: !!dpRow,
+            authorized: Number(dpSession.dashboard_auth_until) > Date.now()
+          }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        }
+
         if (dpAction === 'set') {
           if (dpRow) throw new Error('看板密码已设置，请输入现有密码');
           if (!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(dpPassword)) throw new Error('密码必须为 8 位字母和数字组合');
           var dpSaltBytes = new Uint8Array(16); crypto.getRandomValues(dpSaltBytes);
           var dpSalt = Array.from(dpSaltBytes).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-          var dpKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
-          var dpBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpSalt), iterations: 180000, hash: 'SHA-256' }, dpKey, 256);
-          var dpHash = Array.from(new Uint8Array(dpBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-          var dpWrite = await fetch(env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_dashboard_passwords', {
+          var dpHash = await dialerDashboardPasswordDigest(dpPassword, dpSalt);
+          var dpWrite = await fetch(dpBase + '/rest/v1/dialer_dashboard_passwords', {
             method: 'POST', headers: Object.assign({}, dpHeaders, { 'Prefer': 'return=minimal' }),
             body: JSON.stringify({ account_id: dpSession.account_id, password_salt: dpSalt, password_hash: dpHash })
           });
           if (!dpWrite.ok) throw new Error(dpWrite.status === 409 ? '看板密码已设置，请重新验证' : '保存看板密码失败');
-          return new Response(JSON.stringify({ success: true, configured: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+          dpSession.dashboard_auth_until = Date.now() + 30 * 60 * 1000;
+          await env.DATA_STORE.put('dialer:session:' + dpToken, JSON.stringify(dpSession));
+          return new Response(JSON.stringify({ success: true, configured: true, verified: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
         }
+
+        if (dpAction === 'change') {
+          if (!dpRow) throw new Error('尚未设置数据库看板密码，请先进入看板完成首次设置');
+          var dpOldPassword = String(dpBody.old_password || '').trim();
+          var dpNewPassword = String(dpBody.new_password || '').trim();
+          if (!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(dpNewPassword)) throw new Error('新密码必须为 8 位字母和数字组合');
+          var dpOldHash = await dialerDashboardPasswordDigest(dpOldPassword, dpRow.password_salt);
+          if (!dialerDashboardPasswordEquals(dpOldHash, dpRow.password_hash)) throw new Error('当前看板密码不正确');
+          var dpNewSaltBytes = new Uint8Array(16); crypto.getRandomValues(dpNewSaltBytes);
+          var dpNewSalt = Array.from(dpNewSaltBytes).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+          var dpNewHash = await dialerDashboardPasswordDigest(dpNewPassword, dpNewSalt);
+          var dpChange = await fetch(dpBase + '/rest/v1/dialer_dashboard_passwords?on_conflict=account_id', {
+            method: 'POST',
+            headers: Object.assign({}, dpHeaders, { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+            body: JSON.stringify({ account_id: dpSession.account_id, password_salt: dpNewSalt, password_hash: dpNewHash, updated_at: new Date().toISOString() })
+          });
+          if (!dpChange.ok) throw new Error('保存新看板密码失败');
+          dpSession.dashboard_auth_until = Date.now() + 30 * 60 * 1000;
+          await env.DATA_STORE.put('dialer:session:' + dpToken, JSON.stringify(dpSession));
+          return new Response(JSON.stringify({ success: true, changed: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        }
+
+        if (dpAction !== 'verify') throw new Error('不支持的密码操作');
         if (!dpRow) return new Response(JSON.stringify({ success: true, setup_required: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
         if (!dpPassword) throw new Error('请输入数据库看板密码');
-        var dpVerifyKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
-        var dpVerifyBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpRow.password_salt), iterations: 180000, hash: 'SHA-256' }, dpVerifyKey, 256);
-        var dpVerifyHash = Array.from(new Uint8Array(dpVerifyBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-        if (dpVerifyHash !== dpRow.password_hash) throw new Error('密码不正确，请重新输入');
-        return new Response(JSON.stringify({ success: true, verified: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        var dpVerifyHash = await dialerDashboardPasswordDigest(dpPassword, dpRow.password_salt);
+        if (!dialerDashboardPasswordEquals(dpVerifyHash, dpRow.password_hash)) throw new Error('密码不正确，请重新输入');
+        dpSession.dashboard_auth_until = Date.now() + 30 * 60 * 1000;
+        await env.DATA_STORE.put('dialer:session:' + dpToken, JSON.stringify(dpSession));
+        return new Response(JSON.stringify({ success: true, verified: true, expires_in: 1800 }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
       } catch (e) {
         var dpStatus = e.message === '未登录' ? 401 : (e.message === '账户不可用' ? 403 : 400);
         return new Response(JSON.stringify({ success: false, error: e.message || '看板密码验证失败' }), { status: dpStatus, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -2815,6 +2865,33 @@ export default {
         return new Response(JSON.stringify({ error: e.message }), {
           status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
+      }
+    }
+
+
+    // Master database dashboard APIs require the separate server-side password session.
+    var _dashboardSensitivePath =
+      path === '/api/dialer/customers' ||
+      path === '/api/dialer/accounts' ||
+      path === '/api/dialer/customers/reassign' ||
+      path === '/api/dialer/stats/accounts' ||
+      path === '/api/dialer/stats/consumption' ||
+      path === '/api/dialer/stats/upload-records' ||
+      path === '/api/dialer/stats/master-pull-records' ||
+      path === '/api/dialer/stats/migrate' ||
+      path === '/api/dialer/stats/email-config' ||
+      path === '/api/dialer/stats/export-email' ||
+      path === '/api/dialer/stats/backup-test';
+    if (_dashboardSensitivePath) {
+      var _dbAuth = request.headers.get('Authorization') || '';
+      var _dbToken = _dbAuth.startsWith('Bearer ') ? _dbAuth.slice(7) : '';
+      var _dbSession = await dialerValidateSession(env, _dbToken);
+      if (!_dbSession) return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+      var _dbAccounts = await dialerGetAccounts(env);
+      var _dbCaller = _dbAccounts.find(function(a) { return a.account_id === _dbSession.account_id; });
+      if (!_dbCaller || _dbCaller.active === false) return new Response(JSON.stringify({ error: '账户不存在或已停用' }), { status: 401, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
+      if (_dbCaller.is_master !== false && (!Number(_dbSession.dashboard_auth_until) || Number(_dbSession.dashboard_auth_until) <= Date.now())) {
+        return new Response(JSON.stringify({ error: '数据库看板授权已过期，请重新验证密码' }), { status: 403, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' } });
       }
     }
 
