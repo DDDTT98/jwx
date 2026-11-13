@@ -9001,6 +9001,7 @@
         // Wire up name click copy（复制姓名同样按复制偏好组合，与单位名称一致）
         container.querySelectorAll('.client-card-name-btn').forEach(function(b) {
           b.addEventListener('click', function(e) {
+            e.preventDefault();
             e.stopPropagation();
             var name = b.dataset.name;
             var idx = parseInt(b.dataset.idx);
@@ -9042,6 +9043,7 @@
         // Wire up company click copy
         container.querySelectorAll('.client-card-tag-company').forEach(function(b) {
           b.addEventListener('click', function(e) {
+            e.preventDefault();
             e.stopPropagation();
             var company = b.dataset.company;
 
@@ -9058,7 +9060,8 @@
               return;
             }
             var isCopyNote = b.dataset.copyNote === '1';
-            if (isIOSWebBrowser() && isCopyNote) {
+            // iOS 拨打列表：姓名、单位名称和备注统一同步复制后唤起微信。
+            if (isIOSWebBrowser()) {
               if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
             } else if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
               copyForAndroidWeb(copyText);
@@ -9242,7 +9245,7 @@
 
             // iOS 姓名/备注：必须同步复制后再唤起微信，避免异步剪贴板失去点击手势。
             // 其他系统沿用原有复制逻辑；姓名原有跳转行为保持不变。
-            if (isIOSWebBrowser() && (copyType === 'copy_name' || copyType === 'copy_note')) {
+            if (isIOSWebBrowser() && (copyType === 'copy_name' || copyType === 'copy_company' || copyType === 'copy_note')) {
               if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
             } else {
               copyTextToClipboard(copyText);
