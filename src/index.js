@@ -308,9 +308,9 @@ async function fetchCooldownRow(env, accountId, date, deviceId) {
 async function upsertCooldownRow(env, accountId, date, deviceId, row) {
   await env.DATA_STORE.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
 }
-// 统计指定日期范围内实际复制/添加微信的去重客户数（同一手机号跨日只计一次）。
-async function clientOperationCopyRangeCount(env, accountId, startDate, endDate) {
-  var prefix = 'client_ops_copy:' + accountId + ':';
+// 统计指定日期范围内实际操作的去重客户数（同一手机号跨日只计一次）。
+async function clientOperationRangeUniqueCount(env, accountId, startDate, endDate) {
+  var prefix = 'client_ops_all:' + accountId + ':';
   var mobiles = new Set();
   var cursor;
   do {
@@ -1657,13 +1657,13 @@ export default {
           dcOffset += dcPageSize;
         }
 
-        // 操作客户数按真实复制资料/添加微信记录统计；按账号隔离，周期内手机号去重。
+        // 操作客户数按账号当天的全部客户操作记录统计；按账号隔离，周期内手机号去重。
         for (var doi = 0; doi < dcSubAccounts.length; doi++) {
           var dcOpAccountId = dcSubAccounts[doi].account_id;
           var dcOpItem = dcStats[dcOpAccountId];
-          dcOpItem.operated_day = await clientOperationCopyRangeCount(env, dcOpAccountId, dcTodayKey, dcTodayKey);
-          dcOpItem.operated_week = await clientOperationCopyRangeCount(env, dcOpAccountId, dcWeekKey, dcTodayKey);
-          dcOpItem.operated_month = await clientOperationCopyRangeCount(env, dcOpAccountId, dcMonthKey, dcTodayKey);
+          dcOpItem.operated_day = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcTodayKey, dcTodayKey);
+          dcOpItem.operated_week = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcWeekKey, dcTodayKey);
+          dcOpItem.operated_month = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcMonthKey, dcTodayKey);
         }
 
         // 轮数按每个账号的每日云端 work_stats 累加，兼容多设备。
