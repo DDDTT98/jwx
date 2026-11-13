@@ -4886,19 +4886,19 @@
       document.addEventListener('visibilitychange', onVisibilityChange);
       window.addEventListener('pagehide', onPageHide);
       if (androidWechatLaunchTimer) clearTimeout(androidWechatLaunchTimer);
+      androidWechatLaunchTimer = setTimeout(function() {
+        if (launchHandled) return;
+        cleanup();
+        showAndroidSwitchHint();
+      }, 1300);
 
       try {
         // 不设置网页 fallback，避免微信未安装时跳去其他网页而误判为成功。
         window.location.href = 'intent://#Intent;scheme=weixin;end';
       } catch (err) {
         cleanup();
-      }
-
-      androidWechatLaunchTimer = setTimeout(function() {
-        if (launchHandled) return;
-        cleanup();
         showAndroidSwitchHint();
-      }, 1300);
+      }
       return true;
     }
 
