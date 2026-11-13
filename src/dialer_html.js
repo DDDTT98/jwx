@@ -4838,7 +4838,7 @@
       // iOS 与 Android 提示均适当下移并放大；仅调整提示层，不影响底部悬浮条。
       var isIOSBrowser = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      hint.style.top = isIOSBrowser ? 'calc(env(safe-area-inset-top, 0px) + 52px)' : '24px';
+      hint.style.top = isIOSBrowser ? 'calc(env(safe-area-inset-top, 0px) + 52px)' : '48px';
       if (isIOSBrowser || /Android/i.test(navigator.userAgent)) {
         hint.style.fontSize = '13px';
         hint.style.padding = '10px 14px';
