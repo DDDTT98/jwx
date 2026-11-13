@@ -1504,6 +1504,8 @@ export function createSupabaseClient(env) {
     // A new dial attempt invalidates the previous result until this attempt is marked.
     var timelineFields = { last_operation: merged };
     if (entry.type === 'add_wechat') timelineFields.dialer_wechat_added_at = new Date().toISOString();
+    // Persist copied-company state independently of last_operation so later actions cannot erase it.
+    if (entry.type === 'copy_company') timelineFields.dialer_company_copied_at = new Date().toISOString();
     var savedTimeline = await updateCustomer(mobile, timelineFields, accountId);
     if (!savedTimeline) throw new Error('客户不属于当前账号或已不存在');
     return savedTimeline;
