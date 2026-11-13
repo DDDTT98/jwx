@@ -1343,6 +1343,7 @@ export default {
         var aa=await dialerGetAccounts(env), caller=aa.find(function(a){return a.account_id===ss.account_id;});
         if(!caller || caller.active===false) throw new Error('账户不可用');
         var role=caller.is_master!==false?'master':(caller.role==='manager'?'manager':'member');
+        if (role === 'master' && (!Number(ss.dashboard_auth_until) || Number(ss.dashboard_auth_until) <= Date.now())) throw new Error('数据库看板授权已过期，请先验证密码');
         var visible=aa.filter(function(a){return role==='master' || (role==='manager' && (a.account_id===caller.account_id || a.parent_account_id===caller.account_id)) || (role==='member' && a.account_id===caller.account_id);});
         var root=aa.find(function(a){return a.is_master!==false;});
         return new Response(JSON.stringify({accounts:visible.map(function(a){return {
@@ -1537,7 +1538,8 @@ export default {
         if (!statusAccount || statusAccount.active === false) throw new Error('账户不存在或已停用');
         var statusMaster = statusAccount.is_master !== false;
         var statusConfigured = statusMaster ? !!(await dialerDashboardPasswordRow(env)) : false;
-        return new Response(JSON.stringify({ success: true, is_master: statusMaster, configured: statusConfigured }), {
+        var statusAuthorized = statusMaster && Number(statusSession.dashboard_auth_until) > Date.now();
+        return new Response(JSON.stringify({ success: true, is_master: statusMaster, configured: statusConfigured, authorized: statusAuthorized }), {
           headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
