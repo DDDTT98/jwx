@@ -11356,13 +11356,19 @@ function updateAutoDialBtn() {
         }
         confirmBtn.disabled = true;
         try {
-          var result = await requestPassword('verify', pwd);
-          if (result.setup_required) {
-            var first = window.prompt('当前主账号尚未设置数据库看板密码。请设置 8 位字母和数字组合密码：');
-            if (!first || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(first)) throw new Error('密码格式不正确，尚未设置');
-            var second = window.prompt('请再次输入新密码确认：');
-            if (first !== second) throw new Error('两次输入不一致，请重新设置');
-            await requestPassword('set', first);
+          if (isSetup) {
+            var confirmPassword = window.prompt('请再次输入刚才设置的 8 位密码确认：');
+            if (confirmPassword !== pwd) throw new Error('两次输入不一致，请重新输入');
+            await requestPassword('set', pwd);
+          } else {
+            var result = await requestPassword('verify', pwd);
+            if (result.setup_required) {
+              var first = window.prompt('当前主账号尚未设置数据库看板密码。请设置 8 位字母和数字组合密码：');
+              if (!first || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(first)) throw new Error('密码格式不正确，尚未设置');
+              var second = window.prompt('请再次输入新密码确认：');
+              if (first !== second) throw new Error('两次输入不一致，请重新设置');
+              await requestPassword('set', first);
+            }
           }
           closeDbPasswordGate();
           var callback = dbPwdCallback;
