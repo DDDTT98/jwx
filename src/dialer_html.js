@@ -5326,6 +5326,10 @@
               whitelist_name: '',
               category: c.category || '',
               batch_label: c.batch_label || '',
+              // Restore the persisted WeChat-added state so cloud sync never makes this customer disappear or look unadded.
+              phone_copied: !!c.dialer_wechat_added_at,
+              copied: !!c.dialer_wechat_added_at,
+              last_operation: c.last_operation || null,
               dialedStatus: 'todo',
               dialedAt: null
             };
