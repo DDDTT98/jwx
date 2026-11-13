@@ -3444,7 +3444,7 @@ export default {
             await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
           }
         }
-        const operatedCount = await countStorePrefix(env, 'client_ops_all:' + accountId + ':' + opDate + ':');
+        const operatedCount = await countStorePrefix(env, 'client_ops_profile:' + accountId + ':' + opDate + ':');
         const dialedCount = await countStorePrefix(env, 'client_ops_dial:' + accountId + ':' + opDate + ':');
         return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount, transferred_to_pool: transferredToPool }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
