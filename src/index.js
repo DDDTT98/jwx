@@ -1564,7 +1564,7 @@ export default {
           var dpSaltBytes = new Uint8Array(16); crypto.getRandomValues(dpSaltBytes);
           var dpSalt = Array.from(dpSaltBytes).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
           var dpKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
-          var dpBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpSalt), iterations: 180000, hash: 'SHA-256' }, dpKey, 256);
+          var dpBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpSalt), iterations: 100000, hash: 'SHA-256' }, dpKey, 256);
           var dpHash = Array.from(new Uint8Array(dpBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
           var dpWrite = await fetch(env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_dashboard_passwords', {
             method: 'POST', headers: Object.assign({}, dpHeaders, { 'Prefer': 'return=minimal' }),
@@ -1576,7 +1576,7 @@ export default {
         if (!dpRow) return new Response(JSON.stringify({ success: true, setup_required: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
         if (!dpPassword) throw new Error('请输入数据库看板密码');
         var dpVerifyKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
-        var dpVerifyBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpRow.password_salt), iterations: 180000, hash: 'SHA-256' }, dpVerifyKey, 256);
+        var dpVerifyBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpRow.password_salt), iterations: 100000, hash: 'SHA-256' }, dpVerifyKey, 256);
         var dpVerifyHash = Array.from(new Uint8Array(dpVerifyBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
         if (dpVerifyHash !== dpRow.password_hash) throw new Error('密码不正确，请重新输入');
         return new Response(JSON.stringify({ success: true, verified: true }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
