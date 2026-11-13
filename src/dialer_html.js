@@ -11289,27 +11289,8 @@ function updateAutoDialBtn() {
       }
     }
 
-    // ====== Database Password Gate ======
-    var DB_PWD_K = 'db_access_pwd_hash';
+    // ====== Database Password Gate (Supabase server-side) ======
     var dbPwdCallback = null;
-    var dbPwdSessionAuthed = false; // Once authenticated this session, don't ask again
-
-    function hashPwd(pwd) {
-      // Simple salted hash for localStorage (not cryptographically secure, but beats plaintext)
-      var salt = 'megz_db_salt_2024';
-      var combined = salt + ':' + pwd;
-      var hash = 0;
-      for (var i = 0; i < combined.length; i++) {
-        var char = combined.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0;
-      }
-      return 'mz_' + Math.abs(hash).toString(36);
-    }
-
-    function getDbPassword() {
-      return localStorage.getItem(DB_PWD_K) || '';
-    }
 
     function showDbPasswordGate(callback) {
       dbPwdCallback = callback;
@@ -11318,35 +11299,17 @@ function updateAutoDialBtn() {
       var error = document.getElementById('dbPwdError');
       var cancelBtn = document.getElementById('dbPwdCancelBtn');
       var confirmBtn = document.getElementById('dbPwdConfirmBtn');
-
-      // 密码弹窗必须独立挂到 body：避免被 app-shell / iOS Safari 的层叠上下文遮挡。
       if (!overlay || !input || !error || !cancelBtn || !confirmBtn) {
         console.error('[db-auth] password gate DOM is incomplete');
         var notice = document.getElementById('bootFallbackNotice');
-        if (notice) {
-          notice.style.display = 'block';
-          notice.textContent = '数据库密码窗口初始化失败，请刷新页面后重试。';
-        }
+        if (notice) { notice.style.display = 'block'; notice.textContent = '数据库密码窗口初始化失败，请刷新页面后重试。'; }
         return;
       }
       if (overlay.parentNode !== document.body) document.body.appendChild(overlay);
-
-      var savedHash = '';
-      try {
-        savedHash = getDbPassword();
-      } catch (storageError) {
-        error.textContent = '浏览器本地存储不可用，请退出无痕模式后重试';
-        error.style.display = 'block';
-        return;
-      }
-      var isFirstTime = !savedHash;
-
       input.value = '';
-      input.placeholder = '';
+      input.placeholder = '8 位字母+数字';
       error.textContent = '';
       error.style.display = 'none';
-
-      // 不依赖延迟动画才能显示；强制覆盖可能存在的旧层级/隐藏样式。
       overlay.style.setProperty('display', 'flex', 'important');
       overlay.style.setProperty('position', 'fixed', 'important');
       overlay.style.setProperty('inset', '0', 'important');
@@ -11354,69 +11317,56 @@ function updateAutoDialBtn() {
       overlay.style.setProperty('visibility', 'visible', 'important');
       overlay.classList.add('active');
 
-      function focusPasswordInput() {
-        try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
-      }
-      setTimeout(focusPasswordInput, 60);
+      function focusInput() { try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); } }
+      setTimeout(focusInput, 60);
 
-      function doConfirm() {
+      async function requestPassword(action, password) {
+        var token = getSessionToken();
+        var response = await fetch('/api/dialer/auth/dashboard-password', {
+          method: 'POST', cache: 'no-store',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ action: action, password: password || '' })
+        });
+        var result = await response.json().catch(function() { return {}; });
+        if (!response.ok || result.success === false) throw new Error(result.error || '验证失败，请重试');
+        return result;
+      }
+
+      async function doConfirm() {
         var pwd = input.value.trim();
-        var validNewPassword = /^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd);
-        var legacyPasswordMatch = !isFirstTime && pwd.length === 6 && hashPwd(pwd) === savedHash;
-        if (!validNewPassword && !legacyPasswordMatch) {
+        if (!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(pwd)) {
           error.textContent = '请输入 8 位字母和数字组合密码';
           error.style.display = 'block';
           input.value = '';
-          focusPasswordInput();
+          focusInput();
           return;
         }
-
-        if (isFirstTime) {
-          // 首次使用时设置本地数据库密码；存储失败时绝不绕过验证。
-          try {
-            localStorage.setItem(DB_PWD_K, hashPwd(pwd));
-          } catch (storageError) {
-            error.textContent = '无法保存密码，请检查浏览器本地存储设置';
-            error.style.display = 'block';
-            return;
+        confirmBtn.disabled = true;
+        try {
+          var result = await requestPassword('verify', pwd);
+          if (result.setup_required) {
+            var first = window.prompt('当前主账号尚未设置数据库看板密码。请设置 8 位字母和数字组合密码：');
+            if (!first || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(first)) throw new Error('密码格式不正确，尚未设置');
+            var second = window.prompt('请再次输入新密码确认：');
+            if (first !== second) throw new Error('两次输入不一致，请重新设置');
+            await requestPassword('set', first);
           }
           closeDbPasswordGate();
-          dbPwdCallback && dbPwdCallback();
+          var callback = dbPwdCallback;
           dbPwdCallback = null;
-        } else if (legacyPasswordMatch) {
-          var upgradedPassword = window.prompt('检测到旧版 6 位看板密码，请设置新的 8 位字母+数字密码：');
-          if (!upgradedPassword || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{8}$/.test(upgradedPassword)) {
-            error.textContent = '请设置符合要求的 8 位新密码后再进入看板';
-            error.style.display = 'block';
-            input.value = '';
-            focusPasswordInput();
-            return;
-          }
-          try { localStorage.setItem(DB_PWD_K, hashPwd(upgradedPassword)); }
-          catch (storageError) { error.textContent = '新密码保存失败，请检查浏览器存储权限'; error.style.display = 'block'; return; }
-          closeDbPasswordGate();
-          dbPwdCallback && dbPwdCallback();
-          dbPwdCallback = null;
-        } else if (hashPwd(pwd) === savedHash) {
-          closeDbPasswordGate();
-          dbPwdCallback && dbPwdCallback();
-          dbPwdCallback = null;
-        } else {
-          error.textContent = '密码不正确，请重新输入';
+          if (callback) callback();
+        } catch (err) {
+          error.textContent = err.message || '密码验证失败';
           error.style.display = 'block';
           input.value = '';
-          focusPasswordInput();
+          focusInput();
+        } finally {
+          confirmBtn.disabled = false;
         }
       }
-
       confirmBtn.onclick = doConfirm;
-      input.onkeydown = function(e) {
-        if (e.key === 'Enter') doConfirm();
-      };
-      cancelBtn.onclick = function() {
-        closeDbPasswordGate();
-        dbPwdCallback = null;
-      };
+      input.onkeydown = function(e) { if (e.key === 'Enter') doConfirm(); };
+      cancelBtn.onclick = function() { closeDbPasswordGate(); dbPwdCallback = null; };
     }
 
     function closeDbPasswordGate() {
@@ -11486,13 +11436,16 @@ function updateAutoDialBtn() {
 
     function openDBDashboard(){
       var ov=document.getElementById('dbOverlay'); if(!ov)return;
-      // 数据库看板统一使用当前账号 PIN 登录会话，不再接受浏览器本地共享密码。
       if (!getSessionToken() || !getSessionAccountId()) {
         if (typeof showAuthScreen === 'function') showAuthScreen();
         return;
       }
-      dbPwdSessionAuthed = true;
-      _openDBDashboardInner();
+      // 子账号仅凭自己的 PIN 会话进入自己的看板；主账号必须额外验证独立看板密码。
+      if (!isSessionMaster()) {
+        _openDBDashboardInner();
+        return;
+      }
+      showDbPasswordGate(function() { _openDBDashboardInner(); });
     }
 
     var _viewAccountId = '';
