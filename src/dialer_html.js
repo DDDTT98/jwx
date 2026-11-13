@@ -5390,7 +5390,7 @@
         }
         if (importedClients.length > 0 && _activeDialerBatchId) {
           validatePersistedDialerBatch(loadVersion);
-        } else if (saved === null || !_activeDialerBatchId) {
+        } else if (saved === null || (importedClients.length === 0 && !_activeDialerBatchId)) {
           // Missing/invalidated cache can be recovered from cloud. An explicit local []
           // with a retained batch ID means the user intentionally cleared the list.
           restoreActiveDialerBatchFromCloud(loadVersion);
