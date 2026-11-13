@@ -3768,14 +3768,6 @@
       </div>
       <div id="dbChangePinError" style="font-size:0.62rem; min-height:16px;"></div>
       <div style="border-top:0.5px solid var(--card-border);padding-top:12px;display:flex;flex-direction:column;gap:7px;">
-        <div style="font-size:0.85rem;font-weight:900;color:var(--text-main);">数据库看板密码</div>
-        <div style="font-size:0.66rem;color:var(--text-light);line-height:1.5;">修改当前浏览器的看板访问密码，必须为 8 位字母与数字组合。</div>
-        <input type="password" id="dbDashboardPwdOld" name="database-dashboard-current-password" autocomplete="current-password" placeholder="当前看板密码" maxlength="8" style="height:34px;padding:0 9px;border:0.5px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);" />
-        <input type="password" id="dbDashboardPwdNew" name="database-dashboard-new-password" autocomplete="new-password" placeholder="新密码（8位字母+数字）" maxlength="8" style="height:34px;padding:0 9px;border:0.5px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text-main);" />
-        <button type="button" id="dbDashboardPwdSave" class="btn-secondary" style="height:34px;font-size:.72rem;">修改看板密码</button>
-        <div id="dbDashboardPwdStatus" style="font-size:.62rem;min-height:16px;"></div>
-      </div>
-      <div style="border-top:0.5px solid var(--card-border);padding-top:12px;display:flex;flex-direction:column;gap:7px;">
         <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:900;color:var(--text-main);">
           <input type="checkbox" id="db2faToggle" style="width:17px;height:17px;accent-color:var(--accent-wechat);"> 启用 2FA 双重验证
         </label>
@@ -11681,6 +11673,11 @@ function updateAutoDialBtn() {
     function openDBMobile() {
       var ov = document.getElementById('dbOverlay');
       if (!ov) return;
+      // #dbm 直达入口同样必须已有本账号 PIN 登录会话。
+      if (!getSessionToken() || !getSessionAccountId()) {
+        if (typeof showAuthScreen === 'function') showAuthScreen();
+        return;
+      }
       syncManagerTabVisibility();
       ov.classList.add('mobile-layout');
       ov.classList.add('active');
