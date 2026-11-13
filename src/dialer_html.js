@@ -9292,7 +9292,7 @@
             b.style.setProperty('font-weight', '800', 'important');
             b.style.setProperty('text-shadow', '0 0 6px rgba(229,57,53,.14)', 'important');
             var card = document.getElementById('xdc_' + idx);
-            if (card) { card.classList.add('copied-card'); card.classList.add('copied-company'); }
+            if (card) { card.classList.add('copied-card'); }
 
             // 微信跳转由当前真实点击的 <a href="intent://..."> 默认行为完成，不能再二次模拟跳转。
 
@@ -9842,7 +9842,6 @@ function updateAutoDialBtn() {
  var card = document.getElementById('xdc_' + currentCallIdx);
  if (card) {
  card.classList.add('copied-card');
- card.classList.add('copied-company');
  var cardPhoneBtn = card.querySelector('.client-phone-btn');
  if (cardPhoneBtn) {
  cardPhoneBtn.classList.add('copied');
