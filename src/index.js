@@ -262,7 +262,7 @@ function clientOperationKey(accountId, date, mobile, kind) {
   return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\D/g, ''));
 }
 // 按统计周期对客户手机号去重：同一客户在周期内多天拨打/操作只计 1 人
-async function clientOperationRangeCounts(env, accountId, startDate, endDate) {
+async function clientOperationSingleAccountCounts(env, accountId, startDate, endDate) {
   var dateObj = new Date(endDate + 'T00:00:00Z');
   var weekStart = addDays(endDate, -((dateObj.getUTCDay() + 6) % 7));
   var result = { week_operated_count: 0, month_operated_count: 0, week_dialed_count: 0, month_dialed_count: 0 };
@@ -1969,7 +1969,7 @@ export default {
         var wsMonthStart = wsDate.slice(0, 8) + '01';
         var wsDateObj = new Date(wsDate + 'T00:00:00Z');
         var wsWeekStart = addDays(wsDate, -((wsDateObj.getUTCDay() + 6) % 7));
-        var wsOps = await clientOperationRangeCounts(env, wsSession.account_id, wsMonthStart, wsDate);
+        var wsOps = await clientOperationSingleAccountCounts(env, wsSession.account_id, wsMonthStart, wsDate);
         // 周统计从本周一开始；月统计从每月 1 日开始
         var wsResp = wsRow || { date: wsDate, rounds: 0, wechat_count: 0 };
         // 设备级冷却：本设备键优先；无设备键时回退旧版账号级 transfer_ts/cooldown_ms（升级过渡期用一次）
