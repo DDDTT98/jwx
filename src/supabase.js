@@ -1419,6 +1419,26 @@ export function createSupabaseClient(env) {
     return Number(result) || 0;
   }
 
+  /** Check whether a device still owns any unadded customer in its dialer batch. */
+  async function hasActiveDialerBatch(accountId, deviceId, batchId) {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    if (!accountId || !deviceId || !batchId) return false;
+    var cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    var url = baseUrl + '/rest/v1/customers?select=mobile'
+      + '&account_id=eq.' + encodeURIComponent(String(accountId))
+      + '&dialer_device_id=eq.' + encodeURIComponent(String(deviceId))
+      + '&dialer_batch_id=eq.' + encodeURIComponent(String(batchId))
+      + '&dialer_claimed_at=gt.' + encodeURIComponent(cutoff)
+      + '&dialer_wechat_added_at=is.null&limit=1';
+    var resp = await fetch(url, { headers: headers() });
+    if (!resp.ok) {
+      var err = await resp.text();
+      throw new Error('Dialer batch status check failed [' + resp.status + ']: ' + err);
+    }
+    var rows = await resp.json();
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
   /** Persist the latest operation while retaining the batch's terminal call result. */
   async function updateCustomerTimeline(mobile, entry, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
@@ -1532,6 +1552,7 @@ export function createSupabaseClient(env) {
     resetBatchDialStatus: resetBatchDialStatus,
     updateCustomerTimeline: updateCustomerTimeline,
     recycleExpiredDialerClaims: recycleExpiredDialerClaims,
+    hasActiveDialerBatch: hasActiveDialerBatch,
     getBatchDialStatus: getBatchDialStatus
   };
 
