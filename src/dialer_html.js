@@ -4835,14 +4835,16 @@
       var hint = document.getElementById('androidSwitchHint');
       if (!hint) return;
 
-      // iOS 提示下移并避开刘海安全区；其他系统保持原来的顶部位置。
+      // iOS 与 Android 提示均适当下移并放大；仅调整提示层，不影响底部悬浮条。
       var isIOSBrowser = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      hint.style.top = isIOSBrowser ? 'calc(env(safe-area-inset-top, 0px) + 52px)' : '8px';
-      if (isIOSBrowser) {
+      hint.style.top = isIOSBrowser ? 'calc(env(safe-area-inset-top, 0px) + 52px)' : '24px';
+      if (isIOSBrowser || /Android/i.test(navigator.userAgent)) {
         hint.style.fontSize = '13px';
         hint.style.padding = '10px 14px';
         hint.style.fontWeight = '700';
+        hint.style.lineHeight = '1.35';
+        hint.style.whiteSpace = 'normal';
       }
       hint.style.left = '50%';
 
