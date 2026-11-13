@@ -2499,6 +2499,24 @@
     }
 
 
+    /* 拨打列表单位名称：扩大移动端触控热区，避免必须精准点中文字才触发复制。 */
+    .xls-dial-card .client-card-tags {
+      align-items: center;
+    }
+    .xls-dial-card .client-card-tag-company {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 8px 12px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
     /* Privacy-mode shortcut icons: borderless, with only a faint copy-note-like tint. */
     .xls-dial-card .privacy-add-vx,
     .xls-dial-card .privacy-dial-icon {
