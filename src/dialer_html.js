@@ -3523,7 +3523,7 @@
       <div style="display:flex;justify-content:flex-end;">
         <button id="copyPrefCloseBtn" title="关闭" style="background:none;border:none;font-size:0.95rem;cursor:pointer;color:var(--text-soft);padding:2px;line-height:1;">❌</button>
       </div>
-      <div style="margin:0 0 13px;padding:10px 11px;border:1px solid var(--card-border);border-radius:11px;background:var(--btn-bg);">
+      <div id="androidWechatAutoLaunchSetting" style="display:none;margin:0 0 13px;padding:10px 11px;border:1px solid var(--card-border);border-radius:11px;background:var(--btn-bg);">
         <label for="androidWechatAutoLaunchToggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:0.76rem;font-weight:800;color:var(--text-main);cursor:pointer;">
           <span>安卓浏览器复制后自动唤醒微信</span>
           <input type="checkbox" id="androidWechatAutoLaunchToggle" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--accent-wechat);">
@@ -13026,6 +13026,9 @@ function updateAutoDialBtn() {
       // 渲染弹窗：勾选状态 + 勾选顺序序号（先勾的序号小、排前面）
       function renderPrefPanel() {
         var p = getCopyPref();
+        var androidWechatSetting = document.getElementById('androidWechatAutoLaunchSetting');
+        var isAndroidDevice = /Android/i.test(navigator.userAgent || '');
+        if (androidWechatSetting) androidWechatSetting.style.display = isAndroidDevice ? 'block' : 'none';
         var androidWechatToggle = document.getElementById('androidWechatAutoLaunchToggle');
         if (androidWechatToggle) androidWechatToggle.checked = isAndroidWechatAutoLaunchEnabled();
         for (var fi = 0; fi < COPY_FIELDS.length; fi++) {
