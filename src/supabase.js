@@ -63,7 +63,7 @@ export function createSupabaseStore(env) {
     if (parts[0] === 'work_stats_cd' && parts.length >= 4) return { kind: 'cooldown', accountId: parts[1], date: parts[2], deviceId: parts.slice(3).join(':') };
     if (parts[0] === 'upload_log' && parts.length >= 3) return { kind: 'upload' };
     if ((parts[0] === 'client_ops_all' || parts[0] === 'client_ops_dial' || parts[0] === 'client_ops_copy' || parts[0] === 'client_ops_profile') && parts.length >= 4) {
-      const operationType = parts[0] === 'client_ops_dial' ? 'dial' : (parts[0] === 'client_ops_copy' ? 'copy' : (parts[0] === 'client_ops_profile' ? 'profile' : 'all'));
+      const operationType = parts[0] === 'client_ops_dial' ? 'dial' : (parts[0] === 'client_ops_copy' ? 'copy' : (parts[0] === 'client_ops_profile' ? 'copy' : 'all'));
       return { kind: 'operation', operationType: operationType, accountId: parts[1], date: parts[2] };
     }
     if (keyName === 'diet:config') return { kind: 'diet_config' };
