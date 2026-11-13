@@ -3791,6 +3791,18 @@
         <button id="dbChangePinBtn" class="btn-secondary" style="padding:0 12px; height:32px; font-size:0.72rem;">修改</button>
       </div>
       <div id="dbChangePinError" style="font-size:0.62rem; min-height:16px;"></div>
+
+      <div id="dbDashboardPwdSettings" style="display:none;flex-direction:column;gap:7px;border-top:0.5px solid var(--card-border);padding-top:12px;">
+        <div style="font-size:0.85rem;font-weight:900;color:var(--text-main);">数据库看板独立密码</div>
+        <div style="font-size:0.68rem;line-height:1.5;color:var(--text-light);">仅主账户使用。密码保存在 Supabase 数据库，服务端使用 PBKDF2 哈希验证，所有设备共用，不保存在浏览器本地。</div>
+        <div style="display:flex;gap:6px;">
+          <input type="password" id="dbDashboardPwdOld" maxlength="8" placeholder="当前看板密码" autocomplete="current-password" style="flex:1;min-width:0;height:34px;padding:0 8px;font-size:.75rem;border:0.5px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);" readonly onfocus="this.removeAttribute('readonly')">
+          <input type="password" id="dbDashboardPwdNew" maxlength="8" placeholder="新 8 位字母+数字" autocomplete="new-password" style="flex:1;min-width:0;height:34px;padding:0 8px;font-size:.75rem;border:0.5px solid var(--card-border);border-radius:5px;background:var(--card-bg);color:var(--text-main);" readonly onfocus="this.removeAttribute('readonly')">
+        </div>
+        <button id="dbDashboardPwdSave" type="button" class="btn-secondary" style="height:34px;font-size:.72rem;">修改看板密码</button>
+        <div id="dbDashboardPwdStatus" style="font-size:.62rem;min-height:16px;"></div>
+      </div>
+
       <div style="border-top:0.5px solid var(--card-border);padding-top:12px;display:flex;flex-direction:column;gap:7px;">
         <label style="display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:900;color:var(--text-main);">
           <input type="checkbox" id="db2faToggle" style="width:17px;height:17px;accent-color:var(--accent-wechat);"> 启用 2FA 双重验证
@@ -11440,6 +11452,8 @@ function updateAutoDialBtn() {
       var controls = document.getElementById('dbAccountViewControls');
       var sel = document.getElementById('dbViewAccountSel');
       var migrateBtn = document.getElementById('dbMigrateBtn');
+      var dashboardPwdSettings = document.getElementById('dbDashboardPwdSettings');
+      if (dashboardPwdSettings) dashboardPwdSettings.style.display = isSessionMaster() ? 'flex' : 'none';
       if (!isSessionMaster()) {
         if (controls) controls.style.display = 'none';
         return;
