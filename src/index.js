@@ -1611,7 +1611,7 @@ export default {
         // 逐页读取客户轻量字段：添加次数按“添加微信时间”计数，剩余量只统计未添加且不在公海的客户。
         var dcOffset = 0, dcPageSize = 1000;
         while (true) {
-          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,dialer_wechat_added_at,category&order=account_id.asc', {
+          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,mobile,dialer_wechat_added_at,category&order=account_id.asc,mobile.asc', {
             headers: Object.assign({}, dcHeaders, { 'Range': dcOffset + '-' + (dcOffset + dcPageSize - 1) })
           });
           if (!dcCustomerResp.ok) throw new Error('读取客户消耗数据失败：' + dcCustomerResp.status + ' ' + (await dcCustomerResp.text()).slice(0, 200));
