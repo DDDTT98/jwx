@@ -380,7 +380,7 @@ export function createSupabaseStore(env) {
         params.set('order', 'stat_date.asc');
       } else if (mapped.kind === 'operation') {
         const parts = String(opts.prefix).split(':');
-        params.set('operation_type', 'eq.' + (parts[0] === 'client_ops_dial' ? 'dial' : (parts[0] === 'client_ops_copy' ? 'copy' : (parts[0] === 'client_ops_profile' ? 'profile' : 'all'))));
+        params.set('operation_type', 'eq.' + (parts[0] === 'client_ops_dial' ? 'dial' : ((parts[0] === 'client_ops_copy' || parts[0] === 'client_ops_profile') ? 'copy' : 'all')));
         if (parts[1]) params.set('account_id', 'eq.' + parts[1]);
         if (parts[2]) params.set('operation_date', 'eq.' + parts[2]);
         params.set('order', 'operation_date.asc,mobile.asc');
