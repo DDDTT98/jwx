@@ -322,12 +322,11 @@ async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, 
       select: 'account_id,operation_date,mobile',
       operation_type: 'eq.all',
       account_id: 'in.(' + accountIds.join(',') + ')',
-      operation_date: 'gte.' + monthStart,
+      and: '(operation_date.gte.' + monthStart + ',operation_date.lte.' + endDate + ')',
       order: 'operation_date.asc,account_id.asc,mobile.asc',
       limit: String(pageSize),
       offset: String(offset)
     });
-    params.append('operation_date', 'lte.' + endDate);
     var response = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_client_operations?' + params.toString(), {
       headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
     });
