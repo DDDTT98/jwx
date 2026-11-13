@@ -63,6 +63,15 @@ async function dialerVerifyTotp(secret, code) {
   for(var drift=-1;drift<=1;drift++){if(await dialerTotpCode(secret,Date.now()+drift*30000)===String(code))return true;}
   return false;
 }
+function dialerShuffleArray(items) {
+  var arr = Array.isArray(items) ? items.slice() : [];
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+
 async function dialerRandomToken(bytes) {
   var a=new Uint8Array(bytes||32);crypto.getRandomValues(a);
   return Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');
@@ -472,6 +481,7 @@ async function processCrmBackgroundJobs(env) {
         var importItemsResp = await fetch(importItemsUrl, { headers: hdr });
         if (!importItemsResp.ok) throw new Error('读取导入暂存数据失败：' + (await importItemsResp.text()).slice(0, 240));
         var importItems = await importItemsResp.json();
+        if (Array.isArray(importItems)) importItems = dialerShuffleArray(importItems);
         if (!Array.isArray(importItems) || !importItems.length) {
           job.processed = Number(job.total || job.processed || 0);
           done = true;
@@ -2983,7 +2993,7 @@ export default {
         var uploadActorAccount = (await dialerGetAccounts(env)).find(function(a) { return a.account_id === uploadActor; });
         var uploadActorName = uploadActorAccount ? (uploadActorAccount.real_name || uploadActorAccount.account_name || uploadActorAccount.label || uploadActor) : uploadActor;
         var addOperation = { type: 'import', ts: new Date().toISOString(), operator_account_id: uploadActor, operator_account_name: uploadActorName, previous_operator_account_id: uploadActor, previous_operator_account_name: uploadActorName, detail: '新增客户' };
-        const tagged = customers.map(function(c) {
+        const tagged = dialerShuffleArray(customers).map(function(c) {
           return Object.assign({}, c, { batch_label: batchLabel, account_id: c.account_id || accountId, last_operation: addOperation });
         });
         const sb = createSupabaseClient(env);
@@ -3191,7 +3201,7 @@ export default {
                 masterAccount.account_id, accountId, deviceId, batchId,
                 masterNeed, masterExclude, 600
               );
-              var movedRows = masterResult.data || [];
+              var movedRows = dialerShuffleArray(masterResult.data || []);
               if (movedRows.length) {
                 data.push.apply(data, movedRows);
                 masterLoadedCount = movedRows.length;
