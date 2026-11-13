@@ -2841,9 +2841,11 @@ export default {
         const batchLabel = url2.searchParams.get('batch_label') || '';
         const exclude = url2.searchParams.get('exclude') || '';
         const excludeMobiles = exclude ? exclude.split(',').filter(Boolean) : [];
-        var accountId = _dialerAccountId;
+        // 数据库看板：非主账号（包括组长/普通子账号）只能查询自己的客户数据。
+        // 不信任 X-View-Account-Id 对子账号扩展数据范围；只有主账号可切换全局/子账号视图。
+        var accountId = _gateRole === 'master' ? _dialerAccountId : _session.account_id;
         const sb = createSupabaseClient(env);
-        if (category === '公海客户') {
+        if (category === '公海客户' && _gateRole === 'master') {
           var poolAccounts = await dialerGetAccounts(env);
           var poolMaster = poolAccounts.find(function(a) { return a.is_master !== false; });
           accountId = '__public_pool__:' + (poolMaster ? poolMaster.account_id : '');
