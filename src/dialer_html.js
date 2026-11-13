@@ -14916,8 +14916,21 @@ function updateAutoDialBtn() {
 
     function loadWallpaper(forceRefresh) {
       if (_wallpaperLoaded && !forceRefresh) return;
-      var cached = localStorage.getItem('bhp_wp_url_v3');
-      if (cached && !forceRefresh) applyWallpaper(cached);
+      var sixHours = 6 * 60 * 60 * 1000;
+      var now = Date.now();
+      var meta = null;
+      try { meta = JSON.parse(localStorage.getItem('bhp_wp_meta_v4') || 'null'); } catch (e) {}
+      if (!meta || typeof meta !== 'object') meta = {};
+      var cached = String(meta.url || localStorage.getItem('bhp_wp_url_v3') || '');
+      if (cached) applyWallpaper(cached);
+      if (!forceRefresh && cached && Number(meta.savedAt || 0) && now - Number(meta.savedAt) < sixHours) {
+        _wallpaperLoaded = true;
+        return;
+      }
+      var localDate = new Date();
+      var today = localDate.getFullYear() + '-' + String(localDate.getMonth() + 1).padStart(2, '0') + '-' + String(localDate.getDate()).padStart(2, '0');
+      var recentUrls = Array.isArray(meta.history) ? meta.history.map(String) : [];
+      var skipBingToday = meta.bingDate === today;
       var settings = getDbCustomSettings();
       var allowed = ['landscape', 'anime'];
       var categories = (settings.wallpaperCategories || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
@@ -14936,16 +14949,17 @@ function updateAutoDialBtn() {
       var maxAttempts = (category === 'plants' || category === 'space') ? variants.length * 2 : Math.max(4, variants.length);
       function tryNext() {
         if (attempt >= maxAttempts) {
-          _wallpaperLoaded = false;
-          console.warn('[wallpaper] 所选类型抓取失败或结果未通过校验：' + category + '，未回退到其他类型');
+          _wallpaperLoaded = !!cached;
+          console.warn('[wallpaper] 所选类型抓取失败或结果未通过校验：' + category + '，保留上一张壁纸');
           return;
         }
-        var query = variants[attempt % variants.length];
+        var queryOffset = Math.floor(now / sixHours) % variants.length;
+        var query = variants[(queryOffset + attempt) % variants.length];
         attempt++;
         if (category === 'landscape' || category === 'plants' || category === 'space') {
           // 风景通过 Openverse、Wikimedia Commons、NASA、Flickr CC、Wallhaven 多源接力。
           var wallpaperType = category === 'landscape' ? 'landscape' : (category === 'space' ? 'space' : 'flowers');
-          fetch('/api/wallpaper/search?type=' + wallpaperType + '&q=' + encodeURIComponent(query) + '&_wp_retry=' + Date.now() + '_' + attempt, {
+          fetch('/api/wallpaper/search?type=' + wallpaperType + '&q=' + encodeURIComponent(query) + (category === 'landscape' && skipBingToday ? '&skipBing=1' : '') + '&_wp_retry=' + Date.now() + '_' + attempt, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
@@ -14976,6 +14990,10 @@ function updateAutoDialBtn() {
                 tryNext();
                 return;
               }
+              if (category === 'landscape' && recentUrls.indexOf(String(data.file_url)) >= 0) {
+                tryNext();
+                return;
+              }
               var img = new Image();
               img.onload = function() {
                 if (category === 'landscape' &&
@@ -14985,6 +15003,14 @@ function updateAutoDialBtn() {
                 }
                 _wallpaperLoaded = true;
                 localStorage.setItem('bhp_wp_url_v3', data.file_url);
+                var nextHistory = [String(data.file_url)].concat(recentUrls.filter(function(value) { return value !== String(data.file_url); })).slice(0, 8);
+                var nextMeta = {
+                  url: String(data.file_url),
+                  savedAt: Date.now(),
+                  history: nextHistory,
+                  bingDate: data.provider === 'bing-daily' ? today : (meta.bingDate || '')
+                };
+                try { localStorage.setItem('bhp_wp_meta_v4', JSON.stringify(nextMeta)); } catch (e) {}
                 applyWallpaper(data.file_url);
               };
               img.onerror = tryNext;
@@ -15015,7 +15041,9 @@ function updateAutoDialBtn() {
 
     function syncAllOverlayWallpapers() {
       // 优先从缓存恢复
-      var cached = localStorage.getItem('bhp_wp_url_v3') || localStorage.getItem('bhp_wp_url');
+      var wallpaperMeta = null;
+      try { wallpaperMeta = JSON.parse(localStorage.getItem('bhp_wp_meta_v4') || 'null'); } catch (e) {}
+      var cached = (wallpaperMeta && wallpaperMeta.url) || localStorage.getItem('bhp_wp_url_v3') || localStorage.getItem('bhp_wp_url');
       if (cached) { applyWallpaper(cached); return; }
       var globalEl = document.getElementById('globalWallpaper');
       if (!globalEl) return;
