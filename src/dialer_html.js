@@ -5329,6 +5329,7 @@
               // Restore the persisted WeChat-added state so cloud sync never makes this customer disappear or look unadded.
               phone_copied: !!c.dialer_wechat_added_at,
               copied: !!c.dialer_wechat_added_at,
+              company_copied: !!c.dialer_company_copied_at,
               last_operation: c.last_operation || null,
               dialedStatus: 'todo',
               dialedAt: null
