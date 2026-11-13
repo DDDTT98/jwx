@@ -4294,8 +4294,8 @@
 
     function saveSession(acct) {
       var previousAccountId = getSessionAccountId();
-      if (previousAccountId && previousAccountId !== String(acct.account_id || '')) {
-        // Persist the previous account before switching the active storage namespace.
+      if (previousAccountId && previousAccountId !== String(acct.account_id || '') && _dialerLoadedAccountId === previousAccountId) {
+        // Persist the previous account only if its list was loaded in this page session.
         saveState();
       }
       localStorage.setItem(SESS_TOKEN_K, acct.session_token || '');
@@ -5260,6 +5260,7 @@
     // Account-scoped browser cache. A login switch must never validate or clear another account's batch.
     var _dialerBatchValidationPending = false;
     var _dialerStateLoadVersion = 0;
+    var _dialerLoadedAccountId = '';
 
     function restoreActiveDialerBatchFromCloud(loadVersion) {
       var token = getSessionToken();
@@ -5359,6 +5360,7 @@
 
     function loadPersistedState() {
       var loadVersion = ++_dialerStateLoadVersion;
+      _dialerLoadedAccountId = getSessionAccountId();
       _dialerBatchValidationPending = false;
       importedClients = [];
       _activeDialerBatchId = '';
