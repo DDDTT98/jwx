@@ -930,6 +930,9 @@
     /* Global wallpaper — shared by main interface & lock screen */
     .global-wallpaper {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      /* 仅保留壁纸上半区，避免下半区重复/拼接照片层覆盖客户列表 */
+      clip-path: inset(0 0 50% 0);
+      pointer-events: none;
       background-size: cover; background-position: center;
       background-image: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       z-index: 0; opacity: 1;
