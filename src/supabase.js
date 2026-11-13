@@ -1403,6 +1403,22 @@ export function createSupabaseClient(env) {
     return true;
   }
 
+  /** Recycle unadded dialer claims whose fixed 48-hour retention has elapsed. */
+  async function recycleExpiredDialerClaims() {
+    if (!baseUrl || !key) throw new Error('Supabase not configured');
+    var resp = await fetch(baseUrl + '/rest/v1/rpc/recycle_expired_dialer_claims', {
+      method: 'POST',
+      headers: Object.assign({}, headers(), { 'Prefer': 'return=representation' }),
+      body: JSON.stringify({})
+    });
+    if (!resp.ok) {
+      var err = await resp.text();
+      throw new Error('Expired dialer claim recycle failed [' + resp.status + ']: ' + err);
+    }
+    var result = await resp.json();
+    return Number(result) || 0;
+  }
+
   /** Persist the latest operation while retaining the batch's terminal call result. */
   async function updateCustomerTimeline(mobile, entry, accountId) {
     if (!baseUrl || !key) throw new Error('Supabase not configured');
@@ -1433,7 +1449,9 @@ export function createSupabaseClient(env) {
       merged.call_result = previous.call_result || previous.type;
     }
     // A new dial attempt invalidates the previous result until this attempt is marked.
-    var savedTimeline = await updateCustomer(mobile, { last_operation: merged }, accountId);
+    var timelineFields = { last_operation: merged };
+    if (entry.type === 'add_wechat') timelineFields.dialer_wechat_added_at = new Date().toISOString();
+    var savedTimeline = await updateCustomer(mobile, timelineFields, accountId);
     if (!savedTimeline) throw new Error('客户不属于当前账号或已不存在');
     return savedTimeline;
   }
@@ -1513,6 +1531,7 @@ export function createSupabaseClient(env) {
     exportAllCustomers: exportAllCustomers,
     resetBatchDialStatus: resetBatchDialStatus,
     updateCustomerTimeline: updateCustomerTimeline,
+    recycleExpiredDialerClaims: recycleExpiredDialerClaims,
     getBatchDialStatus: getBatchDialStatus
   };
 
