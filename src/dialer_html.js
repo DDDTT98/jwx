@@ -5390,8 +5390,12 @@
         }
         if (importedClients.length > 0 && _activeDialerBatchId) {
           validatePersistedDialerBatch(loadVersion);
-        } else {
+        } else if (saved === null || !_activeDialerBatchId) {
+          // Missing/invalidated cache can be recovered from cloud. An explicit local []
+          // with a retained batch ID means the user intentionally cleared the list.
           restoreActiveDialerBatchFromCloud(loadVersion);
+        } else {
+          renderRestoredDialerList();
         }
       } catch (err) {
         console.error('Failed to load account dialer state:', err);
