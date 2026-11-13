@@ -11291,6 +11291,7 @@ function updateAutoDialBtn() {
     }
 
     // ====== Database Password Gate (server-side Supabase verification) ======
+    try { localStorage.removeItem('db_access_pwd_hash'); } catch (_) {}
     var dbPwdCallback = null;
     var dbPwdIsSetup = false;
 
@@ -11360,6 +11361,7 @@ function updateAutoDialBtn() {
         return r.json().then(function(data) { if (!r.ok || !data.success) throw new Error(data.error || '无法读取看板权限'); return data; });
       }).then(function(data) {
         if (!data.is_master) { window._dbDashboardAccessActive = false; callback(); return; }
+        if (data.authorized) { window._dbDashboardAccessActive = true; callback(); return; }
         showDbPasswordGate(callback, !data.configured);
       }).catch(function(e) {
         var notice = document.getElementById('bootFallbackNotice');
