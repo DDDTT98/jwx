@@ -5427,8 +5427,10 @@
         try { intentionallyEmpty = localStorage.getItem(getIntentionalEmptyKey()) === '1'; } catch (e) {}
         if (intentionallyEmpty && importedClients.length === 0) {
           renderRestoredDialerList();
-        } else if (importedClients.length > 0 && _activeDialerBatchId) {
-          validatePersistedDialerBatch(loadVersion);
+        } else if (importedClients.length > 0) {
+          // 本地列表是当前设备的工作状态：只要有客户，就直接使用本地数据，
+          // 不向云端校验批次，也不允许云端状态覆盖/清空本地客户。
+          renderRestoredDialerList();
         } else if (saved === null || importedClients.length === 0) {
           // Missing or empty cache is recoverable from cloud unless an explicit user-clear marker exists.
           restoreActiveDialerBatchFromCloud(loadVersion);
@@ -5441,13 +5443,7 @@
       }
     }
 
-    // Re-check only the currently signed-in account's list when returning to the page.
-    window.addEventListener('focus', function() {
-      if (importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch(_dialerStateLoadVersion);
-    });
-    document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && importedClients.length > 0 && _activeDialerBatchId) validatePersistedDialerBatch(_dialerStateLoadVersion);
-    });
+    // 本地列表非空时不再因页面聚焦/切回前台触发云端批次校验。
 
     function saveState() {
       try {
