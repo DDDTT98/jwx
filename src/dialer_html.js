@@ -3007,6 +3007,7 @@
         <span style="font-size:1rem;font-weight:700;color:var(--text-main);letter-spacing:-0.01em;">添加动作</span>
         <button class="drawer-close-btn" id="progressDrawerClose" title="关闭" style="color:var(--text-soft);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
+      <button type="button" id="drawerConsumptionBtn" style="display:none;width:100%;padding:11px 14px;border:1px solid rgba(7,193,96,.28);border-radius:11px;background:rgba(7,193,96,.09);color:#159653;font-size:.86rem;font-weight:800;text-align:center;cursor:pointer;">查看数据消耗　›</button>
       <!-- 进度卡片：圆圈中心显示今日，圆圈下显示本周和本月 -->
       <div class="drawer-group-card">
         <div style="display:flex;gap:12px;">
@@ -3107,6 +3108,29 @@
       <button type="button" id="drawerDialogSimBtn" onclick="document.getElementById(&quot;progressDrawerOverlay&quot;).classList.remove(&quot;active&quot;);window.location.href=&quot;/learn/dialog&quot;" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;border:1px solid rgba(7,193,96,.25);border-radius:11px;background:rgba(7,193,96,.09);color:#159653;font-size:.86rem;font-weight:750;cursor:pointer;">💬 微信对话模拟</button>
       <div style="height:0.5px;background:var(--card-border);margin-top:auto;"></div>
       <p class="drawer-slogan">增加广度，多加微信。<br>保持深度，全部触达。<br>增强粘性，经常群发。</p>
+    </div>
+  </div>
+
+  <!-- 主账号数据消耗弹窗 -->
+  <div id="consumptionOverlay" style="display:none;position:fixed;inset:0;z-index:10080;background:rgba(0,0,0,.48);align-items:center;justify-content:center;padding:12px;box-sizing:border-box;">
+    <div style="width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--card-border);border-radius:18px;background:var(--card-bg);box-shadow:0 18px 60px rgba(0,0,0,.24);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 17px 12px;border-bottom:1px solid var(--card-border);">
+        <div style="font-size:1rem;font-weight:850;color:var(--text-main);">子账户数据消耗</div>
+        <button type="button" id="consumptionClose" aria-label="关闭" style="width:32px;height:32px;border:0;border-radius:50%;background:var(--btn-bg);color:var(--text-main);font-size:20px;cursor:pointer;">×</button>
+      </div>
+      <div style="padding:12px 16px 8px;">
+        <div id="consumptionPeriods" style="display:flex;gap:7px;padding:4px;border-radius:11px;background:var(--btn-bg);">
+          <button type="button" data-period="day" style="flex:1;padding:8px 6px;border:0;border-radius:8px;background:var(--accent-wechat);color:#fff;font-size:.82rem;font-weight:800;">当天</button>
+          <button type="button" data-period="week" style="flex:1;padding:8px 6px;border:0;border-radius:8px;background:transparent;color:var(--text-soft);font-size:.82rem;font-weight:750;">本周</button>
+          <button type="button" data-period="month" style="flex:1;padding:8px 6px;border:0;border-radius:8px;background:transparent;color:var(--text-soft);font-size:.82rem;font-weight:750;">本月</button>
+        </div>
+      </div>
+      <div id="consumptionContent" style="padding:8px 16px 18px;overflow:auto;-webkit-overflow-scrolling:touch;">
+        <div style="padding:30px 10px;text-align:center;color:var(--text-light);font-size:.85rem;">正在加载数据…</div>
+      </div>
+      <div style="padding:9px 16px 13px;border-top:1px solid var(--card-border);font-size:.68rem;line-height:1.5;color:var(--text-light);">
+        添加次数按已添加微信的客户数统计；添加轮数按云端每日轮数累计；剩余数量为当前未添加、非公海客户库存。统计时间按北京时间。
+      </div>
     </div>
   </div>
 
@@ -14030,6 +14054,55 @@ function updateAutoDialBtn() {
       var mo = document.getElementById('drawerMonthOperatedVal');
       if (mo) mo.textContent = _monthOperatedCustomers;
     }
+    var _consumptionStats = null;
+    var _consumptionPeriod = 'day';
+    function renderConsumptionStats() {
+      var content = document.getElementById('consumptionContent');
+      var tabs = document.querySelectorAll('#consumptionPeriods [data-period]');
+      if (!content) return;
+      tabs.forEach(function(tab) {
+        var active = tab.getAttribute('data-period') === _consumptionPeriod;
+        tab.style.background = active ? 'var(--accent-wechat)' : 'transparent';
+        tab.style.color = active ? '#fff' : 'var(--text-soft)';
+      });
+      if (!_consumptionStats) return;
+      var suffix = _consumptionPeriod;
+      var rows = _consumptionStats.accounts || [];
+      if (!rows.length) {
+        content.innerHTML = '<div style="padding:28px 10px;text-align:center;color:var(--text-light);font-size:.84rem;">暂无子账户数据</div>';
+        return;
+      }
+      var totals = { add:0, rounds:0, supplement:0, remaining:0 };
+      var html = '<div style="overflow-x:auto;"><table style="width:100%;min-width:590px;border-collapse:collapse;font-size:.78rem;color:var(--text-main);"><thead><tr style="color:var(--text-light);text-align:left;border-bottom:1px solid var(--card-border);"><th style="padding:10px 7px;font-weight:750;">子账户</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加次数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">添加轮数</th><th style="padding:10px 7px;text-align:center;font-weight:750;">主账号补充</th><th style="padding:10px 7px;text-align:right;font-weight:750;">剩余数量</th></tr></thead><tbody>';
+      rows.forEach(function(row) {
+        var add = Number(row['add_' + suffix] || 0);
+        var rounds = Number(row['rounds_' + suffix] || 0);
+        var supplement = Number(row['master_supplement_' + suffix] || 0);
+        var remaining = Number(row.remaining_count || 0);
+        totals.add += add; totals.rounds += rounds; totals.supplement += supplement; totals.remaining += remaining;
+        html += '<tr style="border-bottom:1px solid var(--card-border);"><td style="padding:12px 7px;font-weight:750;white-space:nowrap;">' + escHtml(String(row.account_name || '未命名账户')) + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + add + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + rounds + '</td><td style="padding:12px 7px;text-align:center;font-variant-numeric:tabular-nums;">' + supplement + '</td><td style="padding:12px 7px;text-align:right;font-weight:850;font-variant-numeric:tabular-nums;">' + remaining + '</td></tr>';
+      });
+      html += '</tbody><tfoot><tr style="background:var(--btn-bg);font-weight:850;"><td style="padding:12px 7px;">合计</td><td style="padding:12px 7px;text-align:center;">' + totals.add + '</td><td style="padding:12px 7px;text-align:center;">' + totals.rounds + '</td><td style="padding:12px 7px;text-align:center;">' + totals.supplement + '</td><td style="padding:12px 7px;text-align:right;">' + totals.remaining + '</td></tr></tfoot></table></div>';
+      content.innerHTML = html;
+    }
+    function openConsumptionStats() {
+      if (!isSessionMaster()) return;
+      var overlay = document.getElementById('consumptionOverlay');
+      var content = document.getElementById('consumptionContent');
+      if (!overlay || !content) return;
+      overlay.style.display = 'flex';
+      content.innerHTML = '<div style="padding:30px 10px;text-align:center;color:var(--text-light);font-size:.85rem;">正在读取子账户数据…</div>';
+      _consumptionStats = null;
+      _consumptionPeriod = 'day';
+      renderConsumptionStats();
+      fetch('/api/dialer/stats/consumption', { headers: { 'Authorization': 'Bearer ' + getSessionToken() }, cache: 'no-store' })
+        .then(function(r) { return r.json().then(function(data) { if (!r.ok || !data.success) throw new Error(data.error || '数据读取失败'); return data; }); })
+        .then(function(data) { _consumptionStats = data; renderConsumptionStats(); })
+        .catch(function(err) {
+          content.innerHTML = '<div style="padding:28px 10px;text-align:center;color:#d9534f;font-size:.84rem;">' + escHtml(err.message || '数据加载失败') + '</div>';
+        });
+    }
+
     function initProgressDrawer() {
       var stats = document.getElementById('headerStatsMinimal');
       var overlay = document.getElementById('progressDrawerOverlay');
@@ -14074,6 +14147,22 @@ function updateAutoDialBtn() {
         } catch (e) {}
         syncClientInfoToggle();
         renderDialCards();
+      });
+      var consumptionBtn = document.getElementById('drawerConsumptionBtn');
+      if (consumptionBtn && isSessionMaster()) {
+        consumptionBtn.style.display = 'block';
+        consumptionBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); openConsumptionStats(); });
+      }
+      var consumptionOverlay = document.getElementById('consumptionOverlay');
+      var consumptionClose = document.getElementById('consumptionClose');
+      if (consumptionClose) consumptionClose.addEventListener('click', function() { if (consumptionOverlay) consumptionOverlay.style.display = 'none'; });
+      if (consumptionOverlay) consumptionOverlay.addEventListener('click', function(e) { if (e.target === consumptionOverlay) consumptionOverlay.style.display = 'none'; });
+      var consumptionPeriods = document.getElementById('consumptionPeriods');
+      if (consumptionPeriods) consumptionPeriods.addEventListener('click', function(e) {
+        var target = e.target.closest('[data-period]');
+        if (!target) return;
+        _consumptionPeriod = target.getAttribute('data-period') || 'day';
+        renderConsumptionStats();
       });
       var closeBtn = document.getElementById('progressDrawerClose');
       if (closeBtn) closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
