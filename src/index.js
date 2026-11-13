@@ -667,7 +667,7 @@ export default {
         const query = String(url.searchParams.get('q') || '').trim().toLowerCase();
         const flowerQueries = ['flowers', 'flower', 'floral', 'bouquet', 'blossom'];
         const spaceQueries = ['galaxy', 'nebula', 'universe', 'outer space', 'cosmos', 'milky way', 'starfield', 'planets'];
-        const landscapeQueries = ['landscape nature mountain', 'scenic nature mountains lake', 'mountain landscape', 'forest landscape', 'lake landscape', 'waterfall landscape', 'coastal landscape', 'nature scenery'];
+        const landscapeQueries = ['alpine lake sunrise landscape', 'misty mountain lake scenery', 'snowy mountain reflection landscape', 'dramatic coastal cliffs ocean scenery', 'autumn mountain valley landscape', 'emerald lake forest mountains', 'quiet fjord landscape', 'sunset over mountain lake'];
         const allowed = type === 'space' ? spaceQueries : (type === 'flowers' ? flowerQueries : (type === 'landscape' ? landscapeQueries : []));
         if (allowed.indexOf(query) < 0) {
           return new Response(JSON.stringify({ success: false, message: '不支持的壁纸搜索关键词' }), {
@@ -691,7 +691,50 @@ export default {
         const isHttps = value => /^https:\/\//i.test(String(value || ''));
         const toTags = values => (values || []).map(value => ({ name: String(value || ''), alias: '' }));
 
-        // Source 1: Openverse，聚合多个开放授权图库，匿名 API 可用。
+        // Source 1: Bing 每日首页壁纸。该公开首页数据接口未作为稳定开发者 API 文档化，失败时继续使用后备图库。
+        if (type === 'landscape') {
+          try {
+            const bingUrl = 'https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=zh-CN';
+            const bingResp = await fetch(bingUrl, {
+              headers,
+              cf: { cacheTtl: 21600, cacheEverything: true }
+            });
+            if (bingResp.ok) {
+              const bingPayload = await bingResp.json();
+              const item = Array.isArray(bingPayload.images) ? bingPayload.images[0] : null;
+              const imagePath = String(item && item.url || '');
+              const imageUrl = /^https:\/\//i.test(imagePath)
+                ? imagePath
+                : (imagePath.startsWith('/') ? 'https://www.bing.com' + imagePath : '');
+              if (imageUrl && /^https:\/\/www\.bing\.com\//i.test(imageUrl)) {
+                return new Response(JSON.stringify({
+                  success: true,
+                  data: {
+                    file_url: imageUrl,
+                    source_url: String(item.copyrightlink || 'https://www.bing.com/'),
+                    title: String(item.title || 'Bing 每日风景'),
+                    copyright: String(item.copyright || ''),
+                    provider: 'bing-daily',
+                    purity: 'sfw',
+                    category: 'general',
+                    resolution: '1920x1080',
+                    is_mobile: true,
+                    tags: toTags(['landscape', 'scenery', 'nature', '风景'])
+                  }
+                }), {
+                  headers: {
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'Cache-Control': 'public, max-age=21600'
+                  }
+                });
+              }
+            }
+          } catch (bingError) {
+            console.warn('[wallpaper] Bing daily image failed; trying fallback galleries:', bingError);
+          }
+        }
+
+        // Source 2: Openverse，聚合多个开放授权图库，匿名 API 可用。
         try {
           const ovUrl = new URL('https://api.openverse.org/v1/images/');
           ovUrl.searchParams.set('q', query);
