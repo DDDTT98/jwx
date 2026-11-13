@@ -320,7 +320,7 @@ async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, 
   while (true) {
     var params = new URLSearchParams({
       select: 'account_id,operation_date,mobile',
-      operation_type: 'eq.profile',
+      operation_type: 'eq.copy',
       account_id: 'in.(' + accountIds.join(',') + ')',
       and: '(operation_date.gte.' + monthStart + ',operation_date.lte.' + endDate + ')',
       order: 'operation_date.asc,account_id.asc,mobile.asc',
