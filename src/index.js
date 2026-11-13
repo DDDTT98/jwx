@@ -2896,6 +2896,31 @@ export default {
       }
     }
 
+    // Validate the browser's persisted dialer batch before restoring its local list.
+    if (path === '/api/dialer/batch-status' && request.method === 'GET') {
+      try {
+        const params = new URL(request.url).searchParams;
+        const deviceId = String(params.get('device_id') || '').trim();
+        const batchId = String(params.get('batch_id') || '').trim();
+        if (!deviceId || !batchId) {
+          return new Response(JSON.stringify({ success: false, error: '缺少设备或批次标识' }), {
+            status: 400, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+        const sb = createSupabaseClient(env);
+        // Run the same expiry transaction immediately; do not wait for the 15-minute cron.
+        await sb.recycleExpiredDialerClaims();
+        const active = await sb.hasActiveDialerBatch(_dialerAccountId, deviceId, batchId);
+        return new Response(JSON.stringify({ success: true, active: !!active }), {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ success: false, error: e.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
     // Batch pull (换一批)
     if (path === '/api/dialer/customers/random' && (request.method === 'GET' || request.method === 'POST')) {
       try {
