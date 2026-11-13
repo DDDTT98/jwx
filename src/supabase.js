@@ -284,6 +284,10 @@ export function createSupabaseStore(env) {
     return true;
   }
   function listDescriptor(prefix) {
+    // work_stats keys are stored in dialer_work_stats by account/date.
+    // Only allow an account-scoped prefix; never fall back to scanning app_kv.
+    const workMatch = /^work_stats:([^:]+):$/.exec(String(prefix || ''));
+    if (workMatch) return { kind: 'work', table: 'dialer_work_stats', field: 'stat_date', accountId: workMatch[1], select: 'account_id,stat_date,payload' };
     if (prefix && prefix.indexOf('upload_log:') === 0) return { kind: 'upload', table: 'dialer_upload_logs', field: 'log_key', select: 'log_key,payload' };
     if (prefix && (prefix.indexOf('client_ops_all:') === 0 || prefix.indexOf('client_ops_dial:') === 0 || prefix.indexOf('client_ops_copy:') === 0)) return { kind: 'operation', table: 'dialer_client_operations', field: 'operation_key', select: 'operation_key,value,value_type,expires_at' };
     if (prefix && prefix.indexOf('dialer:bgjob:') === 0) return { kind: 'job', table: 'dialer_background_jobs', field: 'job_id', select: 'job_id,payload,expires_at' };
@@ -291,6 +295,7 @@ export function createSupabaseStore(env) {
     return null;
   }
   function normalizeListRow(row, descriptor) {
+    if (descriptor.kind === 'work') return { key: 'work_stats:' + row.account_id + ':' + row.stat_date, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: null };
     if (descriptor.kind === 'upload') return { key: row.log_key, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
     if (descriptor.kind === 'operation') return { key: row.operation_key, value: row.value || '1', value_type: row.value_type || 'text', expires_at: row.expires_at || null };
     if (descriptor.kind === 'job') return { key: 'dialer:bgjob:' + row.job_id, value: JSON.stringify(row.payload || {}), value_type: 'text', expires_at: row.expires_at || null };
@@ -370,7 +375,10 @@ export function createSupabaseStore(env) {
     const mapped = listDescriptor(opts.prefix || '');
     if (mapped) {
       const params = new URLSearchParams({ select: mapped.select, order: mapped.field + '.asc', limit: String(limit), offset: String(offset) });
-      if (mapped.kind === 'operation') {
+      if (mapped.kind === 'work') {
+        params.set('account_id', 'eq.' + mapped.accountId);
+        params.set('order', 'stat_date.asc');
+      } else if (mapped.kind === 'operation') {
         const parts = String(opts.prefix).split(':');
         params.set('operation_type', 'eq.' + (parts[0] === 'client_ops_dial' ? 'dial' : (parts[0] === 'client_ops_copy' ? 'copy' : 'all')));
         if (parts[1]) params.set('account_id', 'eq.' + parts[1]);
@@ -397,11 +405,11 @@ export function createSupabaseStore(env) {
         // 其余类型（如 upload_log）的键值本身就带前缀，仍用 like 过滤。
         params.set(mapped.field, 'like.' + String(opts.prefix).replace(/[\\*]/g, '\\$&') + '*');
       }
-      if (mapped.kind !== 'upload' && mapped.kind !== 'diet') params.set('or', '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')');
+      if (mapped.kind !== 'upload' && mapped.kind !== 'diet' && mapped.kind !== 'work') params.set('or', '(expires_at.is.null,expires_at.gt.' + new Date().toISOString() + ')');
       const rows = await requestTable(mapped.table, params.toString());
       rows.forEach(row => { const normalized = normalizeListRow(row, mapped); if (normalized) rowCache.set(normalized.key, normalized); });
       return {
-        keys: rows.map(row => ({ name: mapped.kind === 'upload' ? row.log_key : mapped.kind === 'operation' ? row.operation_key : mapped.kind === 'diet' ? 'diet:' + row.entry_date : 'dialer:bgjob:' + row.job_id })),
+        keys: rows.map(row => ({ name: mapped.kind === 'work' ? 'work_stats:' + row.account_id + ':' + row.stat_date : mapped.kind === 'upload' ? row.log_key : mapped.kind === 'operation' ? row.operation_key : mapped.kind === 'diet' ? 'diet:' + row.entry_date : 'dialer:bgjob:' + row.job_id })),
         list_complete: rows.length < limit,
         cursor: rows.length < limit ? undefined : String(offset + rows.length)
       };
