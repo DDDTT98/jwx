@@ -1643,7 +1643,7 @@ export default {
             for (var dk = 0; dk < dcList.keys.length; dk++) {
               var dcKey = dcList.keys[dk].name;
               var dcDate = dcKey.slice(dcPrefix.length);
-              if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dcDate)) continue;
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(dcDate)) continue;
               var dcDateStart = new Date(dcDate + 'T00:00:00+08:00').getTime();
               var dcRaw = await env.DATA_STORE.get(dcKey);
               if (!dcRaw) continue;
