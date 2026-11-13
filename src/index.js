@@ -1661,7 +1661,7 @@ export default {
         // 剩余量只统计当前未添加、且不在公海的客户；“添加次数”统一按姓名/单位已操作客户数统计。
         var dcOffset = 0, dcPageSize = 1000;
         while (true) {
-          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,mobile,category&order=account_id.asc,mobile.asc', {
+          var dcCustomerResp = await fetch(env.SUPABASE_URL + '/rest/v1/customers?select=account_id,mobile,dialer_wechat_added_at,category&order=account_id.asc,mobile.asc', {
             headers: Object.assign({}, dcHeaders, { 'Range': dcOffset + '-' + (dcOffset + dcPageSize - 1) })
           });
           if (!dcCustomerResp.ok) throw new Error('读取客户消耗数据失败：' + dcCustomerResp.status + ' ' + (await dcCustomerResp.text()).slice(0, 200));
