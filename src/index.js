@@ -1550,7 +1550,7 @@ export default {
         }
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('数据库服务未配置');
         var dpBody = await request.json();
-        var dpUrl = env.SUPABASE_URL.replace(/\\/$/, '') + '/rest/v1/dialer_dashboard_passwords?account_id=eq.' + encodeURIComponent(dpSession.account_id) + '&select=account_id,password_salt,password_hash';
+        var dpUrl = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_dashboard_passwords?account_id=eq.' + encodeURIComponent(dpSession.account_id) + '&select=account_id,password_salt,password_hash';
         var dpHeaders = { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' };
         var dpRead = await fetch(dpUrl, { headers: dpHeaders });
         if (!dpRead.ok) throw new Error('读取看板密码失败');
@@ -1566,7 +1566,7 @@ export default {
           var dpKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(dpPassword), 'PBKDF2', false, ['deriveBits']);
           var dpBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(dpSalt), iterations: 180000, hash: 'SHA-256' }, dpKey, 256);
           var dpHash = Array.from(new Uint8Array(dpBits)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-          var dpWrite = await fetch(env.SUPABASE_URL.replace(/\\/$/, '') + '/rest/v1/dialer_dashboard_passwords', {
+          var dpWrite = await fetch(env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/dialer_dashboard_passwords', {
             method: 'POST', headers: Object.assign({}, dpHeaders, { 'Prefer': 'return=minimal' }),
             body: JSON.stringify({ account_id: dpSession.account_id, password_salt: dpSalt, password_hash: dpHash })
           });
