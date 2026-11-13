@@ -4167,6 +4167,16 @@
     var ACCOUNT_LABEL_K = 'standalone_dialer_account_label';
     var DEVICE_ID_K = 'standalone_dialer_device_id';
     var ACTIVE_BATCH_ID_K = 'standalone_dialer_active_batch_id';
+    var INTENTIONAL_EMPTY_K = 'standalone_dialer_intentional_empty';
+    function getIntentionalEmptyKey() {
+      return INTENTIONAL_EMPTY_K + ':' + encodeURIComponent(getSessionAccountId() || 'anonymous');
+    }
+    function markDialerListIntentionallyEmpty() {
+      try { localStorage.setItem(getIntentionalEmptyKey(), '1'); } catch (e) {}
+    }
+    function clearDialerListIntentionallyEmpty() {
+      try { localStorage.removeItem(getIntentionalEmptyKey()); } catch (e) {}
+    }
     var _dialerDeviceId = getOrCreateDeviceId();
     var _activeDialerBatchId = '';
     function getClientsStorageKey() {
@@ -4189,6 +4199,7 @@
       }
     }
     function createDialerBatchId() {
+      clearDialerListIntentionallyEmpty();
       _activeDialerBatchId = 'batch_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
       try { localStorage.setItem(getActiveBatchStorageKey(), _activeDialerBatchId); } catch (e) {}
       return _activeDialerBatchId;
@@ -5321,6 +5332,7 @@
           });
           for (var i = 0; i < importedClients.length; i++) sanitizeClientFields(importedClients[i]);
           _activeDialerBatchId = String(body.batch_id);
+          clearDialerListIntentionallyEmpty();
           try { localStorage.setItem(getActiveBatchStorageKey(), _activeDialerBatchId); } catch (e) {}
           saveState();
           renderRestoredDialerList();
@@ -5406,11 +5418,14 @@
           importedClients = JSON.parse(saved);
           if (!Array.isArray(importedClients)) importedClients = [];
         }
-        if (importedClients.length > 0 && _activeDialerBatchId) {
+        var intentionallyEmpty = false;
+        try { intentionallyEmpty = localStorage.getItem(getIntentionalEmptyKey()) === '1'; } catch (e) {}
+        if (intentionallyEmpty && importedClients.length === 0) {
+          renderRestoredDialerList();
+        } else if (importedClients.length > 0 && _activeDialerBatchId) {
           validatePersistedDialerBatch(loadVersion);
-        } else if (saved === null || (importedClients.length === 0 && !_activeDialerBatchId)) {
-          // Missing/invalidated cache can be recovered from cloud. An explicit local []
-          // with a retained batch ID means the user intentionally cleared the list.
+        } else if (saved === null || importedClients.length === 0) {
+          // Missing or empty cache is recoverable from cloud unless an explicit user-clear marker exists.
           restoreActiveDialerBatchFromCloud(loadVersion);
         } else {
           renderRestoredDialerList();
@@ -10379,6 +10394,7 @@ function updateAutoDialBtn() {
 
             // 只有云端确认全部号码均已转移，才清空本地拨号列表。
             importedClients = [];
+            markDialerListIntentionallyEmpty();
             currentCallIdx = -1;
             window._roundTransferBlocked = false;
             window._roundTransferPending = false;
@@ -10419,6 +10435,7 @@ function updateAutoDialBtn() {
         clearBtn.addEventListener('click', function() {
           if (confirm('确认清空当前导入的客户和所有的拨号记录吗？')) {
             importedClients = [];
+            markDialerListIntentionallyEmpty();
             window._roundTransferBlocked = false;
             window._roundTransferPending = false;
             _reminderShown = false;
