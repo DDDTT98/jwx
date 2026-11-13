@@ -11360,7 +11360,7 @@ function updateAutoDialBtn() {
       var controls = document.getElementById('dbAccountViewControls');
       var sel = document.getElementById('dbViewAccountSel');
       var migrateBtn = document.getElementById('dbMigrateBtn');
-      if (!canManageTeam()) {
+      if (!isSessionMaster()) {
         if (controls) controls.style.display = 'none';
         return;
       }
