@@ -15198,7 +15198,9 @@ function updateAutoDialBtn() {
             document.getElementById('lockScreenOverlay').classList.add('auth-hidden');
             requestAnimationFrame(function() {
               setTimeout(function() {
-                renderDialCards();
+                // PIN 锁屏是页面刷新后的正常入口；解锁后必须重新加载当前账户的本地/云端拨号列表，
+                // 不能只渲染页面启动时的空数组，否则刷新后列表会永久显示为空。
+                loadPersistedState();
                 // 非解锁必需数据放到后台加载，不阻塞 PIN 验证和锁屏关闭。
                 setTimeout(function() { loadReminderConfig(); }, 0);
                 setTimeout(function() { fetchWorkStats(); }, 0);
