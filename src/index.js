@@ -3199,16 +3199,17 @@ export default {
           if (result && result.error) throw new Error(result.error);
           let data = result.data || [];
 
-          // 子账号补充规则：先取本账号可拨数据；不足本批 50 条时，只从主账号补足差额。
-          // 例如本账号可拨 30 条，仅补 20 条；已有 50 条则不向主账号请求。
+          // 子账号数据优先：先由数据库原子认领本账号所有符合当前拨号规则的数据（最多本次请求数量）。
+          // 只要本账号成功取得哪怕 1 条，就绝不从主账号补充；部分批次也按实际数量返回。
+          // 只有本账号查询成功且返回 0 条，才允许进入主账号补充流程。查询异常会在上方抛错，不会被当成无数据。
           var masterLoadedCount = 0;
           var masterDailyRemaining = 300;
           var masterPullReason = '';
           var accountRows = await dialerGetAccounts(env);
           var currentAccount = accountRows.find(function(a) { return a.account_id === accountId; });
           var masterAccount = accountRows.find(function(a) { return a && a.is_master !== false; });
-          if (currentAccount && currentAccount.is_master === false && masterAccount && masterAccount.account_id !== accountId && data.length < limit) {
-            masterPullReason = data.length === 0 ? 'empty_dialer' : 'fill_batch_shortfall';
+          if (currentAccount && currentAccount.is_master === false && masterAccount && masterAccount.account_id !== accountId && data.length === 0) {
+            masterPullReason = 'empty_dialer';
             var masterDailyKey = 'dialer:master-pull:day:' + accountId + ':' + beijingDateKey(new Date());
             var masterDailyRaw = await env.DATA_STORE.get(masterDailyKey);
             var masterDailyState = masterDailyRaw ? JSON.parse(masterDailyRaw) : { count: 0 };
