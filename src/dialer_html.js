@@ -4430,7 +4430,7 @@
           if (_viewAccountId && url.indexOf('/api/dialer/auth/') === -1) {
             opts.headers['X-View-Account-Id'] = _viewAccountId;
           }
-          if (window._dbDashboardAccessActive) opts.headers['X-DB-Dashboard-Request'] = '1';
+
         }
         return _origFetch.call(window, url, opts);
       };
