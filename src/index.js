@@ -308,29 +308,52 @@ async function fetchCooldownRow(env, accountId, date, deviceId) {
 async function upsertCooldownRow(env, accountId, date, deviceId, row) {
   await env.DATA_STORE.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
 }
-// 单次扫描账号操作记录，同时计算当天/本周/本月的去重客户数。
-async function clientOperationRangeUniqueCount(env, accountId, dayStart, weekStart, monthStart, endDate) {
-  var prefix = 'client_ops_all:' + accountId + ':';
-  var dayMobiles = new Set();
-  var weekMobiles = new Set();
-  var monthMobiles = new Set();
-  var cursor;
-  do {
-    var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
-    (page.keys || []).forEach(function(item) {
-      var rest = item.name.slice(prefix.length);
-      var sep = rest.indexOf(':');
-      if (sep < 0) return;
-      var opDate = rest.slice(0, sep);
-      var mobile = rest.slice(sep + 1);
-      if (!mobile || opDate < monthStart || opDate > endDate) return;
-      monthMobiles.add(mobile);
-      if (opDate >= weekStart) weekMobiles.add(mobile);
-      if (opDate === dayStart) dayMobiles.add(mobile);
+// 一次按全部子账户批量读取操作记录，避免逐账户 list 触发 Worker subrequest 上限。
+async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, monthStart, endDate) {
+  var result = {};
+  (accountIds || []).forEach(function(id) {
+    result[id] = { day: new Set(), week: new Set(), month: new Set() };
+  });
+  if (!accountIds || !accountIds.length) return {};
+  var offset = 0;
+  var pageSize = 1000;
+  while (true) {
+    var params = new URLSearchParams({
+      select: 'account_id,operation_date,mobile',
+      operation_type: 'eq.all',
+      account_id: 'in.(' + accountIds.join(',') + ')',
+      operation_date: 'gte.' + monthStart,
+      order: 'operation_date.asc,account_id.asc,mobile.asc',
+      limit: String(pageSize),
+      offset: String(offset)
     });
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
-  return { day: dayMobiles.size, week: weekMobiles.size, month: monthMobiles.size };
+    params.append('operation_date', 'lte.' + endDate);
+    var response = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_client_operations?' + params.toString(), {
+      headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
+    });
+    if (!response.ok) throw new Error('读取客户操作统计失败：' + response.status + ' ' + (await response.text()).slice(0, 180));
+    var rows = await response.json();
+    (rows || []).forEach(function(row) {
+      var bucket = result[row.account_id];
+      if (!bucket || !row.mobile) return;
+      var date = String(row.operation_date || '');
+      if (date < monthStart || date > endDate) return;
+      bucket.month.add(row.mobile);
+      if (date >= weekStart) bucket.week.add(row.mobile);
+      if (date === dayStart) bucket.day.add(row.mobile);
+    });
+    if (!rows || rows.length < pageSize) break;
+    offset += rows.length;
+  }
+  var counts = {};
+  Object.keys(result).forEach(function(id) {
+    counts[id] = {
+      day: result[id].day.size,
+      week: result[id].week.size,
+      month: result[id].month.size
+    };
+  });
+  return counts;
 }
 
 // device_id 只允许安全字符，防止拼接进数据键
@@ -1662,15 +1685,18 @@ export default {
           dcOffset += dcPageSize;
         }
 
-        // 操作客户数按账号当天的全部客户操作记录统计；按账号隔离，周期内手机号去重。
-        for (var doi = 0; doi < dcSubAccounts.length; doi++) {
-          var dcOpAccountId = dcSubAccounts[doi].account_id;
-          var dcOpItem = dcStats[dcOpAccountId];
-          var dcOpCounts = await clientOperationRangeUniqueCount(env, dcOpAccountId, dcTodayKey, dcWeekKey, dcMonthKey, dcTodayKey);
-          dcOpItem.operated_day = dcOpCounts.day;
-          dcOpItem.operated_week = dcOpCounts.week;
-          dcOpItem.operated_month = dcOpCounts.month;
-        }
+        // 一次批量读取全部子账户的操作记录，避免逐账号扫描造成 Worker subrequest 超限。
+        var dcOperationCounts = await clientOperationRangeCounts(
+          env, dcSubAccounts.map(function(a) { return a.account_id; }),
+          dcTodayKey, dcWeekKey, dcMonthKey, dcTodayKey
+        );
+        dcSubAccounts.forEach(function(a) {
+          var item = dcStats[a.account_id];
+          var counts = dcOperationCounts[a.account_id] || { day: 0, week: 0, month: 0 };
+          item.operated_day = counts.day;
+          item.operated_week = counts.week;
+          item.operated_month = counts.month;
+        });
 
         // 轮数按每个账号的每日云端 work_stats 累加，兼容多设备。
         for (var di = 0; di < dcSubAccounts.length; di++) {
