@@ -481,7 +481,6 @@ async function processCrmBackgroundJobs(env) {
         var importItemsResp = await fetch(importItemsUrl, { headers: hdr });
         if (!importItemsResp.ok) throw new Error('读取导入暂存数据失败：' + (await importItemsResp.text()).slice(0, 240));
         var importItems = await importItemsResp.json();
-        if (Array.isArray(importItems)) importItems = dialerShuffleArray(importItems);
         if (!Array.isArray(importItems) || !importItems.length) {
           job.processed = Number(job.total || job.processed || 0);
           done = true;
