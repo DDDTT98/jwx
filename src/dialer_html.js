@@ -8750,11 +8750,10 @@
 
     var _dialerListScrollRestoredKey = '';
 
-    // 拨号列表姓名脱敏：列表只显示首字，其余字符以星号代替；真实姓名仍保留在数据和复制属性中。
+    // 拨号列表姓名脱敏：仅显示首字，其余字符完全隐藏；真实姓名仍保留在数据和复制属性中。
     function maskDialerName(name) {
       var value = String(name || '');
-      if (!value) return '';
-      return value.charAt(0) + '*'.repeat(Math.max(0, value.length - 1));
+      return value ? value.charAt(0) : '';
     }
 
     function renderDialCards() {
