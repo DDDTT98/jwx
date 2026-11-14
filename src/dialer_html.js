@@ -3139,51 +3139,6 @@
         <div style="font-size:1rem;font-weight:850;color:var(--text-main);">📘 使用指南</div>
         <button type="button" aria-label="关闭使用指南" onclick="document.getElementById('subAccountGuideOverlay').style.display='none';document.body.style.overflow='';" style="width:34px;height:34px;flex:none;border:0;border-radius:50%;background:var(--btn-bg);color:var(--text-main);font-size:22px;cursor:pointer;">×</button>
       </div>
-      <style>
-        #subAccountGuideOverlay .guide-layout{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:0;flex:1;}
-        #subAccountGuideOverlay .guide-sidebar{padding:14px 10px;border-right:1px solid var(--card-border);overflow-y:auto;-webkit-overflow-scrolling:touch;}
-        #subAccountGuideOverlay .guide-sidebar-title{padding:0 10px 10px;font-size:.72rem;font-weight:800;color:var(--text-light);}
-        #subAccountGuideOverlay .guide-nav-link{display:flex;align-items:center;gap:9px;min-height:42px;padding:7px 9px;margin:2px 0;border-radius:9px;color:var(--text-soft);text-decoration:none;font-size:.78rem;font-weight:650;transition:background .15s,color .15s;}
-        #subAccountGuideOverlay .guide-nav-link:hover,#subAccountGuideOverlay .guide-nav-link:focus{background:var(--btn-bg);color:var(--text-main);outline:none;}
-        #subAccountGuideOverlay .guide-nav-link svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
-        #subAccountGuideOverlay .guide-nav-link .guide-nav-chevron{width:14px;height:14px;margin-left:auto;opacity:.45;}
-        #subAccountGuideOverlay .guide-content{padding:8px 22px 24px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;color:var(--text-soft);font-size:.84rem;line-height:1.7;min-width:0;}
-        #subAccountGuideOverlay .guide-chapter>div:first-child{font-size:.98rem!important;margin-bottom:9px!important;}
-        #subAccountGuideOverlay .guide-chapter>div:last-child{white-space:pre-line;overflow-wrap:anywhere;}
-        #subAccountGuideOverlay .guide-mobile-directory{display:none;}
-        @media(max-width:620px){
-          #subAccountGuideOverlay{padding:8px!important;}
-          #subAccountGuideOverlay .guide-modal{height:90vh!important;border-radius:15px!important;}
-          #subAccountGuideOverlay .guide-layout{display:flex;flex-direction:column;}
-          #subAccountGuideOverlay .guide-sidebar{display:none;}
-          #subAccountGuideOverlay .guide-mobile-directory{display:block;flex:none;padding:9px 12px;border-bottom:1px solid var(--card-border);}
-          #subAccountGuideOverlay .guide-mobile-directory summary{display:flex;align-items:center;gap:7px;min-height:34px;font-size:.8rem;font-weight:750;color:var(--text-main);cursor:pointer;list-style:none;}
-          #subAccountGuideOverlay .guide-mobile-directory summary::-webkit-details-marker{display:none;}
-          #subAccountGuideOverlay .guide-mobile-directory nav{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding-top:8px;max-height:34vh;overflow:auto;}
-          #subAccountGuideOverlay .guide-mobile-directory .guide-nav-link{min-height:38px;font-size:.72rem;padding:6px;}
-          #subAccountGuideOverlay .guide-mobile-directory .guide-nav-chevron{display:none;}
-          #subAccountGuideOverlay .guide-content{padding:4px 15px 22px;font-size:.82rem;}
-        }
-      </style>
-      <style>
-        #subAccountGuideOverlay .guide-content{padding:12px 18px 24px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;color:var(--text-soft);font-size:.84rem;line-height:1.7;min-width:0;flex:1;}
-        #subAccountGuideOverlay .guide-chapter{border-bottom:1px solid var(--card-border);}
-        #subAccountGuideOverlay .guide-chapter-summary{display:flex;align-items:center;gap:11px;min-height:54px;padding:10px 8px;list-style:none;cursor:pointer;color:var(--text-main);font-size:.88rem;font-weight:800;-webkit-tap-highlight-color:transparent;}
-        #subAccountGuideOverlay .guide-chapter-summary::-webkit-details-marker{display:none;}
-        #subAccountGuideOverlay .guide-chapter-summary>svg:first-child{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;color:var(--text-soft);}
-        #subAccountGuideOverlay .guide-chapter-summary>span{flex:1;min-width:0;}
-        #subAccountGuideOverlay .guide-chapter-chevron{width:17px;height:17px;flex:none;fill:none;stroke:var(--text-light);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s;}
-        #subAccountGuideOverlay .guide-chapter[open] .guide-chapter-chevron{transform:rotate(90deg);}
-        #subAccountGuideOverlay .guide-chapter[open]>.guide-chapter-summary{color:var(--accent-wechat);}
-        #subAccountGuideOverlay .guide-chapter-body{padding:2px 12px 18px 38px;overflow-wrap:anywhere;color:var(--text-soft);font-size:.84rem;line-height:1.8;}
-        @media(max-width:620px){
-          #subAccountGuideOverlay{padding:8px!important;}
-          #subAccountGuideOverlay .guide-modal{height:90vh!important;border-radius:15px!important;}
-          #subAccountGuideOverlay .guide-content{padding:6px 12px 20px;}
-          #subAccountGuideOverlay .guide-chapter-summary{min-height:52px;font-size:.84rem;padding:9px 6px;}
-          #subAccountGuideOverlay .guide-chapter-body{padding:2px 8px 16px 34px;font-size:.82rem;line-height:1.75;}
-        }
-      </style>
       <div class="guide-content" id="guideContent">
         <details id="guideChapter1" class="guide-chapter">
           <summary class="guide-chapter-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>1.登录</span><svg class="guide-chapter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
