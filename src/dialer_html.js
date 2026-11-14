@@ -3139,6 +3139,26 @@
         <div style="font-size:1rem;font-weight:850;color:var(--text-main);">📘 使用指南</div>
         <button type="button" aria-label="关闭使用指南" onclick="document.getElementById('subAccountGuideOverlay').style.display='none';document.body.style.overflow='';" style="width:34px;height:34px;flex:none;border:0;border-radius:50%;background:var(--btn-bg);color:var(--text-main);font-size:22px;cursor:pointer;">×</button>
       </div>
+      <style>
+        #subAccountGuideOverlay #guideContent{display:block;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px 18px 24px;box-sizing:border-box;color:var(--text-soft);font-size:.84rem;line-height:1.7;}
+        #subAccountGuideOverlay .guide-chapter{display:block;margin:0;border:0;border-bottom:1px solid var(--card-border);}
+        #subAccountGuideOverlay .guide-chapter-summary{display:flex;align-items:center;gap:11px;min-height:54px;padding:10px 8px;box-sizing:border-box;list-style:none;cursor:pointer;color:var(--text-main);font-size:.88rem;font-weight:800;-webkit-tap-highlight-color:transparent;}
+        #subAccountGuideOverlay .guide-chapter-summary::-webkit-details-marker{display:none;}
+        #subAccountGuideOverlay .guide-chapter-summary::marker{content:"";}
+        #subAccountGuideOverlay .guide-chapter-summary>svg{display:block;width:19px;height:19px;min-width:19px;max-width:19px;flex:0 0 19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;color:var(--text-soft);}
+        #subAccountGuideOverlay .guide-chapter-summary>span{flex:1;min-width:0;}
+        #subAccountGuideOverlay .guide-chapter-summary>.guide-chapter-chevron{width:17px;height:17px;min-width:17px;max-width:17px;flex:0 0 17px;stroke:var(--text-light);stroke-width:2;transition:transform .18s;}
+        #subAccountGuideOverlay .guide-chapter[open]>.guide-chapter-summary{color:var(--accent-wechat);}
+        #subAccountGuideOverlay .guide-chapter[open]>.guide-chapter-summary>.guide-chapter-chevron{transform:rotate(90deg);}
+        #subAccountGuideOverlay .guide-chapter-body{display:block;padding:2px 12px 18px 38px;box-sizing:border-box;overflow-wrap:anywhere;white-space:pre-line;color:var(--text-soft);font-size:.84rem;line-height:1.8;}
+        @media(max-width:620px){
+          #subAccountGuideOverlay{padding:8px!important;}
+          #subAccountGuideOverlay .guide-modal{height:90vh!important;border-radius:15px!important;}
+          #subAccountGuideOverlay #guideContent{padding:6px 12px 20px;}
+          #subAccountGuideOverlay .guide-chapter-summary{min-height:52px;font-size:.84rem;padding:9px 6px;}
+          #subAccountGuideOverlay .guide-chapter-body{padding:2px 8px 16px 34px;font-size:.82rem;line-height:1.75;}
+        }
+      </style>
       <div class="guide-content" id="guideContent">
         <details id="guideChapter1" class="guide-chapter">
           <summary class="guide-chapter-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>1.登录</span><svg class="guide-chapter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
