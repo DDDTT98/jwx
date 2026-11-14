@@ -3132,24 +3132,59 @@
     </div>
   </div>
 
-  <!-- 子账户使用指南独立弹窗 -->
+  <!-- 使用指南独立弹窗 -->
   <div id="subAccountGuideOverlay" onclick="if(event.target===this){this.style.display='none';document.body.style.overflow='';}" style="display:none;position:fixed;inset:0;z-index:10090;background:rgba(0,0,0,.52);align-items:center;justify-content:center;padding:12px;box-sizing:border-box;">
-    <div style="width:min(560px,100%);height:min(86vh,760px);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--card-border);border-radius:18px;background:var(--card-bg);box-shadow:0 18px 60px rgba(0,0,0,.28);">
+    <div class="guide-modal" style="width:min(900px,100%);height:min(88vh,800px);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--card-border);border-radius:18px;background:var(--card-bg);box-shadow:0 18px 60px rgba(0,0,0,.28);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--card-border);flex:none;">
-        <div style="font-size:1rem;font-weight:850;color:var(--text-main);">📘 子账户快速上手</div>
+        <div style="font-size:1rem;font-weight:850;color:var(--text-main);">📘 使用指南</div>
         <button type="button" aria-label="关闭使用指南" onclick="document.getElementById('subAccountGuideOverlay').style.display='none';document.body.style.overflow='';" style="width:34px;height:34px;flex:none;border:0;border-radius:50%;background:var(--btn-bg);color:var(--text-main);font-size:22px;cursor:pointer;">×</button>
       </div>
-      <div style="padding:13px 14px 20px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;color:var(--text-soft);font-size:.78rem;line-height:1.55;">
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+      <style>
+        #subAccountGuideOverlay .guide-layout{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:0;flex:1;}
+        #subAccountGuideOverlay .guide-sidebar{padding:14px 10px;border-right:1px solid var(--card-border);overflow-y:auto;-webkit-overflow-scrolling:touch;}
+        #subAccountGuideOverlay .guide-sidebar-title{padding:0 10px 10px;font-size:.72rem;font-weight:800;color:var(--text-light);}
+        #subAccountGuideOverlay .guide-nav-link{display:flex;align-items:center;gap:9px;min-height:42px;padding:7px 9px;margin:2px 0;border-radius:9px;color:var(--text-soft);text-decoration:none;font-size:.78rem;font-weight:650;transition:background .15s,color .15s;}
+        #subAccountGuideOverlay .guide-nav-link:hover,#subAccountGuideOverlay .guide-nav-link:focus{background:var(--btn-bg);color:var(--text-main);outline:none;}
+        #subAccountGuideOverlay .guide-nav-link svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+        #subAccountGuideOverlay .guide-nav-link .guide-nav-chevron{width:14px;height:14px;margin-left:auto;opacity:.45;}
+        #subAccountGuideOverlay .guide-content{padding:8px 22px 24px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;color:var(--text-soft);font-size:.84rem;line-height:1.7;min-width:0;}
+        #subAccountGuideOverlay .guide-chapter>div:first-child{font-size:.98rem!important;margin-bottom:9px!important;}
+        #subAccountGuideOverlay .guide-chapter>div:last-child{white-space:pre-line;overflow-wrap:anywhere;}
+        #subAccountGuideOverlay .guide-mobile-directory{display:none;}
+        @media(max-width:620px){
+          #subAccountGuideOverlay{padding:8px!important;}
+          #subAccountGuideOverlay .guide-modal{height:90vh!important;border-radius:15px!important;}
+          #subAccountGuideOverlay .guide-layout{display:flex;flex-direction:column;}
+          #subAccountGuideOverlay .guide-sidebar{display:none;}
+          #subAccountGuideOverlay .guide-mobile-directory{display:block;flex:none;padding:9px 12px;border-bottom:1px solid var(--card-border);}
+          #subAccountGuideOverlay .guide-mobile-directory summary{display:flex;align-items:center;gap:7px;min-height:34px;font-size:.8rem;font-weight:750;color:var(--text-main);cursor:pointer;list-style:none;}
+          #subAccountGuideOverlay .guide-mobile-directory summary::-webkit-details-marker{display:none;}
+          #subAccountGuideOverlay .guide-mobile-directory nav{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding-top:8px;max-height:34vh;overflow:auto;}
+          #subAccountGuideOverlay .guide-mobile-directory .guide-nav-link{min-height:38px;font-size:.72rem;padding:6px;}
+          #subAccountGuideOverlay .guide-mobile-directory .guide-nav-chevron{display:none;}
+          #subAccountGuideOverlay .guide-content{padding:4px 15px 22px;font-size:.82rem;}
+        }
+      </style>
+      <div class="guide-layout">
+        <aside class="guide-sidebar">
+          <div class="guide-sidebar-title">教程目录 · 12 个章节</div>
+          <nav class="guide-desktop-nav" aria-label="使用指南目录"><a class="guide-nav-link" href="#guideChapter1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>1.登录</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter2"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 11a4 4 0 0 1 4 4m-1 6h3"/></svg><span>2.列表加载客户</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter4"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/></svg><span>4.操作列表客户</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12 1"/></svg><span>5.客户轮转</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter6"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg><span>6.本机新号</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter7"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6A2 2 0 0 0 13.4 13.4"/><path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c5 0 8.3 4.5 9 7-.3 1-1.1 2.4-2.4 3.6M6.2 6.2C3.9 7.7 2.4 10 2 12c.7 2.5 4 7 10 7 1.2 0 2.3-.2 3.3-.6"/></svg><span>7.隐私模式</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter8"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg><span>8.数据统计</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter9"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10"/><path d="m16 17 2 2 4-4"/></svg><span>9.白名单模糊匹配</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter10"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg><span>10.微信对话模拟</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter11"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5V3h8v2M8 19v2h8v-2M12 9v6"/></svg><span>11.双卡轮换</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter12"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="8" height="12" rx="1"/><rect x="13" y="6" width="8" height="12" rx="1"/><path d="M7 9h0M17 9h0"/></svg><span>12.账户</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter13"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 3.1-.2-.1a1.7 1.7 0 0 0-1.8.3l-.1.1h-3.6l-.1-.2a1.7 1.7 0 0 0-1.6-1l-.2.1-3.1-1.8.1-.2a1.7 1.7 0 0 0-.3-1.8l-.1-.1v-3.6l.2-.1a1.7 1.7 0 0 0 1-1.6l-.1-.2 1.8-3.1.2.1a1.7 1.7 0 0 0 1.8-.3l.1-.1h3.6l.1.2a1.7 1.7 0 0 0 1.6 1l.2-.1 3.1 1.8-.1.2a1.7 1.7 0 0 0 .3 1.8l.1.1z"/></svg><span>13.后台规则</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></nav>
+        </aside>
+        <details class="guide-mobile-directory">
+          <summary><span>☷</span>教程目录 · 点击展开章节</summary>
+          <nav class="guide-mobile-nav" aria-label="使用指南目录"><a class="guide-nav-link" href="#guideChapter1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>1.登录</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter2"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 11a4 4 0 0 1 4 4m-1 6h3"/></svg><span>2.列表加载客户</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter4"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h6M7 16h4"/></svg><span>4.操作列表客户</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12 1"/></svg><span>5.客户轮转</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter6"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg><span>6.本机新号</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter7"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6A2 2 0 0 0 13.4 13.4"/><path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c5 0 8.3 4.5 9 7-.3 1-1.1 2.4-2.4 3.6M6.2 6.2C3.9 7.7 2.4 10 2 12c.7 2.5 4 7 10 7 1.2 0 2.3-.2 3.3-.6"/></svg><span>7.隐私模式</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter8"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg><span>8.数据统计</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter9"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10"/><path d="m16 17 2 2 4-4"/></svg><span>9.白名单模糊匹配</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter10"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg><span>10.微信对话模拟</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter11"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5V3h8v2M8 19v2h8v-2M12 9v6"/></svg><span>11.双卡轮换</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter12"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="8" height="12" rx="1"/><rect x="13" y="6" width="8" height="12" rx="1"/><path d="M7 9h0M17 9h0"/></svg><span>12.账户</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a><a class="guide-nav-link" href="#guideChapter13"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 3.1-.2-.1a1.7 1.7 0 0 0-1.8.3l-.1.1h-3.6l-.1-.2a1.7 1.7 0 0 0-1.6-1l-.2.1-3.1-1.8.1-.2a1.7 1.7 0 0 0-.3-1.8l-.1-.1v-3.6l.2-.1a1.7 1.7 0 0 0 1-1.6l-.1-.2 1.8-3.1.2.1a1.7 1.7 0 0 0 1.8-.3l.1-.1h3.6l.1.2a1.7 1.7 0 0 0 1.6 1l.2-.1 3.1 1.8-.1.2a1.7 1.7 0 0 0 .3 1.8l.1.1z"/></svg><span>13.后台规则</span><svg class="guide-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></a></nav>
+        </details>
+        <div class="guide-content" id="guideContent">
+          <section id="guideChapter1" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">1.登录</div>
           <div style="white-space:pre-line;">主账户 开通子账户 设置账户名和pin码（4位数）
 开通后 登录用户名 为账户名 密码为pin码</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter2" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">2.列表加载客户</div>
           <div style="white-space:pre-line;">顶部第二个图标 加载主账号数据 每次50个，每天限定300-600个</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter4" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">4.操作列表客户</div>
           <div style="white-space:pre-line;">点击手机号（添加VX）自动复制并跳转微信 粘贴搜索添加
 点击单位名称自动复制并跳转微信 粘贴到搜索出来的客户备注里
@@ -3157,47 +3192,48 @@
 点击拨打 会自动唤醒拨号拨打电话
 操作提醒特征，复制号码后 号码字体会立刻变成红色，复制单位名称后 整个卡片会变成透明，用于区分已经操作和未被操作的客户。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter5" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">5.客户轮转</div>
           <div style="white-space:pre-line;">列表为空时，点顶部第2个图标 每次加载50个客户。未添加完客户禁止重新点击避免浪费客户，如加载的客户是之前重复添加过的客户 可在右上角 更多点开 点击 转移至公海，这50个客户以后再也加不到了。
 每天加载客户数为300，如遇到今天添加上限可让主账户手动分配更多给你。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter6" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">6.本机新号</div>
           <div style="white-space:pre-line;">有些微信为新注册的小号，不能一次添加数量过多 打开本机新号以后 加载的客户为10个 添加完成后请耐心等待20-30分钟休息时间，维护新号微信的权重。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter7" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">7.隐私模式</div>
           <div style="white-space:pre-line;">在下班时间段非办公场所添加微信时，保证旁人不好奇你的添加客户行为，设定了下班时间段隐私操作的盲加模式。防止添加客户时候的尴尬窥屏行为！</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter8" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">8.数据统计</div>
           <div style="white-space:pre-line;">今日添加和拨打了的数据会在抽屉界面自动计数，了解今天做了多少添加动作，手动统计微信通过个数 可以记录本周和本月的微信量，此动作需要手动记录。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter9" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">9.白名单模糊匹配</div>
           <div style="white-space:pre-line;">主账户上传白名单列表（如建易贷白名单）
 列表数据会自动匹配客户是否在白名单 显示在客户卡片，如不在列表客户单位想要知道白名单 也可以手动模糊匹配有没有在白名单。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter10" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">10.微信对话模拟</div>
           <div style="white-space:pre-line;">此界面有整个团队上传的话术模板，记录客户的提问和最佳的回复话术，此界面需要所有人把面对的典型客户问题和好的回答记录上去，以供后期参考应对。回复话术点击变红后会一键复制，可以直接修改一下发给客户回答。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter11" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">11.双卡轮换</div>
           <div style="white-space:pre-line;">用本列表拨打列表客户打开双卡轮换，可自动调用主副卡轮流拨打电话，避免一个号码一直打造成标记骚扰。轮换频率为5/10通换一次。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter12" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">12.账户</div>
           <div style="white-space:pre-line;">账户名旁边为现在你这个账户已有的客户数量（包含本账户所有手机加载的客户列表一起总数）
 点击账户名 可看到 自定义备注组合 勾选了哪个就会自动复制 哪种备注组合（按照每个人的备注客户习惯灵活排列）
 修改pin 就是修改登录和解锁密码
 安卓手机还会单独有 勾选跳转 微信 ，有些安卓系统是可以跳转的建议打开。</div>
         </section>
-        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+<section id="guideChapter13" class="guide-chapter" style="padding:16px 4px 18px;border-bottom:1px solid var(--card-border);scroll-margin-top:12px;">
           <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">13.后台规则</div>
           <div style="white-space:pre-line;">同一个账户 不同手机加载的客户都是不同的，请认真加完列表客户，加完后会有50分钟左右的倒计时 用来休息间隔避免添加微信短时间太多造成频繁。 倒计时期间可以中断强行继续添加，也可进入 学习中心 学习养微信规则。</div>
         </section>
+        </div>
       </div>
     </div>
   </div>
