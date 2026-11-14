@@ -334,7 +334,7 @@ async function clientOperationSingleAccountCounts(env, accountId, startDate, end
     var monthMobiles = new Set();
     operationGroups[index].forEach(function(row) {
       var opDate = String(row.operation_date || '');
-      var mobile = String(row.mobile || '').replace(/\\D/g, '');
+      var mobile = String(row.mobile || '').replace(/\D/g, '');
       if (!mobile || opDate < startDate || opDate > endDate) return;
       monthMobiles.add(mobile);
       if (opDate === endDate) dayMobiles.add(mobile);
@@ -379,7 +379,7 @@ async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, 
     var bucket = result[accountId];
     if (!allowed[accountId] || !bucket) return;
     var date = String(row.operation_date || '');
-    var mobile = String(row.mobile || '').replace(/\\D/g, '');
+    var mobile = String(row.mobile || '').replace(/\D/g, '');
     if (!mobile || date < monthStart || date > endDate) return;
     bucket.month.add(mobile);
     if (date >= weekStart) bucket.week.add(mobile);
