@@ -2096,10 +2096,10 @@ export default {
         var wsToken = wsAuth.startsWith('Bearer ') ? wsAuth.slice(7) : '';
         var wsSession = await dialerValidateSession(env, wsToken);
         if (!wsSession) throw new Error('未登录');
-        var wsDate = url.searchParams.get('date') || '';
+        var requestedWsDate = url.searchParams.get('date') || '';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedWsDate)) throw new Error('date 格式应为 YYYY-MM-DD');
         // 抽屉统计统一使用北京时间，避免设备时区导致日/周/月边界与主账号看板不一致。
-        wsDate = beijingDateKey(new Date());
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(wsDate)) throw new Error('date 格式应为 YYYY-MM-DD');
+        var wsDate = beijingDateKey(new Date());
         var wsDeviceId = url.searchParams.get('device_id') || '';
         var wsRow = await fetchWorkRow(env, wsSession.account_id, wsDate);
         var wm = await weekMonthCounts(env, wsSession.account_id, wsDate);
