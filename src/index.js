@@ -286,33 +286,60 @@ function clientOperationKey(accountId, date, mobile, kind) {
   return 'client_ops_' + kind + ':' + accountId + ':' + date + ':' + encodeURIComponent(String(mobile).replace(/\D/g, ''));
 }
 // 按统计周期对客户手机号去重：仅姓名/单位名称复制计入资料复制客户
+// 直接以 Supabase dialer_client_operations 为统计唯一数据源。
+// copy = 姓名/单位资料复制；dial = 拨打；all 等旧类型不参与资料复制统计。
+async function fetchClientOperationRows(env, operationType, startDate, endDate, accountId) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置，无法读取客户操作统计');
+  var params = new URLSearchParams({
+    select: 'account_id,operation_date,mobile',
+    operation_type: 'eq.' + operationType,
+    operation_date: 'gte.' + startDate,
+    order: 'operation_date.asc,account_id.asc,mobile.asc',
+    limit: '1000'
+  });
+  params.append('operation_date', 'lte.' + endDate);
+  if (accountId) params.set('account_id', 'eq.' + accountId);
+  var rows = [];
+  var offset = 0;
+  while (true) {
+    var response = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_client_operations?' + params.toString(), {
+      headers: {
+        'apikey': env.SUPABASE_KEY,
+        'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+        'Range': offset + '-' + (offset + 999)
+      }
+    });
+    if (!response.ok) throw new Error('读取客户操作统计失败：' + response.status + ' ' + (await response.text()).slice(0, 200));
+    var pageRows = await response.json();
+    if (!Array.isArray(pageRows) || !pageRows.length) break;
+    rows = rows.concat(pageRows);
+    if (pageRows.length < 1000) break;
+    offset += 1000;
+  }
+  return rows;
+}
+
+// 子账号抽屉：从 Supabase 原始 copy/dial 记录分别汇总，按周期内手机号去重。
 async function clientOperationSingleAccountCounts(env, accountId, startDate, endDate) {
   var dateObj = new Date(endDate + 'T00:00:00Z');
   var weekStart = addDays(endDate, -((dateObj.getUTCDay() + 6) % 7));
   var result = { operated_count: 0, dialed_count: 0, week_operated_count: 0, month_operated_count: 0, week_dialed_count: 0, month_dialed_count: 0 };
-  for (var k = 0; k < 2; k++) {
-    var kind = k === 0 ? 'profile' : 'dial';
-    var prefix = 'client_ops_' + kind + ':' + accountId + ':';
+  var operationGroups = await Promise.all([
+    fetchClientOperationRows(env, 'copy', startDate, endDate, accountId),
+    fetchClientOperationRows(env, 'dial', startDate, endDate, accountId)
+  ]);
+  ['profile', 'dial'].forEach(function(kind, index) {
     var dayMobiles = new Set();
     var weekMobiles = new Set();
     var monthMobiles = new Set();
-    var cursor;
-    do {
-      var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
-      (page.keys || []).forEach(function(item) {
-        var rest = item.name.slice(prefix.length);
-        var sep = rest.indexOf(':');
-        if (sep < 0) return;
-        var opDate = rest.slice(0, sep);
-        if (opDate < startDate || opDate > endDate) return;
-        var mobile = rest.slice(sep + 1);
-        if (!mobile) return;
-        monthMobiles.add(mobile);
-        if (opDate === endDate) dayMobiles.add(mobile);
-        if (opDate >= weekStart) weekMobiles.add(mobile);
-      });
-      cursor = page.list_complete ? undefined : page.cursor;
-    } while (cursor);
+    operationGroups[index].forEach(function(row) {
+      var opDate = String(row.operation_date || '');
+      var mobile = String(row.mobile || '').replace(/\\D/g, '');
+      if (!mobile || opDate < startDate || opDate > endDate) return;
+      monthMobiles.add(mobile);
+      if (opDate === endDate) dayMobiles.add(mobile);
+      if (opDate >= weekStart) weekMobiles.add(mobile);
+    });
     if (kind === 'profile') {
       result.operated_count = dayMobiles.size;
       result.week_operated_count = weekMobiles.size;
@@ -322,7 +349,7 @@ async function clientOperationSingleAccountCounts(env, accountId, startDate, end
       result.week_dialed_count = weekMobiles.size;
       result.month_dialed_count = monthMobiles.size;
     }
-  }
+  });
   return result;
 }
 // 设备级冷却倒计时（每台设备各自走 45-60 分钟）：与账号级轮次统计分开存，互不覆盖
@@ -337,6 +364,7 @@ async function upsertCooldownRow(env, accountId, date, deviceId, row) {
   await env.DATA_STORE.put(cooldownKey(accountId, date, deviceId), JSON.stringify(row));
 }
 // 一次按全部子账户批量读取操作记录，避免逐账户 list 触发 Worker subrequest 上限。
+// 主账号数据消耗：直接读取 Supabase copy 原始记录，按账号/日期区间聚合。
 async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, monthStart, endDate) {
   var result = {};
   var allowed = {};
@@ -345,31 +373,18 @@ async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, 
     result[id] = { day: new Set(), week: new Set(), month: new Set() };
   });
   if (!accountIds || !accountIds.length) return {};
-  // 主账号与子账号统一从 Supabase 操作记录表读取 profile 记录。
-  var prefix = 'client_ops_profile:';
-  var cursor;
-  do {
-    var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
-    (page.keys || []).forEach(function(item) {
-      var rest = item.name.slice(prefix.length);
-      var firstSep = rest.indexOf(':');
-      if (firstSep < 0) return;
-      var accountId = rest.slice(0, firstSep);
-      var bucket = result[accountId];
-      if (!allowed[accountId] || !bucket) return;
-      var afterAccount = rest.slice(firstSep + 1);
-      var secondSep = afterAccount.indexOf(':');
-      if (secondSep < 0) return;
-      var date = afterAccount.slice(0, secondSep);
-      if (date < monthStart || date > endDate) return;
-      var mobile = afterAccount.slice(secondSep + 1);
-      if (!mobile) return;
-      bucket.month.add(mobile);
-      if (date >= weekStart) bucket.week.add(mobile);
-      if (date === dayStart) bucket.day.add(mobile);
-    });
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
+  var rows = await fetchClientOperationRows(env, 'copy', monthStart, endDate, null);
+  rows.forEach(function(row) {
+    var accountId = String(row.account_id || '');
+    var bucket = result[accountId];
+    if (!allowed[accountId] || !bucket) return;
+    var date = String(row.operation_date || '');
+    var mobile = String(row.mobile || '').replace(/\\D/g, '');
+    if (!mobile || date < monthStart || date > endDate) return;
+    bucket.month.add(mobile);
+    if (date >= weekStart) bucket.week.add(mobile);
+    if (date === dayStart) bucket.day.add(mobile);
+  });
   var counts = {};
   Object.keys(result).forEach(function(id) {
     counts[id] = {
