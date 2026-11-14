@@ -3202,7 +3202,7 @@
         </details>
         <details id="guideChapter10" class="guide-chapter">
           <summary class="guide-chapter-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg><span>10.微信对话模拟</span><svg class="guide-chapter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
-          <div class="guide-chapter-body" style="white-space:pre-line;">此界面有整个团队上传的话术模板，记录客户的提问和最佳的回复话术，此界面需要所有人把面对的典型客户问题和好的回答记录上去，以供后期参考应对。回复话术点击变红后会一键复制，可以直接修改一下发给客户回答。</div>
+          <div class="guide-chapter-body" style="white-space:pre-line;">这个功能记录着微信应对客户提问的话术模板，记录客户提问的问题和最佳的回复话术并解释为什么要这样回答。这样大家都可以参考这个话术模板，如果觉得哪条可以用来回复客户可以解决问题，点击字体变红就复制下来了，可以发给客户回答。</div>
         </details>
         <details id="guideChapter11" class="guide-chapter">
           <summary class="guide-chapter-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5V3h8v2M8 19v2h8v-2M12 9v6"/></svg><span>11.双卡轮换</span><svg class="guide-chapter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
