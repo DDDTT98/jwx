@@ -271,7 +271,8 @@ async function fetchWorkRow(env, accountId, date) {
 async function upsertWorkRow(env, accountId, date, stats) {
   await env.DATA_STORE.put('work_stats:' + accountId + ':' + date, JSON.stringify(stats));
 }
-async function countStorePrefix(env, prefix) {
+// 旧版 copy 操作记录兼容统计：DATA_STORE 由 Supabase 适配器实现，不访问 Cloudflare KV。
+async function countSupabaseOperationPrefix(env, prefix) {
   var total = 0;
   var cursor;
   do {
@@ -288,10 +289,11 @@ function clientOperationKey(accountId, date, mobile, kind) {
 async function clientOperationSingleAccountCounts(env, accountId, startDate, endDate) {
   var dateObj = new Date(endDate + 'T00:00:00Z');
   var weekStart = addDays(endDate, -((dateObj.getUTCDay() + 6) % 7));
-  var result = { week_operated_count: 0, month_operated_count: 0, week_dialed_count: 0, month_dialed_count: 0 };
+  var result = { operated_count: 0, dialed_count: 0, week_operated_count: 0, month_operated_count: 0, week_dialed_count: 0, month_dialed_count: 0 };
   for (var k = 0; k < 2; k++) {
     var kind = k === 0 ? 'profile' : 'dial';
     var prefix = 'client_ops_' + kind + ':' + accountId + ':';
+    var dayMobiles = new Set();
     var weekMobiles = new Set();
     var monthMobiles = new Set();
     var cursor;
@@ -306,14 +308,17 @@ async function clientOperationSingleAccountCounts(env, accountId, startDate, end
         var mobile = rest.slice(sep + 1);
         if (!mobile) return;
         monthMobiles.add(mobile);
+        if (opDate === endDate) dayMobiles.add(mobile);
         if (opDate >= weekStart) weekMobiles.add(mobile);
       });
       cursor = page.list_complete ? undefined : page.cursor;
     } while (cursor);
     if (kind === 'profile') {
+      result.operated_count = dayMobiles.size;
       result.week_operated_count = weekMobiles.size;
       result.month_operated_count = monthMobiles.size;
     } else {
+      result.dialed_count = dayMobiles.size;
       result.week_dialed_count = weekMobiles.size;
       result.month_dialed_count = monthMobiles.size;
     }
@@ -340,7 +345,7 @@ async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, 
     result[id] = { day: new Set(), week: new Set(), month: new Set() };
   });
   if (!accountIds || !accountIds.length) return {};
-  // 主账号与子账号统一读取 KV 中的 profile 操作记录，不再依赖没有写入链路的 Supabase 表。
+  // 主账号与子账号统一从 Supabase 操作记录表读取 profile 记录。
   var prefix = 'client_ops_profile:';
   var cursor;
   do {
@@ -452,7 +457,7 @@ async function sendPerformanceReport(env,startDate,endDate,title) {
     while(d<=endDate){
       var w=await fetchWorkRow(env,a.account_id,d);
       if(w)passed+=Number(w.wechat_count||0);
-      operated+=await countStorePrefix(env,'client_ops_copy:'+a.account_id+':'+d+':');
+      operated+=await countSupabaseOperationPrefix(env,'client_ops_copy:'+a.account_id+':'+d+':');
       d=shiftDateKey(d,1);
     }
     addedTotal+=added;operatedTotal+=operated;passedTotal+=passed;
@@ -2113,8 +2118,8 @@ export default {
         wsResp.cooldown_ms = rawCdMs === 0 ? 0 : Math.max(rawCdMs, 15 * 60 * 1000);
         wsResp.week_count = wm.week_count;
         wsResp.month_count = wm.month_count;
-        wsResp.operated_count = await countStorePrefix(env, 'client_ops_profile:' + wsSession.account_id + ':' + wsDate + ':');
-        wsResp.dialed_count = await countStorePrefix(env, 'client_ops_dial:' + wsSession.account_id + ':' + wsDate + ':');
+        wsResp.operated_count = wsOps.operated_count;
+        wsResp.dialed_count = wsOps.dialed_count;
         wsResp.week_operated_count = wsOps.week_operated_count;
         wsResp.month_operated_count = wsOps.month_operated_count;
         wsResp.week_dialed_count = wsOps.week_dialed_count;
@@ -3632,8 +3637,10 @@ export default {
             await env.DATA_STORE.put(clientOperationKey(accountId, opDate, cleanMobile, 'dial'), '1');
           }
         }
-        const operatedCount = await countStorePrefix(env, 'client_ops_profile:' + accountId + ':' + opDate + ':');
-        const dialedCount = await countStorePrefix(env, 'client_ops_dial:' + accountId + ':' + opDate + ':');
+        const opMonthStart = opDate.slice(0, 8) + '01';
+        const opCounts = await clientOperationSingleAccountCounts(env, accountId, opMonthStart, opDate);
+        const operatedCount = opCounts.operated_count;
+        const dialedCount = opCounts.dialed_count;
         return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount, transferred_to_pool: transferredToPool }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
