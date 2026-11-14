@@ -2097,6 +2097,8 @@ export default {
         var wsSession = await dialerValidateSession(env, wsToken);
         if (!wsSession) throw new Error('未登录');
         var wsDate = url.searchParams.get('date') || '';
+        // 抽屉统计统一使用北京时间，避免设备时区导致日/周/月边界与主账号看板不一致。
+        wsDate = beijingDateKey(new Date());
         if (!/^\d{4}-\d{2}-\d{2}$/.test(wsDate)) throw new Error('date 格式应为 YYYY-MM-DD');
         var wsDeviceId = url.searchParams.get('device_id') || '';
         var wsRow = await fetchWorkRow(env, wsSession.account_id, wsDate);
@@ -3615,7 +3617,7 @@ export default {
           operator_account_id: _session.account_id,
           operator_account_name: actor ? (actor.real_name || actor.account_name || actor.label || actor.account_id) : _session.account_id
         });
-        const opDate = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : new Date().toISOString().slice(0, 10);
+        const opDate = beijingDateKey(new Date()); // 操作记录统一按北京时间归档
         const cleanMobile = String(mobile).replace(/\D/g, '');
         var timelineDeviceId = String(body.device_id || '').trim();
         var timelineBatchId = String(body.batch_id || '').trim();
@@ -3641,7 +3643,16 @@ export default {
         const opCounts = await clientOperationSingleAccountCounts(env, accountId, opMonthStart, opDate);
         const operatedCount = opCounts.operated_count;
         const dialedCount = opCounts.dialed_count;
-        return new Response(JSON.stringify({ success: true, operated_count: operatedCount, dialed_count: dialedCount, transferred_to_pool: transferredToPool }), {
+        return new Response(JSON.stringify({
+          success: true,
+          operated_count: operatedCount,
+          dialed_count: dialedCount,
+          week_operated_count: opCounts.week_operated_count,
+          month_operated_count: opCounts.month_operated_count,
+          week_dialed_count: opCounts.week_dialed_count,
+          month_dialed_count: opCounts.month_dialed_count,
+          transferred_to_pool: transferredToPool
+        }), {
           headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
