@@ -3026,7 +3026,7 @@
         <button class="drawer-close-btn" id="progressDrawerClose" title="关闭" style="color:var(--text-soft);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <button type="button" id="openSubAccountGuideBtn" onclick="document.getElementById('subAccountGuideOverlay').style.display='flex';document.body.style.overflow='hidden';" style="flex:none;width:100%;padding:11px 13px;border:1px solid rgba(7,193,96,.25);border-radius:11px;background:rgba(7,193,96,.08);color:var(--accent-wechat);font-size:.86rem;font-weight:850;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-        <span>📘 子账户使用指南</span><span style="font-size:.7rem;color:var(--text-light);font-weight:650;">点击查看 ›</span>
+        <span>📘 使用指南</span><span style="font-size:.7rem;color:var(--text-light);font-weight:650;">点击查看 ›</span>
       </button>
       <button type="button" id="drawerConsumptionBtn" style="display:none;width:100%;padding:11px 14px;border:1px solid rgba(7,193,96,.28);border-radius:11px;background:rgba(7,193,96,.09);color:#159653;font-size:.86rem;font-weight:800;text-align:center;cursor:pointer;">查看数据消耗　›</button>
       <!-- 进度卡片：圆圈中心显示今日，圆圈下显示本周和本月 -->
