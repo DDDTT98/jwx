@@ -14457,7 +14457,8 @@ function updateAutoDialBtn() {
       if (!token) return;
       var getTs = Date.now(); // 快照时刻：其后发生的本地微信计数点击不会出现在此响应中
       fetch('/api/dialer/work-stats?date=' + encodeURIComponent(today) + '&device_id=' + encodeURIComponent(getDeviceId()), {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token },
+        cache: 'no-store'
       }).then(function(r) { return r.json(); })
         .then(function(res) {
           if (res && res.rounds !== undefined) {
