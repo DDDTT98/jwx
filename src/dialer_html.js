@@ -3192,7 +3192,8 @@
         </details>
         <details id="guideChapter8" class="guide-chapter">
           <summary class="guide-chapter-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-7"/><path d="M16 6h4v4"/></svg><span>8.数据统计</span><svg class="guide-chapter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
-          <div class="guide-chapter-body" style="white-space:pre-line;">今日添加和拨打了的数据会在抽屉界面自动计数，了解今天做了多少添加动作，手动统计微信通过个数 可以记录本周和本月的微信量，此动作需要手动记录。</div>
+          <div class="guide-chapter-body" style="white-space:pre-line;">抽屉界面里系统会自动统计 今日添加和今日拨打了多少次客户计数，方便查看自己今天点了多少次添加。
+下方还有手动统计微信通过个数，并会自动累计本周和本月通过的微信量。</div>
         </details>
         <details id="guideChapter9" class="guide-chapter">
           <summary class="guide-chapter-summary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10"/><path d="m16 17 2 2 4-4"/></svg><span>9.白名单模糊匹配</span><svg class="guide-chapter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></summary>
