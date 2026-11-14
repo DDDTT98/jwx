@@ -2142,7 +2142,7 @@ export default {
         wsResp.week_dialed_count = wsOps.week_dialed_count;
         wsResp.month_dialed_count = wsOps.month_dialed_count;
         return new Response(JSON.stringify(wsResp), {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store, max-age=0', 'Pragma': 'no-cache', 'Vary': 'Authorization', 'Access-Control-Allow-Origin': '*' }
         });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
