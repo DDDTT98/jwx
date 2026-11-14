@@ -3134,68 +3134,77 @@
 
   <!-- 子账户使用指南独立弹窗 -->
   <div id="subAccountGuideOverlay" onclick="if(event.target===this){this.style.display='none';document.body.style.overflow='';}" style="display:none;position:fixed;inset:0;z-index:10090;background:rgba(0,0,0,.52);align-items:center;justify-content:center;padding:12px;box-sizing:border-box;">
-    <div style="width:min(680px,100%);height:min(88vh,820px);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--card-border);border-radius:18px;background:var(--card-bg);box-shadow:0 18px 60px rgba(0,0,0,.28);">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 16px;border-bottom:1px solid var(--card-border);flex:none;">
-        <div style="font-size:1rem;font-weight:850;color:var(--text-main);">📘 子账户使用指南</div>
+    <div style="width:min(560px,100%);height:min(86vh,760px);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--card-border);border-radius:18px;background:var(--card-bg);box-shadow:0 18px 60px rgba(0,0,0,.28);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--card-border);flex:none;">
+        <div style="font-size:1rem;font-weight:850;color:var(--text-main);">📘 子账户快速上手</div>
         <button type="button" aria-label="关闭使用指南" onclick="document.getElementById('subAccountGuideOverlay').style.display='none';document.body.style.overflow='';" style="width:34px;height:34px;flex:none;border:0;border-radius:50%;background:var(--btn-bg);color:var(--text-main);font-size:22px;cursor:pointer;">×</button>
       </div>
-      <div style="padding:14px 16px 22px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;">
-        <div style="color:var(--text-soft);font-size:.76rem;line-height:1.75;">
-          <section style="padding:2px 0 16px;margin-bottom:15px;border-bottom:1px solid var(--card-border);">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;background:rgba(7,193,96,.12);color:var(--accent-wechat);font-size:.76rem;font-weight:900;">01</span>
-              <span style="font-size:.9rem;font-weight:850;color:var(--text-main);">添加微信</span>
-            </div>
-            <p style="margin:0 0 8px;">在客户卡片上点击「添加VX」或手机号快捷按钮，系统会复制客户手机号并尝试唤起微信。进入微信后，按手机号搜索并由你手动确认添加；系统不会替你自动发送好友申请。iPhone 等系统如果没有自动跳转，回到微信后粘贴手机号搜索即可。</p>
-            <p style="margin:0;">点击客户姓名、单位名称或备注，可复制对应文字；部分设备会同时尝试唤起微信。复制成功后卡片会显示已操作状态，方便识别已经跟进过的客户。同一张客户卡片无论复制姓名还是单位，都只按一个客户计数，不会重复累计。</p>
-          </section>
-          <section style="padding:2px 0 16px;margin-bottom:15px;border-bottom:1px solid var(--card-border);">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;background:rgba(7,193,96,.12);color:var(--accent-wechat);font-size:.76rem;font-weight:900;">02</span>
-              <span style="font-size:.9rem;font-weight:850;color:var(--text-main);">拨打电话</span>
-            </div>
-            <p style="margin:0;">点击卡片上的电话图标，会调用手机系统拨号应用；确认号码后再拨出。系统记录的是「拨打尝试」，不代表对方已接通或通话成功。拨打后卡片会显示已拨状态，方便继续跟进。</p>
-          </section>
-          <section style="padding:2px 0 16px;margin-bottom:15px;border-bottom:1px solid var(--card-border);">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;background:rgba(7,193,96,.12);color:var(--accent-wechat);font-size:.76rem;font-weight:900;">03</span>
-              <span style="font-size:.9rem;font-weight:850;color:var(--text-main);">数据加载与轮转</span>
-            </div>
-            <p style="margin:0 0 8px;">列表有客户时，优先处理当前列表，不要为了刷新而反复重新加载；本地已有列表会优先保留，避免重新进入页面时被云端空数据覆盖。只有当前列表确实需要补充或已完成本轮，才使用顶部「换一批」按钮。</p>
-            <p style="margin:0 0 8px;">「换一批」会按系统批次规则加载下一批，已经轮转过的客户会自动排到后面。当前轮次尚未完成清理时，系统会阻止继续加载，避免客户重复堆叠或丢失。按系统提示完成本轮处理，等待自动转入公海并清空列表后，再进入下一轮。</p>
-            <p style="margin:0 0 8px;">普通模式通常每轮 50 位，完成一轮后冷却约 45–60 分钟；开启「本机新号」后每轮 10 位，冷却约 20–30 分钟。冷却时间会随机变化，倒计时结束后再继续。新号模式只影响当前账号在当前设备上的使用方式。</p>
-            <p style="margin:0;">同一账号在多台设备使用时，优先处理本设备已经加载的客户，不要在另一台设备重复加载或重复操作同一批客户。长时间未操作的设备列表可能按系统保质期规则回收，回收后由账号重新分配客户。</p>
-          </section>
-          <section style="padding:2px 0 16px;margin-bottom:15px;border-bottom:1px solid var(--card-border);">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;background:rgba(7,193,96,.12);color:var(--accent-wechat);font-size:.76rem;font-weight:900;">04</span>
-              <span style="font-size:.9rem;font-weight:850;color:var(--text-main);">数据统计怎么看</span>
-            </div>
-            <p style="margin:0 0 8px;">抽屉上方「今日拨打客户」统计拨打过的客户数，并显示本周、本月累计；「今日姓名/单位复制」统计实际操作过的客户数，同一客户按手机号去重，复制姓名和单位不会算成两位客户。今日添加轮数显示当天已完成的轮转轮次。</p>
-            <p style="margin:0;">「通过微信」里的今日数字可用「＋ / −」手动校正，本周、本月显示对应周期累计。请在实际添加微信后及时加 1；误操作可减 1。所有日、周、月统计按北京时间归属日期。</p>
-          </section>
-          <section style="padding:2px 0 16px;margin-bottom:15px;border-bottom:1px solid var(--card-border);">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;background:rgba(7,193,96,.12);color:var(--accent-wechat);font-size:.76rem;font-weight:900;">05</span>
-              <span style="font-size:.9rem;font-weight:850;color:var(--text-main);">抽屉界面规则</span>
-            </div>
-            <p style="margin:0 0 8px;">点击页面顶部统计图标打开本抽屉，可查看今日、本周、本月工作数据。隐私操作开关用于切换客户信息的显示/隐藏；本机新号开关用于切换每轮加载数量和冷却节奏。白名单模糊匹配可输入企业全称、简称或产品名称查询；「列表显示」用于控制匹配结果是否在客户列表中显示。微信对话模拟可进入模拟练习页面。</p>
-            <p style="margin:0;">子账户只查看自己的工作统计和自己的客户数据；主账户专属的数据消耗看板、账户管理及批量管理操作不属于子账户日常操作范围。不要尝试清空或转移整批客户，遇到列表异常先联系管理员。</p>
-          </section>
-          <section style="padding:2px 0 16px;margin-bottom:15px;border-bottom:1px solid var(--card-border);">
-            <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:8px;background:rgba(7,193,96,.12);color:var(--accent-wechat);font-size:.76rem;font-weight:900;">06</span>
-              <span style="font-size:.9rem;font-weight:850;color:var(--text-main);">右上角菜单规则</span>
-            </div>
-            <p style="margin:0 0 8px;">「导入文件」用于导入客户文件，按团队安排操作；「双卡轮换」用于启用或关闭双 SIM 拨号线路轮换；「轮换频率」用于设置拨号线路切换频率（例如每 10 通切换）。这两项会影响拨号行为，未获管理员安排不要随意调整。</p>
-            <p style="margin:0;">「切换主题」只改变页面明暗外观；「账户」显示当前登录账号及相关数量，点击账户区域可查看复制内容偏好设置；「退出登录」用于安全退出当前子账户。若菜单中出现「清空数据」或「转移至公海」等管理项，不要自行操作，先向管理员确认。</p>
-          </section>
-          <div style="margin-top:3px;padding:11px 12px;border-radius:10px;background:rgba(7,193,96,.07);border:1px solid rgba(7,193,96,.16);color:var(--text-soft);font-size:.73rem;line-height:1.7;">
-            <span style="font-weight:850;color:var(--text-main);">使用要点</span><br>
-            先处理当前列表 → 复制/拨打后确认卡片状态 → 实际添加微信后校正微信数量 → 按提示完成轮次和冷却 → 再换下一批。不要反复刷新或重复加载同一批客户。
+      <div style="padding:13px 14px 20px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;color:var(--text-soft);font-size:.78rem;line-height:1.55;">
+        <div style="padding:11px 12px;margin-bottom:11px;border-radius:12px;background:rgba(7,193,96,.09);border:1px solid rgba(7,193,96,.18);">
+          <div style="font-size:.9rem;font-weight:850;color:var(--text-main);">记住这条流程</div>
+          <div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:4px;text-align:center;font-size:.7rem;font-weight:800;color:var(--accent-wechat);">
+            <span>看客户</span><span>→</span><span>复制 / 拨打</span><span>→</span><span>加微信</span><span>→</span><span>换下一批</span>
           </div>
         </div>
-      </div>   </div>
+
+        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(7,193,96,.12);display:flex;align-items:center;justify-content:center;font-size:23px;">👤</div>
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">1. 操作客户卡片</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin:7px 0;">
+              <span style="padding:4px 8px;border-radius:7px;background:rgba(7,193,96,.1);color:var(--accent-wechat);font-weight:800;">添加VX</span>
+              <span style="padding:4px 8px;border-radius:7px;background:var(--btn-bg);font-weight:750;">复制姓名 / 单位</span>
+              <span style="padding:4px 8px;border-radius:7px;background:var(--btn-bg);font-weight:750;">📞 拨打</span>
+            </div>
+            点击「添加VX」复制手机号并尝试打开微信，再到微信搜索、手动确认添加。也可单独复制姓名、单位或备注；点击电话图标进入拨号。<strong style="color:var(--text-main);">一张卡片只算一个操作客户</strong>，拨打记录不代表已接通。
+          </div>
+        </section>
+
+        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(74,108,247,.1);display:flex;align-items:center;justify-content:center;font-size:23px;">🔄</div>
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">2. 加载下一批</div>
+            <div style="margin:7px 0;padding:8px 9px;border-radius:9px;background:var(--btn-bg);display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span style="font-weight:800;color:var(--text-main);">当前列表有客户</span><span style="color:var(--accent-wechat);font-weight:850;">先处理完</span>
+            </div>
+            不要反复刷新或重复加载。当前列表优先保留；确实需要下一批时再点顶部「换一批」，按系统提示完成轮次和冷却。普通模式每轮约 <strong style="color:var(--text-main);">50 位</strong>，冷却 45–60 分钟；「本机新号」每轮约 <strong style="color:var(--text-main);">10 位</strong>，冷却 20–30 分钟。
+          </div>
+        </section>
+
+        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(255,165,0,.12);display:flex;align-items:center;justify-content:center;font-size:23px;">📊</div>
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">3. 看懂数据统计</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:7px 0;">
+              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">拨打客户</div><div style="font-size:.68rem;color:var(--text-light);">拨号尝试数</div></div>
+              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">姓名 / 单位复制</div><div style="font-size:.68rem;color:var(--text-light);">客户去重后计数</div></div>
+              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">添加轮数</div><div style="font-size:.68rem;color:var(--text-light);">当天轮转进度</div></div>
+              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">通过微信</div><div style="font-size:.68rem;color:var(--text-light);">实际添加后按 + 校正</div></div>
+            </div>
+            今日、本周、本月数据按北京时间统计。同一客户复制姓名和单位不会重复计数；微信数量请在实际添加后点「＋」，误加可点「−」。
+          </div>
+        </section>
+
+        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(74,108,247,.1);display:flex;align-items:center;justify-content:center;font-size:23px;">⚙️</div>
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">4. 抽屉和菜单</div>
+            <div style="margin:7px 0;display:flex;gap:6px;flex-wrap:wrap;">
+              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">隐私操作</span>
+              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">本机新号</span>
+              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">白名单查询</span>
+              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">微信对话模拟</span>
+            </div>
+            抽屉查看个人统计、切换隐私显示和新号模式；右上角菜单可导入文件、切换主题或退出登录。双卡轮换和轮换频率按管理员安排设置。
+          </div>
+        </section>
+
+        <div style="margin-top:12px;padding:11px 12px;border-radius:11px;background:rgba(255,165,0,.09);border:1px solid rgba(255,165,0,.2);">
+          <div style="font-weight:850;color:var(--text-main);">⚠️ 子账户请注意</div>
+          只操作自己的客户和数据。不要清空、转移整批客户或随意调整管理设置；遇到列表异常，先联系管理员。
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 主账号数据消耗弹窗 -->
