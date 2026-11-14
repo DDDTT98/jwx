@@ -3140,69 +3140,64 @@
         <button type="button" aria-label="关闭使用指南" onclick="document.getElementById('subAccountGuideOverlay').style.display='none';document.body.style.overflow='';" style="width:34px;height:34px;flex:none;border:0;border-radius:50%;background:var(--btn-bg);color:var(--text-main);font-size:22px;cursor:pointer;">×</button>
       </div>
       <div style="padding:13px 14px 20px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;color:var(--text-soft);font-size:.78rem;line-height:1.55;">
-        <div style="padding:11px 12px;margin-bottom:11px;border-radius:12px;background:rgba(7,193,96,.09);border:1px solid rgba(7,193,96,.18);">
-          <div style="font-size:.9rem;font-weight:850;color:var(--text-main);">记住这条流程</div>
-          <div style="margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:4px;text-align:center;font-size:.7rem;font-weight:800;color:var(--accent-wechat);">
-            <span>看客户</span><span>→</span><span>复制 / 拨打</span><span>→</span><span>加微信</span><span>→</span><span>换下一批</span>
-          </div>
-        </div>
-
-        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
-          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(7,193,96,.12);display:flex;align-items:center;justify-content:center;font-size:23px;">👤</div>
-          <div style="min-width:0;flex:1;">
-            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">1. 操作客户卡片</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin:7px 0;">
-              <span style="padding:4px 8px;border-radius:7px;background:rgba(7,193,96,.1);color:var(--accent-wechat);font-weight:800;">添加VX</span>
-              <span style="padding:4px 8px;border-radius:7px;background:var(--btn-bg);font-weight:750;">复制姓名 / 单位</span>
-              <span style="padding:4px 8px;border-radius:7px;background:var(--btn-bg);font-weight:750;">📞 拨打</span>
-            </div>
-            点击「添加VX」复制手机号并尝试打开微信，再到微信搜索、手动确认添加。也可单独复制姓名、单位或备注；点击电话图标进入拨号。<strong style="color:var(--text-main);">一张卡片只算一个操作客户</strong>，拨打记录不代表已接通。
-          </div>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">1.登录</div>
+          <div style="white-space:pre-line;">主账户 开通子账户 设置账户名和pin码（4位数）
+开通后 登录用户名 为账户名 密码为pin码</div>
         </section>
-
-        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
-          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(74,108,247,.1);display:flex;align-items:center;justify-content:center;font-size:23px;">🔄</div>
-          <div style="min-width:0;flex:1;">
-            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">2. 加载下一批</div>
-            <div style="margin:7px 0;padding:8px 9px;border-radius:9px;background:var(--btn-bg);display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span style="font-weight:800;color:var(--text-main);">当前列表有客户</span><span style="color:var(--accent-wechat);font-weight:850;">先处理完</span>
-            </div>
-            不要反复刷新或重复加载。当前列表优先保留；确实需要下一批时再点顶部「换一批」，按系统提示完成轮次和冷却。普通模式每轮约 <strong style="color:var(--text-main);">50 位</strong>，冷却 45–60 分钟；「本机新号」每轮约 <strong style="color:var(--text-main);">10 位</strong>，冷却 20–30 分钟。
-          </div>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">2.列表加载客户</div>
+          <div style="white-space:pre-line;">顶部第二个图标 加载主账号数据 每次50个，每天限定300-600个</div>
         </section>
-
-        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
-          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(255,165,0,.12);display:flex;align-items:center;justify-content:center;font-size:23px;">📊</div>
-          <div style="min-width:0;flex:1;">
-            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">3. 看懂数据统计</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:7px 0;">
-              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">拨打客户</div><div style="font-size:.68rem;color:var(--text-light);">拨号尝试数</div></div>
-              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">姓名 / 单位复制</div><div style="font-size:.68rem;color:var(--text-light);">客户去重后计数</div></div>
-              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">添加轮数</div><div style="font-size:.68rem;color:var(--text-light);">当天轮转进度</div></div>
-              <div style="padding:8px;border-radius:9px;background:var(--btn-bg);"><div style="font-weight:850;color:var(--text-main);">通过微信</div><div style="font-size:.68rem;color:var(--text-light);">实际添加后按 + 校正</div></div>
-            </div>
-            今日、本周、本月数据按北京时间统计。同一客户复制姓名和单位不会重复计数；微信数量请在实际添加后点「＋」，误加可点「−」。
-          </div>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">4.操作列表客户</div>
+          <div style="white-space:pre-line;">点击手机号（添加VX）自动复制并跳转微信 粘贴搜索添加
+点击单位名称自动复制并跳转微信 粘贴到搜索出来的客户备注里
+（安卓系统因为系统限制禁止自动唤醒跳转微信，所以需要手动切换微信搜索添加）
+点击拨打 会自动唤醒拨号拨打电话
+操作提醒特征，复制号码后 号码字体会立刻变成红色，复制单位名称后 整个卡片会变成透明，用于区分已经操作和未被操作的客户。</div>
         </section>
-
-        <section style="display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--card-border);">
-          <div style="width:42px;height:42px;flex:none;border-radius:12px;background:rgba(74,108,247,.1);display:flex;align-items:center;justify-content:center;font-size:23px;">⚙️</div>
-          <div style="min-width:0;flex:1;">
-            <div style="font-size:.88rem;font-weight:850;color:var(--text-main);">4. 抽屉和菜单</div>
-            <div style="margin:7px 0;display:flex;gap:6px;flex-wrap:wrap;">
-              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">隐私操作</span>
-              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">本机新号</span>
-              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">白名单查询</span>
-              <span style="padding:4px 7px;border-radius:7px;background:var(--btn-bg);">微信对话模拟</span>
-            </div>
-            抽屉查看个人统计、切换隐私显示和新号模式；右上角菜单可导入文件、切换主题或退出登录。双卡轮换和轮换频率按管理员安排设置。
-          </div>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">5.客户轮转</div>
+          <div style="white-space:pre-line;">列表为空时，点顶部第2个图标 每次加载50个客户。未添加完客户禁止重新点击避免浪费客户，如加载的客户是之前重复添加过的客户 可在右上角 更多点开 点击 转移至公海，这50个客户以后再也加不到了。
+每天加载客户数为300，如遇到今天添加上限可让主账户手动分配更多给你。</div>
         </section>
-
-        <div style="margin-top:12px;padding:11px 12px;border-radius:11px;background:rgba(255,165,0,.09);border:1px solid rgba(255,165,0,.2);">
-          <div style="font-weight:850;color:var(--text-main);">⚠️ 子账户请注意</div>
-          只操作自己的客户和数据。不要清空、转移整批客户或随意调整管理设置；遇到列表异常，先联系管理员。
-        </div>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">6.本机新号</div>
+          <div style="white-space:pre-line;">有些微信为新注册的小号，不能一次添加数量过多 打开本机新号以后 加载的客户为10个 添加完成后请耐心等待20-30分钟休息时间，维护新号微信的权重。</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">7.隐私模式</div>
+          <div style="white-space:pre-line;">在下班时间段非办公场所添加微信时，保证旁人不好奇你的添加客户行为，设定了下班时间段隐私操作的盲加模式。防止添加客户时候的尴尬窥屏行为！</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">8.数据统计</div>
+          <div style="white-space:pre-line;">今日添加和拨打了的数据会在抽屉界面自动计数，了解今天做了多少添加动作，手动统计微信通过个数 可以记录本周和本月的微信量，此动作需要手动记录。</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">9.白名单模糊匹配</div>
+          <div style="white-space:pre-line;">主账户上传白名单列表（如建易贷白名单）
+列表数据会自动匹配客户是否在白名单 显示在客户卡片，如不在列表客户单位想要知道白名单 也可以手动模糊匹配有没有在白名单。</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">10.微信对话模拟</div>
+          <div style="white-space:pre-line;">此界面有整个团队上传的话术模板，记录客户的提问和最佳的回复话术，此界面需要所有人把面对的典型客户问题和好的回答记录上去，以供后期参考应对。回复话术点击变红后会一键复制，可以直接修改一下发给客户回答。</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">11.双卡轮换</div>
+          <div style="white-space:pre-line;">用本列表拨打列表客户打开双卡轮换，可自动调用主副卡轮流拨打电话，避免一个号码一直打造成标记骚扰。轮换频率为5/10通换一次。</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">12.账户</div>
+          <div style="white-space:pre-line;">账户名旁边为现在你这个账户已有的客户数量（包含本账户所有手机加载的客户列表一起总数）
+点击账户名 可看到 自定义备注组合 勾选了哪个就会自动复制 哪种备注组合（按照每个人的备注客户习惯灵活排列）
+修改pin 就是修改登录和解锁密码
+安卓手机还会单独有 勾选跳转 微信 ，有些安卓系统是可以跳转的建议打开。</div>
+        </section>
+        <section style="padding:11px 2px;border-bottom:1px solid var(--card-border);">
+          <div style="font-size:.88rem;font-weight:850;color:var(--text-main);margin-bottom:6px;">13.后台规则</div>
+          <div style="white-space:pre-line;">同一个账户 不同手机加载的客户都是不同的，请认真加完列表客户，加完后会有50分钟左右的倒计时 用来休息间隔避免添加微信短时间太多造成频繁。 倒计时期间可以中断强行继续添加，也可进入 学习中心 学习养微信规则。</div>
+        </section>
       </div>
     </div>
   </div>
