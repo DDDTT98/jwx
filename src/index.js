@@ -310,7 +310,7 @@ async function clientOperationSingleAccountCounts(env, accountId, startDate, end
       });
       cursor = page.list_complete ? undefined : page.cursor;
     } while (cursor);
-    if (kind === 'all') {
+    if (kind === 'profile') {
       result.week_operated_count = weekMobiles.size;
       result.month_operated_count = monthMobiles.size;
     } else {
@@ -334,39 +334,37 @@ async function upsertCooldownRow(env, accountId, date, deviceId, row) {
 // 一次按全部子账户批量读取操作记录，避免逐账户 list 触发 Worker subrequest 上限。
 async function clientOperationRangeCounts(env, accountIds, dayStart, weekStart, monthStart, endDate) {
   var result = {};
+  var allowed = {};
   (accountIds || []).forEach(function(id) {
+    allowed[id] = true;
     result[id] = { day: new Set(), week: new Set(), month: new Set() };
   });
   if (!accountIds || !accountIds.length) return {};
-  var offset = 0;
-  var pageSize = 1000;
-  while (true) {
-    var params = new URLSearchParams({
-      select: 'account_id,operation_date,mobile',
-      operation_type: 'eq.copy',
-      account_id: 'in.(' + accountIds.join(',') + ')',
-      and: '(operation_date.gte.' + monthStart + ',operation_date.lte.' + endDate + ')',
-      order: 'operation_date.asc,account_id.asc,mobile.asc',
-      limit: String(pageSize),
-      offset: String(offset)
-    });
-    var response = await fetch(env.SUPABASE_URL + '/rest/v1/dialer_client_operations?' + params.toString(), {
-      headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY }
-    });
-    if (!response.ok) throw new Error('读取客户操作统计失败：' + response.status + ' ' + (await response.text()).slice(0, 180));
-    var rows = await response.json();
-    (rows || []).forEach(function(row) {
-      var bucket = result[row.account_id];
-      if (!bucket || !row.mobile) return;
-      var date = String(row.operation_date || '');
+  // 主账号与子账号统一读取 KV 中的 profile 操作记录，不再依赖没有写入链路的 Supabase 表。
+  var prefix = 'client_ops_profile:';
+  var cursor;
+  do {
+    var page = await env.DATA_STORE.list({ prefix: prefix, limit: 1000, cursor: cursor });
+    (page.keys || []).forEach(function(item) {
+      var rest = item.name.slice(prefix.length);
+      var firstSep = rest.indexOf(':');
+      if (firstSep < 0) return;
+      var accountId = rest.slice(0, firstSep);
+      var bucket = result[accountId];
+      if (!allowed[accountId] || !bucket) return;
+      var afterAccount = rest.slice(firstSep + 1);
+      var secondSep = afterAccount.indexOf(':');
+      if (secondSep < 0) return;
+      var date = afterAccount.slice(0, secondSep);
       if (date < monthStart || date > endDate) return;
-      bucket.month.add(row.mobile);
-      if (date >= weekStart) bucket.week.add(row.mobile);
-      if (date === dayStart) bucket.day.add(row.mobile);
+      var mobile = afterAccount.slice(secondSep + 1);
+      if (!mobile) return;
+      bucket.month.add(mobile);
+      if (date >= weekStart) bucket.week.add(mobile);
+      if (date === dayStart) bucket.day.add(mobile);
     });
-    if (!rows || rows.length < pageSize) break;
-    offset += rows.length;
-  }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
   var counts = {};
   Object.keys(result).forEach(function(id) {
     counts[id] = {
