@@ -5081,6 +5081,10 @@
         if (!res || !res.success) throw new Error((res && res.error) || '时间线写入失败');
         _todayOperatedCustomers = Number(res.operated_count) || 0;
         _todayDialedCustomers = Number(res.dialed_count) || 0;
+        _weekOperatedCustomers = Number(res.week_operated_count) || 0;
+        _monthOperatedCustomers = Number(res.month_operated_count) || 0;
+        _weekDialedCustomers = Number(res.week_dialed_count) || 0;
+        _monthDialedCustomers = Number(res.month_dialed_count) || 0;
         if (res.transferred_to_pool) {
           // 添加VX成功转公海后，从当前拨号列表立即移除，避免继续拨打。
           importedClients = importedClients.filter(function(c) {
@@ -14207,6 +14211,17 @@ function updateAutoDialBtn() {
       html += '</tbody><tfoot><tr style="background:var(--btn-bg);font-weight:850;"><td style="padding:12px 7px;">合计</td><td style="padding:12px 7px;text-align:center;">' + totals.add + '</td><td style="padding:12px 7px;text-align:center;">' + totals.rounds + '</td><td style="padding:12px 7px;text-align:center;">' + totals.supplement + '</td><td style="padding:12px 7px;text-align:right;">' + totals.remaining + '</td></tr></tfoot></table></div>';
       content.innerHTML = html;
     }
+    var _consumptionRefreshTimer = null;
+    function loadConsumptionStats() {
+      var content = document.getElementById('consumptionContent');
+      if (!content || !isSessionMaster()) return;
+      fetch('/api/dialer/stats/consumption', { headers: { 'Authorization': 'Bearer ' + getSessionToken() }, cache: 'no-store' })
+        .then(function(r) { return r.json().then(function(data) { if (!r.ok || !data.success) throw new Error(data.error || '数据读取失败'); return data; }); })
+        .then(function(data) { _consumptionStats = data; renderConsumptionStats(); })
+        .catch(function(err) {
+          if (!_consumptionStats) content.innerHTML = '<div style="padding:28px 10px;text-align:center;color:#d9534f;font-size:.84rem;">' + escHtml(err.message || '数据加载失败') + '</div>';
+        });
+    }
     function openConsumptionStats() {
       if (!isSessionMaster()) return;
       var overlay = document.getElementById('consumptionOverlay');
@@ -14217,12 +14232,11 @@ function updateAutoDialBtn() {
       _consumptionStats = null;
       _consumptionPeriod = 'day';
       renderConsumptionStats();
-      fetch('/api/dialer/stats/consumption', { headers: { 'Authorization': 'Bearer ' + getSessionToken() }, cache: 'no-store' })
-        .then(function(r) { return r.json().then(function(data) { if (!r.ok || !data.success) throw new Error(data.error || '数据读取失败'); return data; }); })
-        .then(function(data) { _consumptionStats = data; renderConsumptionStats(); })
-        .catch(function(err) {
-          content.innerHTML = '<div style="padding:28px 10px;text-align:center;color:#d9534f;font-size:.84rem;">' + escHtml(err.message || '数据加载失败') + '</div>';
-        });
+      loadConsumptionStats();
+      if (_consumptionRefreshTimer) clearInterval(_consumptionRefreshTimer);
+      _consumptionRefreshTimer = setInterval(function() {
+        if (consumptionOverlay && consumptionOverlay.style.display !== 'none') loadConsumptionStats();
+      }, 20000);
     }
 
     function initProgressDrawer() {
@@ -14277,8 +14291,12 @@ function updateAutoDialBtn() {
       }
       var consumptionOverlay = document.getElementById('consumptionOverlay');
       var consumptionClose = document.getElementById('consumptionClose');
-      if (consumptionClose) consumptionClose.addEventListener('click', function() { if (consumptionOverlay) consumptionOverlay.style.display = 'none'; });
-      if (consumptionOverlay) consumptionOverlay.addEventListener('click', function(e) { if (e.target === consumptionOverlay) consumptionOverlay.style.display = 'none'; });
+      function closeConsumptionStats() {
+        if (consumptionOverlay) consumptionOverlay.style.display = 'none';
+        if (_consumptionRefreshTimer) { clearInterval(_consumptionRefreshTimer); _consumptionRefreshTimer = null; }
+      }
+      if (consumptionClose) consumptionClose.addEventListener('click', closeConsumptionStats);
+      if (consumptionOverlay) consumptionOverlay.addEventListener('click', function(e) { if (e.target === consumptionOverlay) closeConsumptionStats(); });
       var consumptionPeriods = document.getElementById('consumptionPeriods');
       if (consumptionPeriods) consumptionPeriods.addEventListener('click', function(e) {
         var target = e.target.closest('[data-period]');
@@ -14370,8 +14388,8 @@ function updateAutoDialBtn() {
       return ROUND_INFO_K + ':' + (getSessionAccountId() || 'anon');
     }
     function todayLocalStr() {
-      var d = new Date();
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      // JWX 的日/周/月统计统一使用北京时间，设备位于其他时区也不改变统计归属日。
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     }
     function getRoundInfo() {
       try {
