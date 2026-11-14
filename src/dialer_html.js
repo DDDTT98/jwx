@@ -2979,7 +2979,7 @@
 <body>
   <div class="copy-limit-toast" id="copyLimitToast"></div>
   <div class="android-switch-hint" id="androidSwitchHint" role="status" aria-live="polite">
-    <span class="switch-hint-title">已复制</span>，请在屏幕底部悬浮条左右滑切换微信粘贴添加
+    <span class="switch-hint-title">号码已复制</span>，左右滑动屏幕底部悬浮条，切换微信并粘贴添加
   </div>
   <div class="check-toast" id="checkToast"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
 
@@ -3645,7 +3645,7 @@
       </div>
       <div id="androidWechatAutoLaunchSetting" style="display:none;margin:0 0 13px;padding:10px 11px;border:1px solid var(--card-border);border-radius:11px;background:var(--btn-bg);">
         <label for="androidWechatAutoLaunchToggle" style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:0.76rem;font-weight:800;color:var(--text-main);cursor:pointer;">
-          <span>安卓浏览器复制后自动唤醒微信</span>
+          <span>安卓 / 鸿蒙浏览器复制后自动唤醒微信</span>
           <input type="checkbox" id="androidWechatAutoLaunchToggle" style="width:18px;height:18px;flex-shrink:0;accent-color:var(--accent-wechat);">
         </label>
         <div style="margin-top:5px;font-size:0.62rem;line-height:1.5;color:var(--text-light);">开启后，复制时尝试跳转微信；关闭后，复制完成直接提示滑动底部悬浮条。此设置按当前账户保存。</div>
@@ -4834,8 +4834,8 @@
     var isHarmonyOS = /HarmonyOS|OpenHarmony/i.test(navigator.userAgent);
     function getWechatLaunchUrl() {
       // Android 不指定 package：交给系统解析器展示可用的微信分身，避免锁定主微信。
-      return isAndroid && !isHarmonyOS
-        ? 'intent://#Intent;scheme=weixin;S.browser_fallback_url=https%3A%2F%2Fweixin.qq.com;end'
+      return (isAndroid || isHarmonyOS)
+        ? 'intent://#Intent;scheme=weixin;end'
         : 'weixin://';
     }
 
@@ -5020,7 +5020,7 @@
       localStorage.setItem(ANDROID_WECHAT_AUTO_LAUNCH_K + accountId, enabled ? '1' : '0');
     }
 
-    // Android 浏览器：先同步复制；开关关闭时直接提示，开启时才尝试唤醒微信。
+    // Android / HarmonyOS 浏览器统一处理：先同步复制；开关关闭时只提示滑动切换，开启时才尝试唤醒微信。
     var androidWechatLaunchTimer = null;
     function copyAndTryWechatOnAndroid(text) {
       if (!syncCopy(String(text || ''))) {
@@ -5072,11 +5072,11 @@
     }
 
     function copyForAndroidWeb(text) {
-      if (isAndroid && !isHarmonyOS) {
+      if (isAndroid || isHarmonyOS) {
         copyAndTryWechatOnAndroid(text);
         return;
       }
-      // iOS / 鸿蒙等其他系统沿用原有复制提示机制。
+      // iOS 等其他系统沿用原有复制提示机制。
       if (navigator.clipboard && navigator.clipboard.writeText) {
         showAndroidSwitchHint();
         navigator.clipboard.writeText(String(text)).catch(function() {
@@ -5089,9 +5089,9 @@
       }
     }
 
-    // 手机号复制专用：Android 浏览器同样先尝试唤醒微信；其他平台保持原有行为。
+    // 手机号复制专用：Android / HarmonyOS 浏览器统一按开关决定是否唤醒微信；其他平台保持原有行为。
     function copyPhoneWithSwitchHint(text) {
-      if (isAndroid && !isHarmonyOS) {
+      if (isAndroid || isHarmonyOS) {
         copyAndTryWechatOnAndroid(text);
         return;
       }
@@ -13294,7 +13294,7 @@ function updateAutoDialBtn() {
       function renderPrefPanel() {
         var p = getCopyPref();
         var androidWechatSetting = document.getElementById('androidWechatAutoLaunchSetting');
-        var isAndroidDevice = /Android/i.test(navigator.userAgent || '');
+        var isAndroidDevice = isAndroid || isHarmonyOS;
         if (androidWechatSetting) androidWechatSetting.style.display = isAndroidDevice ? 'block' : 'none';
         var androidWechatToggle = document.getElementById('androidWechatAutoLaunchToggle');
         if (androidWechatToggle) androidWechatToggle.checked = isAndroidWechatAutoLaunchEnabled();
