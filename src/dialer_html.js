@@ -10832,6 +10832,7 @@ function updateAutoDialBtn() {
         html += '<th data-sort="custom_' + esc(col) + '" style="min-width: 100px; cursor: pointer;">' + esc(col) + '<span class="sort-arrow"></span></th>';
       });
       html += '<th data-sort="company_name" style="min-width: 200px; cursor: pointer;">单位 <span class="sort-arrow"></span></th>' +
+        '<th data-sort="fund" style="min-width: 120px; cursor: pointer;">公积金基数 <span class="sort-arrow"></span></th>' +
         '<th data-sort="storage_institution" style="min-width: 160px; cursor: pointer;">在库机构 <span class="sort-arrow"></span></th>' +
         '<th data-sort="unit_nature" style="min-width: 120px; cursor: pointer;">单位性质 <span class="sort-arrow"></span></th>' +
         '<th data-sort="asset" style="min-width: 100px; cursor: pointer;">资产 <span class="sort-arrow"></span></th>' +
@@ -11267,6 +11268,7 @@ function updateAutoDialBtn() {
           batchTypeTd +
           customTds +
           '<td style="white-space: normal;">' + esc(c.company_name || '-') + '</td>' +
+          '<td style="white-space: nowrap; min-width:120px;">' + esc(c.fund || '-') + '</td>' +
           '<td style="white-space: normal; min-width:160px;"><a href="javascript:void(0)" class="crm-storage-edit" data-mobile="' + esc(c.mobile || '') + '" data-value="' + esc(c.storage_institution || '') + '" title="点击编辑在库机构">' + esc(c.storage_institution || '＋设置') + '</a></td>' +
           '<td style="white-space: normal; min-width:120px;">' + esc(c.unit_nature || '-') + '</td>' +
           '<td style="white-space: normal; min-width:100px;">' + esc(c.asset || '-') + '</td>' +
