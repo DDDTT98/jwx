@@ -3245,11 +3245,25 @@ export default {
         }
         if (!xlsxExportRows.length) throw new Error('客户表为空，没有可导出的数据');
         var xlsxExportData = xlsxExportRows.map(function(row) {
+          // 历史客户的公积金基数多数保存在 note JSON 的 note 字段，
+          // 而不是 customers.fund 独立列；导出时兼容新旧存储结构。
+          var legacyNote = {};
+          if (row.note) {
+            try {
+              var parsedNote = typeof row.note === 'string' ? JSON.parse(row.note) : row.note;
+              if (parsedNote && typeof parsedNote === 'object') legacyNote = parsedNote;
+            } catch (ignoreNoteParse) {}
+          }
+          var fundValue = row.fund || legacyNote.fund || '';
+          if (!fundValue && typeof legacyNote.note === 'string' &&
+              /^\\d{4,5}(?:\\.\\d+)?$/.test(legacyNote.note.trim())) {
+            fundValue = legacyNote.note.trim();
+          }
           return {
             name: row.name || '',
             mobile: row.mobile || '',
             company_name: row.company_name || '',
-            fund: row.fund || '',
+            fund: fundValue,
             storage_institution: row.storage_institution || '',
             operation_time: row.last_operation && row.last_operation.ts ? row.last_operation.ts : ''
           };
