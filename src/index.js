@@ -2927,8 +2927,7 @@ export default {
       path === '/api/dialer/stats/migrate' ||
       path === '/api/dialer/stats/email-config' ||
       path === '/api/dialer/stats/export-email' ||
-      path === '/api/dialer/stats/backup-test' ||
-      path === '/api/dialer/customers/export-csv';
+      path === '/api/dialer/stats/backup-test';
     if (_dashboardSensitivePath) {
       var _dbAuth = request.headers.get('Authorization') || '';
       var _dbToken = _dbAuth.startsWith('Bearer ') ? _dbAuth.slice(7) : '';
@@ -3200,83 +3199,7 @@ export default {
       }
     }
 
-    // Export every customer as CSV. Master account + dashboard password authorization are required.
-    if (path === '/api/dialer/customers/export-csv' && request.method === 'GET') {
-      try {
-        if (_gateRole !== 'master') {
-          return new Response('仅主账号可以导出全部客户', {
-            status: 403,
-            headers: { 'Content-Type': 'text/plain; charset=UTF-8', 'Cache-Control': 'no-store' }
-          });
-        }
-        if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
-        var exportBase = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/customers?select=*&order=id.asc';
-        var exportHeaders = {
-          'apikey': env.SUPABASE_KEY,
-          'Authorization': 'Bearer ' + env.SUPABASE_KEY,
-          'Prefer': 'count=exact'
-        };
-        var exportRows = [];
-        var exportOffset = 0;
-        var exportTotal = null;
-        var exportPageSize = 1000;
-        while (true) {
-          var exportResp = await fetch(exportBase, {
-            headers: Object.assign({}, exportHeaders, {
-              'Range': exportOffset + '-' + (exportOffset + exportPageSize - 1)
-            })
-          });
-          if (!exportResp.ok) {
-            throw new Error('读取客户数据失败（第 ' + (Math.floor(exportOffset / exportPageSize) + 1) + ' 批）：' +
-              exportResp.status + ' ' + (await exportResp.text()).slice(0, 180));
-          }
-          var exportPage = await exportResp.json();
-          if (!Array.isArray(exportPage)) throw new Error('Supabase 返回的数据格式不正确');
-          var contentRange = exportResp.headers.get('content-range') || '';
-          var totalMatch = contentRange.match(/\/(\d+)$/);
-          if (exportTotal === null && totalMatch) exportTotal = Number(totalMatch[1]);
-          exportRows = exportRows.concat(exportPage);
-          exportOffset += exportPage.length;
-          if (!exportPage.length || exportPage.length < exportPageSize ||
-              (exportTotal !== null && exportOffset >= exportTotal)) break;
-        }
-        if (exportTotal !== null && exportRows.length !== exportTotal) {
-          throw new Error('导出校验失败：数据库报告 ' + exportTotal + ' 条，实际读取 ' + exportRows.length + ' 条；请重试，未生成文件');
-        }
-        if (!exportRows.length) throw new Error('客户表为空，没有可导出的数据');
-        var exportColumns = Object.keys(exportRows[0]);
-        function csvCell(value) {
-          if (value === null || value === undefined) return '';
-          var cell = typeof value === 'object' ? JSON.stringify(value) : String(value);
-          // 防止客户文本被表格软件识别为公式。
-          if (/^[\s]*[=+@]/.test(cell) || /^[\s]*-[0-9]/.test(cell)) cell = "'" + cell;
-          return '"' + cell.replace(/"/g, '""') + '"';
-        }
-        var csvLines = [exportColumns.map(csvCell).join(',')];
-        for (var exportIndex = 0; exportIndex < exportRows.length; exportIndex++) {
-          csvLines.push(exportColumns.map(function(column) {
-            return csvCell(exportRows[exportIndex][column]);
-          }).join(','));
-        }
-        var csvBody = '\uFEFF' + csvLines.join('\r\n');
-        var exportDate = new Date().toISOString().slice(0, 10);
-        return new Response(csvBody, {
-          headers: {
-            'Content-Type': 'text/csv; charset=UTF-8',
-            'Content-Disposition': 'attachment; filename="jwx_customers_' + exportDate + '.csv"',
-            'Cache-Control': 'no-store',
-            'X-Export-Count': String(exportRows.length)
-          }
-        });
-      } catch (exportError) {
-        return new Response(JSON.stringify({ success: false, error: exportError.message || '客户 CSV 导出失败' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
-        });
-      }
-    }
-
-    // Query customers
+        // Query customers
     if (path === '/api/dialer/customers' && request.method === 'GET') {
       try {
         const url2 = new URL(request.url);
