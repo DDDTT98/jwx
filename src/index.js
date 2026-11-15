@@ -2927,7 +2927,8 @@ export default {
       path === '/api/dialer/stats/migrate' ||
       path === '/api/dialer/stats/email-config' ||
       path === '/api/dialer/stats/export-email' ||
-      path === '/api/dialer/stats/backup-test';
+      path === '/api/dialer/stats/backup-test' ||
+      path === '/api/dialer/customers/export-xlsx';
     if (_dashboardSensitivePath) {
       var _dbAuth = request.headers.get('Authorization') || '';
       var _dbToken = _dbAuth.startsWith('Bearer ') ? _dbAuth.slice(7) : '';
@@ -3195,6 +3196,75 @@ export default {
       } catch (e) {
         return new Response(JSON.stringify({ success: false, error: e.message }), {
           status: 500, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // 主账号导出全部客户为 XLSX 所需数据；要求独立数据库看板密码会话。
+    if (path === '/api/dialer/customers/export-xlsx' && request.method === 'GET') {
+      try {
+        if (_gateRole !== 'master') {
+          return new Response(JSON.stringify({ success: false, error: '仅主账号可以导出全部客户' }), {
+            status: 403, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
+          });
+        }
+        if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
+        var xlsxExportUrl = env.SUPABASE_URL.replace(/\\/$/, '') +
+          '/rest/v1/customers?select=name,mobile,company_name,fund,storage_institution,last_operation&order=id.asc';
+        var xlsxExportHeaders = {
+          'apikey': env.SUPABASE_KEY,
+          'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+          'Prefer': 'count=exact'
+        };
+        var xlsxExportRows = [];
+        var xlsxExportOffset = 0;
+        var xlsxExportTotal = null;
+        var xlsxExportPageSize = 1000;
+        while (true) {
+          var xlsxExportResp = await fetch(xlsxExportUrl, {
+            headers: Object.assign({}, xlsxExportHeaders, {
+              'Range': xlsxExportOffset + '-' + (xlsxExportOffset + xlsxExportPageSize - 1)
+            })
+          });
+          if (!xlsxExportResp.ok) {
+            throw new Error('读取客户数据失败（第 ' + (Math.floor(xlsxExportOffset / xlsxExportPageSize) + 1) + ' 批）：' +
+              xlsxExportResp.status + ' ' + (await xlsxExportResp.text()).slice(0, 180));
+          }
+          var xlsxExportPage = await xlsxExportResp.json();
+          if (!Array.isArray(xlsxExportPage)) throw new Error('Supabase 返回的数据格式不正确');
+          var xlsxContentRange = xlsxExportResp.headers.get('content-range') || '';
+          var xlsxTotalMatch = xlsxContentRange.match(/\\/(\\d+)$/);
+          if (xlsxExportTotal === null && xlsxTotalMatch) xlsxExportTotal = Number(xlsxTotalMatch[1]);
+          xlsxExportRows = xlsxExportRows.concat(xlsxExportPage);
+          xlsxExportOffset += xlsxExportPage.length;
+          if (!xlsxExportPage.length || xlsxExportPage.length < xlsxExportPageSize ||
+              (xlsxExportTotal !== null && xlsxExportOffset >= xlsxExportTotal)) break;
+        }
+        if (xlsxExportTotal !== null && xlsxExportRows.length !== xlsxExportTotal) {
+          throw new Error('导出校验失败：数据库报告 ' + xlsxExportTotal + ' 条，实际读取 ' + xlsxExportRows.length + ' 条；未生成文件');
+        }
+        if (!xlsxExportRows.length) throw new Error('客户表为空，没有可导出的数据');
+        var xlsxExportData = xlsxExportRows.map(function(row) {
+          return {
+            name: row.name || '',
+            mobile: row.mobile || '',
+            company_name: row.company_name || '',
+            fund: row.fund || '',
+            storage_institution: row.storage_institution || '',
+            operation_time: row.last_operation && row.last_operation.ts ? row.last_operation.ts : ''
+          };
+        });
+        return new Response(JSON.stringify({ success: true, total: xlsxExportData.length, data: xlsxExportData }), {
+          headers: {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Cache-Control': 'no-store',
+            'X-Export-Count': String(xlsxExportData.length)
+          }
+        });
+      } catch (xlsxExportError) {
+        return new Response(JSON.stringify({ success: false, error: xlsxExportError.message || '客户 XLSX 导出失败' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' }
         });
       }
     }
