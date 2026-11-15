@@ -3210,7 +3210,7 @@ export default {
           });
         }
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
-        var exportBase = env.SUPABASE_URL.replace(/\\/$/, '') + '/rest/v1/customers?select=*&order=id.asc';
+        var exportBase = env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/customers?select=*&order=id.asc';
         var exportHeaders = {
           'apikey': env.SUPABASE_KEY,
           'Authorization': 'Bearer ' + env.SUPABASE_KEY,
@@ -3233,7 +3233,7 @@ export default {
           var exportPage = await exportResp.json();
           if (!Array.isArray(exportPage)) throw new Error('Supabase 返回的数据格式不正确');
           var contentRange = exportResp.headers.get('content-range') || '';
-          var totalMatch = contentRange.match(/\\/(\\d+)$/);
+          var totalMatch = contentRange.match(/\/(\d+)$/);
           if (exportTotal === null && totalMatch) exportTotal = Number(totalMatch[1]);
           exportRows = exportRows.concat(exportPage);
           exportOffset += exportPage.length;
@@ -3249,7 +3249,7 @@ export default {
           if (value === null || value === undefined) return '';
           var cell = typeof value === 'object' ? JSON.stringify(value) : String(value);
           // 防止客户文本被表格软件识别为公式。
-          if (/^[\\s]*[=+@]/.test(cell) || /^[\\s]*-[0-9]/.test(cell)) cell = "'" + cell;
+          if (/^[\s]*[=+@]/.test(cell) || /^[\s]*-[0-9]/.test(cell)) cell = "'" + cell;
           return '"' + cell.replace(/"/g, '""') + '"';
         }
         var csvLines = [exportColumns.map(csvCell).join(',')];
@@ -3258,7 +3258,7 @@ export default {
             return csvCell(exportRows[exportIndex][column]);
           }).join(','));
         }
-        var csvBody = '\\uFEFF' + csvLines.join('\\r\\n');
+        var csvBody = '\uFEFF' + csvLines.join('\r\n');
         var exportDate = new Date().toISOString().slice(0, 10);
         return new Response(csvBody, {
           headers: {
