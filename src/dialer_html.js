@@ -6887,7 +6887,7 @@
           var fund = '';
           for (var nj = noteParts.length - 1; nj >= 0; nj--) {
             var np = noteParts[nj].replace(/^[¥￥]\\s*/, '').replace(/[元块人民币]+$/, '').trim();
-            if (/^\\d{4,5}(\\.\\d{1,2})?$/.test(np) && !/^(19|20)\\d{2}$/.test(np)) {
+            if (/^\\d{4,5}(\\.\\d{1,2})?$/.test(np) && !/^(19|20)\d{2}$/.test(np)) {
               fund = np;
               noteParts.splice(nj, 1);
               break;
@@ -10699,7 +10699,7 @@ function updateAutoDialBtn() {
       // 仅将整段内容为 4-5 位数字（可带两位小数）的值识别为基数，避免误提取普通备注中的数字。
       function restoreLegacyFund(value) {
         var text = String(value == null ? '' : value).trim();
-        if (!c.fund && /^\\d{4,5}(?:\\.\\d{1,2})?$/.test(text) && !/^(19|20)\\d{2}$/.test(text)) {
+        if (!c.fund && /^\d{4,5}(?:\.\d{1,2})?$/.test(text) && !/^(19|20)\\d{2}$/.test(text)) {
           c.fund = text;
           return true;
         }
