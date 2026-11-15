@@ -10699,7 +10699,7 @@ function updateAutoDialBtn() {
       // 仅将整段内容为 4-5 位数字（可带两位小数）的值识别为基数，避免误提取普通备注中的数字。
       function restoreLegacyFund(value) {
         var text = String(value == null ? '' : value).trim();
-        if (!c.fund && /^\d{4,5}(?:\.\d{1,2})?$/.test(text) && !/^(19|20)\\d{2}$/.test(text)) {
+        if (!c.fund && /^\d{4,5}(?:\.\d{1,2})?$/.test(text) && !/^(19|20)\d{2}$/.test(text)) {
           c.fund = text;
           return true;
         }
