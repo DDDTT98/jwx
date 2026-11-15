@@ -3209,7 +3209,7 @@ export default {
           });
         }
         if (!env.SUPABASE_URL || !env.SUPABASE_KEY) throw new Error('Supabase 未配置');
-        var xlsxExportUrl = env.SUPABASE_URL.replace(/\\/$/, '') +
+        var xlsxExportUrl = env.SUPABASE_URL.replace(/\/$/, '') +
           '/rest/v1/customers?select=name,mobile,company_name,fund,storage_institution,last_operation&order=id.asc';
         var xlsxExportHeaders = {
           'apikey': env.SUPABASE_KEY,
@@ -3233,7 +3233,7 @@ export default {
           var xlsxExportPage = await xlsxExportResp.json();
           if (!Array.isArray(xlsxExportPage)) throw new Error('Supabase 返回的数据格式不正确');
           var xlsxContentRange = xlsxExportResp.headers.get('content-range') || '';
-          var xlsxTotalMatch = xlsxContentRange.match(/\\/(\\d+)$/);
+          var xlsxTotalMatch = xlsxContentRange.match(/\/(\d+)$/);
           if (xlsxExportTotal === null && xlsxTotalMatch) xlsxExportTotal = Number(xlsxTotalMatch[1]);
           xlsxExportRows = xlsxExportRows.concat(xlsxExportPage);
           xlsxExportOffset += xlsxExportPage.length;
