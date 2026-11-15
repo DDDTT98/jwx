@@ -4984,6 +4984,15 @@
       return parts.join(' ');
     }
 
+    function recordCompanyCopyDiag(stage, detail) {
+      try {
+        var logs = window.__JWX_COMPANY_COPY_DIAG || (window.__JWX_COMPANY_COPY_DIAG = []);
+        logs.push(Object.assign({ stage: stage, time: new Date().toISOString() }, detail || {}));
+        if (logs.length > 50) logs.splice(0, logs.length - 50);
+        console.info('[JWX company-copy diagnostic]', logs[logs.length - 1]);
+      } catch (err) {}
+    }
+
     function syncCopy(text) {
       var textarea = document.createElement('textarea');
       textarea.value = text;
@@ -4998,6 +5007,9 @@
         console.error('Copy failed:', err);
       }
       document.body.removeChild(textarea);
+      if (window.__JWX_COMPANY_COPY_DIAG_ACTIVE) {
+        recordCompanyCopyDiag('sync_copy_result', { success: !!ok, execCommandAvailable: typeof document.execCommand === 'function' });
+      }
       if (!ok) {
         // execCommand 不可用时异步兜底；页面即将跳转失焦，仅尽力而为
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -9475,9 +9487,31 @@
           });
         });
 
+        // 临时诊断：捕获单位名称触摸/点击是否到达列表容器，不记录客户文本。
+        if (!container.__jwxCompanyCopyDiagBound) {
+          container.__jwxCompanyCopyDiagBound = true;
+          ['pointerdown', 'touchstart', 'click'].forEach(function(eventName) {
+            container.addEventListener(eventName, function(e) {
+              var target = e.target && e.target.closest ? e.target.closest('.client-card-tag-company') : null;
+              if (!target) return;
+              recordCompanyCopyDiag('container_' + eventName, {
+                idx: target.dataset.idx || '',
+                targetTag: e.target.tagName || '',
+                targetClass: String(e.target.className || '').slice(0, 100),
+                scrollTop: container.scrollTop,
+                clientY: typeof e.clientY === 'number' ? e.clientY : null,
+                pointElement: (typeof e.clientX === 'number' && typeof e.clientY === 'number' && document.elementFromPoint(e.clientX, e.clientY))
+                  ? String(document.elementFromPoint(e.clientX, e.clientY).className || document.elementFromPoint(e.clientX, e.clientY).tagName || '').slice(0, 100)
+                  : ''
+              });
+            }, true);
+          });
+        }
+
         // Wire up company click copy
         container.querySelectorAll('.client-card-tag-company').forEach(function(b) {
           b.addEventListener('click', function(e) {
+            recordCompanyCopyDiag('handler_enter', { idx: b.dataset.idx || '', scrollTop: container.scrollTop });
             e.preventDefault();
             e.stopPropagation();
             var company = b.dataset.company;
@@ -9495,12 +9529,18 @@
               return;
             }
             var isCopyNote = b.dataset.copyNote === '1';
+            // 临时诊断仅记录复制流程状态，不记录客户资料或复制文本。
+            window.__JWX_COMPANY_COPY_DIAG_ACTIVE = true;
+            recordCompanyCopyDiag('copy_attempt', { platform: isIOSWebBrowser() ? 'ios' : (isAndroid ? 'android' : (isHarmonyOS ? 'harmony' : 'other')), copyNote: isCopyNote });
             // iOS 拨打列表：姓名、单位名称和备注统一同步复制后唤起微信。
             if (isIOSWebBrowser()) {
-              if (!copyAndOpenWechatOnIOS(copyText)) showCopyLimitToast('复制失败，请长按手动复制', true);
+              var iosCopyOk = copyAndOpenWechatOnIOS(copyText);
+              recordCompanyCopyDiag('ios_copy_return', { success: !!iosCopyOk });
+              if (!iosCopyOk) showCopyLimitToast('复制失败，请长按手动复制', true);
             } else if (isCopyNote || !openNativeWechatAddFriend(client, '', company)) {
               copyForAndroidWeb(copyText);
             }
+            window.__JWX_COMPANY_COPY_DIAG_ACTIVE = false;
 
             var cardEl = b.closest('.xls-dial-card');
             // 使用按钮自身 data-idx 对应的客户对象，避免卡片 DOM 索引与数据索引不一致
