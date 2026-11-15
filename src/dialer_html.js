@@ -5982,7 +5982,7 @@
           if (/姓名|客户|联系人|name|contact/i.test(cellVal)) matches++;
           if (/电话|手机|号码|phone|tel|mobile/i.test(cellVal)) matches++;
           if (/单位|公司|企业|company|firm|work/i.test(cellVal)) matches++;
-          if (/备注|沟通|记录|跟进|说明|介绍|详情|note|remark/i.test(cellVal)) matches++;
+          if (/备注|沟通|记录|跟进|说明|介绍|详情|公积金基数|公积金|fund|note|remark/i.test(cellVal)) matches++;
         }
         var hasPhoneData = false;
         for (var j = 0; j < row.length; j++) {
@@ -6010,7 +6010,7 @@
           else if (/姓名|客户|name/i.test(h)) nameIdx = i;
           else if (/电话|手机|号码|phone|tel|mobile/i.test(h)) phoneIdx = i;
           else if (/单位|公司|企业|company|firm|work/i.test(h)) companyIdx = i;
-          else if (/备注|沟通|记录|跟进|说明|介绍|详情|note|remark/i.test(h)) noteIdx = i;
+          else if (/备注|沟通|记录|跟进|说明|介绍|详情|公积金基数|公积金|fund|note|remark/i.test(h)) noteIdx = i;
         }
         
         if (phoneIdx === -1) {
@@ -6423,7 +6423,7 @@
         var noteVal = noteCol !== -1 ? String(row[noteCol] || '').trim() : '';
 
         var fundVal = '';
-        if (/^\d{4,5}$/.test(noteVal)) {
+        if (/^\d{4,5}(?:\.\d+)?$/.test(noteVal)) {
           fundVal = noteVal;
           noteVal = '';
         }
