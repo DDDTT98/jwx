@@ -3870,7 +3870,6 @@
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
-      <button class="crm-tool-btn blue" id="dbExportCustomersBtn" type="button" title="导出数据库中的全部客户为 CSV" style="display:none;">导出全部 CSV</button>
       <button class="crm-tool-btn orange" id="crmReassignToggle" type="button" style="display:none;">分配数据</button>
       <select id="dbImportBatchView" aria-label="按导入批次查看" title="按导入批次筛选客户" style="height:26px;width:112px;max-width:112px;min-width:0;flex:0 1 112px;padding:0 5px;border:1px solid var(--card-border);border-radius:7px;background:var(--bg-app);color:var(--text-main);font-size:.68rem;font-weight:600;white-space:nowrap;"><option value="">批次：全部</option></select>
       <div id="crmReassignGroup" style="display:none; flex:1 1 100%; flex-direction:column; align-items:stretch; gap:8px; padding:10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg);">
@@ -4381,8 +4380,6 @@
         if (tab) tab.style.display = master ? '' : 'none';
       });
       // 批量删除仅主账号可见：桌面工具栏与手机版底部操作栏同步控制
-      var exportCustomersBtn = document.getElementById('dbExportCustomersBtn');
-      if (exportCustomersBtn) exportCustomersBtn.style.display = master ? '' : 'none';
       var desktopBatchDelete = document.getElementById('crmBatchDeleteBtn');
       var mobileBatchDelete = document.getElementById('dbmBatchDeleteBtn');
       if (desktopBatchDelete) desktopBatchDelete.style.display = master ? '' : 'none';
@@ -12852,48 +12849,6 @@ function updateAutoDialBtn() {
           dbFetch();
         };
       }
-      // 主账号导出全部客户：服务端校验看板密码会话，并分页读取完整数据。
-      var exportCustomersBtn = document.getElementById('dbExportCustomersBtn');
-      if (exportCustomersBtn) {
-        exportCustomersBtn.onclick = async function() {
-          if (!isSessionMaster()) { alert('仅主账号可以导出全部客户'); return; }
-          if (!confirm('将从数据库导出全部客户资料。文件包含客户手机号等信息，请妥善保管。是否继续？')) return;
-          var originalText = exportCustomersBtn.textContent;
-          exportCustomersBtn.disabled = true;
-          exportCustomersBtn.textContent = '正在导出…';
-          try {
-            var response = await fetch('/api/dialer/customers/export-csv', {
-              method: 'GET',
-              headers: { 'Authorization': 'Bearer ' + getSessionToken() },
-              cache: 'no-store'
-            });
-            var contentType = response.headers.get('content-type') || '';
-            if (!response.ok) {
-              var errorMessage = contentType.indexOf('application/json') !== -1
-                ? ((await response.json()).error || '导出失败')
-                : (await response.text());
-              throw new Error(errorMessage);
-            }
-            var blob = await response.blob();
-            var count = response.headers.get('X-Export-Count') || '';
-            var downloadUrl = URL.createObjectURL(blob);
-            var link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = 'jwx_customers_' + new Date().toISOString().slice(0, 10) + '.csv';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(function() { URL.revokeObjectURL(downloadUrl); }, 60000);
-            alert('CSV 导出完成' + (count ? '，共 ' + count + ' 条客户记录' : '') + '。');
-          } catch (error) {
-            alert('CSV 导出失败：' + (error.message || '请稍后重试'));
-          } finally {
-            exportCustomersBtn.disabled = false;
-            exportCustomersBtn.textContent = originalText;
-          }
-        };
-      }
-
       // Toolbar action: 添加客户
       var addCustBtn = document.getElementById('crmAddCustBtn');
       if (addCustBtn) {
