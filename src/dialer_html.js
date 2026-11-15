@@ -3870,7 +3870,6 @@
       <button class="crm-tool-btn" id="dbBatchCatBtn" title="更多批量分类">批量分类</button>
       <button class="crm-tool-btn blue" id="dbAiCorrectFundBtn" title="AI 扫描公积金字段，自动识别并修正存错位置的数据">AI修正公积金</button>
       <button class="crm-tool-btn blue" id="crmManageColsBtn" title="管理自定义列">自定义列</button>
-      <button class="crm-tool-btn blue" id="dbExportCustomersXlsxBtn" type="button" title="导出数据库中的全部客户为 XLSX" style="display:none;">导出全部 XLSX</button>
       <button class="crm-tool-btn orange" id="crmReassignToggle" type="button" style="display:none;">分配数据</button>
       <select id="dbImportBatchView" aria-label="按导入批次查看" title="按导入批次筛选客户" style="height:26px;width:112px;max-width:112px;min-width:0;flex:0 1 112px;padding:0 5px;border:1px solid var(--card-border);border-radius:7px;background:var(--bg-app);color:var(--text-main);font-size:.68rem;font-weight:600;white-space:nowrap;"><option value="">批次：全部</option></select>
       <div id="crmReassignGroup" style="display:none; flex:1 1 100%; flex-direction:column; align-items:stretch; gap:8px; padding:10px; border:1px solid var(--card-border); border-radius:8px; background:var(--card-bg);">
@@ -4371,8 +4370,6 @@
     // 子账号隐藏仅限主账号使用的管理栏目（桌面与手机版同步）
     function syncManagerTabVisibility() {
       var master = isSessionMaster();
-      var exportXlsxBtn = document.getElementById('dbExportCustomersXlsxBtn');
-      if (exportXlsxBtn) exportXlsxBtn.style.display = master ? '' : 'none';
       var customSettingsBtn = document.getElementById('dbCustomSettingsBtn');
       if (customSettingsBtn) customSettingsBtn.style.display = master ? '' : 'none';
       var desktopBackup = document.querySelector('.crm-tab[data-tab="backupMgr"]');
@@ -12868,56 +12865,6 @@ function updateAutoDialBtn() {
           dbFetch();
         };
       }
-      // 主账号导出数据库全部客户为 XLSX；字段顺序固定，手机号按文本写入。
-      var exportXlsxBtn = document.getElementById('dbExportCustomersXlsxBtn');
-      if (exportXlsxBtn) {
-        exportXlsxBtn.onclick = async function() {
-          if (!isSessionMaster()) { alert('仅主账号可以导出全部客户'); return; }
-          if (!confirm('将导出数据库中的全部客户资料，包含手机号等个人信息。文件仅供你后续重新导入，请妥善保管。是否继续？')) return;
-          var originalText = exportXlsxBtn.textContent;
-          exportXlsxBtn.disabled = true;
-          exportXlsxBtn.textContent = '正在导出…';
-          try {
-            if (!window.XLSX || !window.XLSX.utils) {
-              await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-            }
-            var response = await fetch('/api/dialer/customers/export-xlsx', {
-              method: 'GET',
-              headers: { 'Authorization': 'Bearer ' + getSessionToken() },
-              cache: 'no-store'
-            });
-            var payload = await response.json();
-            if (!response.ok || !payload || payload.success !== true || !Array.isArray(payload.data)) {
-              throw new Error((payload && payload.error) || '导出失败');
-            }
-            var headers = ['姓名', '手机号码', '单位名称', '公积金基数', '在库机构', '操作时间'];
-            var rows = payload.data.map(function(row) {
-              return [
-                String(row.name || ''),
-                String(row.mobile || ''),
-                String(row.company_name || ''),
-                String(row.fund || ''),
-                String(row.storage_institution || ''),
-                String(row.operation_time || '')
-              ];
-            });
-            var wb = window.XLSX.utils.book_new();
-            var ws = window.XLSX.utils.aoa_to_sheet([headers].concat(rows), { cellDates: false });
-            ws['!cols'] = [{ wch: 14 }, { wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 20 }, { wch: 24 }];
-            ws['!autofilter'] = { ref: 'A1:F' + (rows.length + 1) };
-            window.XLSX.utils.book_append_sheet(wb, ws, '全部客户');
-            var exportDate = new Date().toISOString().slice(0, 10);
-            window.XLSX.writeFile(wb, 'jwx_全部客户_' + exportDate + '.xlsx', { compression: true });
-            alert('XLSX 导出完成，共 ' + rows.length + ' 条客户记录。');
-          } catch (error) {
-            alert('XLSX 导出失败：' + (error.message || '请稍后重试'));
-          } finally {
-            exportXlsxBtn.disabled = false;
-            exportXlsxBtn.textContent = originalText;
-          }
-        };
-      }
-
       // Toolbar action: 添加客户
       var addCustBtn = document.getElementById('crmAddCustBtn');
       if (addCustBtn) {
