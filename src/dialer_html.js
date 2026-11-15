@@ -10694,6 +10694,18 @@ function updateAutoDialBtn() {
       var noteStr = (c.note || '').trim();
       var parsed = { note: noteStr, custom: {} };
       if (!noteStr) return parsed;
+
+      // 历史数据兼容：旧版把公积金基数写在 note.note 中，而不是 customers.fund。
+      // 仅将整段内容为 4-5 位数字（可带两位小数）的值识别为基数，避免误提取普通备注中的数字。
+      function restoreLegacyFund(value) {
+        var text = String(value == null ? '' : value).trim();
+        if (!c.fund && /^\\d{4,5}(?:\\.\\d{1,2})?$/.test(text) && !/^(19|20)\\d{2}$/.test(text)) {
+          c.fund = text;
+          return true;
+        }
+        return false;
+      }
+
       if (noteStr.indexOf('{') === 0) {
         var braceCount = 0;
         var jsonEndIdx = -1;
@@ -10713,21 +10725,23 @@ function updateAutoDialBtn() {
           try {
             var obj = JSON.parse(jsonPart);
             if (obj && typeof obj === 'object') {
-              var baseNote = obj.note !== undefined ? obj.note : '';
+              var baseNote = obj.note !== undefined ? String(obj.note) : '';
               parsed.custom = obj.custom || {};
-              if (obj.fund) {
-                c.fund = obj.fund; // Restore fund to customer object
-              }
+              if (!c.fund && obj.fund) c.fund = String(obj.fund);
+              var baseNoteIsFund = restoreLegacyFund(baseNote);
               if (textPart) {
-                parsed.note = baseNote ? baseNote + '\\n' + textPart : textPart;
+                parsed.note = (baseNote && !baseNoteIsFund ? baseNote + '\\n' : '') + textPart;
               } else {
-                parsed.note = baseNote;
+                parsed.note = baseNoteIsFund ? '' : baseNote;
               }
               return parsed;
             }
           } catch (e) {}
         }
       }
+
+      // 兼容未封装 JSON 的纯数字历史备注；保留所有非纯数字备注原文。
+      if (restoreLegacyFund(noteStr)) parsed.note = '';
       return parsed;
     }
 
